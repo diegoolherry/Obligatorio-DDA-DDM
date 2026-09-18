@@ -34,7 +34,7 @@ The skill was created from Spanish-language course material but its instructions
 
 - Branch: `codex/project-course-skill`
 - Current task: complete
-- Work-unit commits: pending
-- Running authored changed lines: pending commit measurement
+- Work-unit commits: SCS-1 `e3ee38c` (`docs: translate course skill to Spanish`)
+- Running authored changed lines: 345
 - SCS-1 evidence: translated the entry point, four references, repository guidance, checker messages, and example UI copy; preserved skill name, file paths, YAML keys, code identifiers, and script flags. The checker compilation, self-test, strict scan, and whitespace check passed.
 - Next step: use the Spanish skill as the convention source for subsequent implementation.
