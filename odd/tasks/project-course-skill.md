@@ -40,7 +40,7 @@ The repository has no implementation conventions yet. Generic framework advice c
 
 - Branch: `codex/project-course-skill`
 - Current task: PCS-2
-- Work-unit commits: pending
-- Running authored changed lines: pending first commit measurement
+- Work-unit commits: PCS-1 `fe52877` (`feat: add project course conventions skill`)
+- Running authored changed lines: 345
 - PCS-1 evidence: created the skill entry point, four focused references, and two typed starter assets; `git diff --check` passed. The official validator is deferred to PCS-2 because its local Python dependency `yaml` is unavailable.
 - Next step: add registration and the conservative project checker, then validate the complete skill.
