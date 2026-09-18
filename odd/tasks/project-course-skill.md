@@ -31,7 +31,7 @@ The repository has no implementation conventions yet. Generic framework advice c
   - Add `SKILL.md`, DDA/DAM/UX references, and starter assets.
   - Acceptance: guidance is traceable to the supplied material and separates mandatory course conventions from situational choices.
   - Checks: inspect all files; validate examples against their documented conventions.
-- [ ] **PCS-2 — Register and validate the skill**
+- [x] **PCS-2 — Register and validate the skill**
   - Add repository activation guidance and a conservative project checker.
   - Acceptance: agents can discover the skill; validation succeeds; checker reports only high-confidence patterns and supports an empty repository.
   - Checks: official skill validator, checker self-test, checker run against repository.
@@ -39,8 +39,9 @@ The repository has no implementation conventions yet. Generic framework advice c
 ## Progress and evidence
 
 - Branch: `codex/project-course-skill`
-- Current task: PCS-2
-- Work-unit commits: PCS-1 `fe52877` (`feat: add project course conventions skill`)
-- Running authored changed lines: 345
+- Current task: complete
+- Work-unit commits: PCS-1 `fe52877` (`feat: add project course conventions skill`); PCS-2 `f909caf` (`chore: register and validate project skill`)
+- Running authored changed lines: 410 (feature complete; approximately the single-slice guideline)
 - PCS-1 evidence: created the skill entry point, four focused references, and two typed starter assets; `git diff --check` passed. The official validator is deferred to PCS-2 because its local Python dependency `yaml` is unavailable.
-- Next step: add registration and the conservative project checker, then validate the complete skill.
+- PCS-2 evidence: registered the skill in `AGENTS.md`; the official `quick_validate.py` passed using a temporary PyYAML install; checker compilation, self-test, strict repository scan, and `git diff --check` passed.
+- Next step: define the product MVP in a separate feature, as requested after the skill.
