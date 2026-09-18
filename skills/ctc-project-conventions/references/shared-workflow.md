@@ -1,31 +1,30 @@
-# Shared implementation workflow
+# Flujo compartido de implementación
 
-## Before coding
+## Antes de programar
 
-- Start from the user's goal and the observable result, not from framework components.
-- Trace the happy path and relevant failures. For networked flows include latency, no connection, server failure, empty data, success, and retry.
-- Define contracts first: C# models/DTOs and TypeScript types must describe the same API meaning without exposing persistence entities.
-- Prefer one small vertical slice that can be demonstrated over several disconnected layers.
+- Partí del objetivo del usuario y del resultado observable, no de componentes del framework.
+- Trazá el camino feliz y los fallos relevantes. Para flujos de red incluí latencia, falta de conexión, fallo del servidor, datos vacíos, éxito y reintento.
+- Definí primero los contratos: los modelos/DTO de C# y los tipos de TypeScript deben describir el mismo significado de API sin exponer entidades de persistencia.
+- Preferí un corte vertical pequeño y demostrable antes que varias capas desconectadas.
 
-## Responsibility boundaries
+## Límites de responsabilidad
 
-| Concern | Owner |
+| Responsabilidad | Encargado |
 | --- | --- |
-| Rendering and user events | Razor component or React Native component |
-| Reusable UI state/behavior | Child component or custom hook |
-| Business/data operation | Blazor service or mobile action/service |
-| Remote boundary | API client and explicit DTOs |
-| Validation | Typed model plus UI feedback |
+| Renderizado y eventos de usuario | Componente Razor o React Native |
+| Estado/comportamiento de UI reutilizable | Componente hijo o custom hook |
+| Operación de negocio/datos | Servicio Blazor o acción/servicio móvil |
+| Límite remoto | Cliente API y DTO explícitos |
+| Validación | Modelo tipado más feedback de UI |
 
-Keep names intention-revealing. Use PascalCase for public C# types, properties, and methods; camelCase for local TypeScript values and private component state; prefix private C# fields with `_` when the surrounding project follows the class examples.
+Usá nombres que expresen intención. Usá PascalCase para tipos, propiedades y métodos públicos de C#; camelCase para valores locales de TypeScript y estado privado de componentes; prefijá campos privados de C# con `_` cuando el proyecto siga los ejemplos de clase.
 
-## Working rhythm
+## Ritmo de trabajo
 
-1. Compile or run from a known-good state.
-2. Change one concept at a time.
-3. Read the first relevant error, not only the last line.
-4. Verify the responsible layer: build, service/action, dependency injection or imports, event, then state/rendering.
-5. Return to the last working state instead of stacking speculative fixes.
+1. Compilá o ejecutá desde un estado conocido que funciona.
+2. Cambiá un concepto por vez.
+3. Leé el primer error relevante, no solo la última línea.
+4. Verificá la capa responsable: compilación, servicio/acción, inyección de dependencias o imports, evento y luego estado/renderizado.
+5. Volvé al último estado funcional en lugar de acumular correcciones especulativas.
 
-Do not add abstractions, packages, or global state until a concrete repetition or requirement justifies them.
-
+No agregues abstracciones, paquetes ni estado global hasta que una repetición o requisito concreto los justifique.

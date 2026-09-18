@@ -1,34 +1,33 @@
-# Mobile UX and Figma handoff
+# UX móvil y handoff desde Figma
 
-## Design sequence
+## Secuencia de diseño
 
-Work in this order: problem, user flow, wireframe, mockup, prototype. A screen is not complete because it looks polished; it must advance a user goal or support a clear decision.
+Trabajá en este orden: problema, flujo de usuario, wireframe, mockup y prototipo. Una pantalla no está completa porque se vea bien; debe avanzar un objetivo del usuario o apoyar una decisión clara.
 
-- Define context, goal, constraints, and a verifiable success condition.
-- Draw the happy path and important error/offline paths before screens.
-- Give each screen a clear purpose and one dominant action.
-- Prototype tasks rather than the whole application, then test without telling the user where to tap.
-- Organize Figma with frames, pages, reusable components, variants, and Auto Layout. Translate frames to `View`, text to `Text`, Auto Layout direction to Flexbox, and variants to props/state.
+- Definí contexto, objetivo, restricciones y una condición de éxito verificable.
+- Dibujá el camino feliz y los caminos importantes de error/sin conexión antes de las pantallas.
+- Asigná a cada pantalla un propósito claro y una acción dominante.
+- Prototipá tareas en lugar de toda la aplicación y luego probalas sin decirle a la persona dónde tocar.
+- Organizá Figma con frames, páginas, componentes reutilizables, variantes y Auto Layout. Traducí frames a `View`, texto a `Text`, dirección de Auto Layout a Flexbox y variantes a props/estado.
 
-## Mobile interface rules
+## Reglas de interfaz móvil
 
-- Respect safe areas and system controls.
-- Use a consistent spacing scale based on 4 or 8.
-- Make interactive targets about 48 by 48 density-independent units when practical.
-- Maintain visible pressed, loading, success, disabled, and error feedback.
-- Do not communicate status with color alone. Target at least 4.5:1 contrast for normal text and 3:1 for large text.
-- Ask only for necessary form data; use the matching keyboard; preserve values after an error; validate near the field without interrupting every keystroke.
-- Make permissions explicit and design for delayed, interrupted, or absent connectivity.
+- Respetá las áreas seguras y los controles del sistema.
+- Usá una escala de espaciado consistente basada en 4 u 8.
+- Hacé que los objetivos interactivos tengan aproximadamente 48 por 48 unidades independientes de densidad cuando sea práctico.
+- Mantené feedback visible de presionado, carga, éxito, deshabilitado y error.
+- No comuniques estado solamente con color. Buscá al menos contraste 4.5:1 para texto normal y 3:1 para texto grande.
+- Pedí solo datos necesarios en formularios; usá el teclado correspondiente; conservá valores tras un error; validá cerca del campo sin interrumpir cada pulsación.
+- Hacé explícitos los permisos y diseñá para conectividad demorada, interrumpida o ausente.
 
-## Handoff checklist
+## Lista de verificación de handoff
 
-- Main task is understandable without explanation.
-- Loading, empty, error, offline, and success states exist where applicable.
-- Components and spacing are reusable and consistent.
-- Destructive actions require confirmation or a practical undo path.
-- Design decisions can be explained from user, task, and context evidence.
+- La tarea principal se entiende sin explicación.
+- Existen estados de carga, vacío, error, sin conexión y éxito cuando aplican.
+- Los componentes y espaciados son reutilizables y consistentes.
+- Las acciones destructivas requieren confirmación o una vía práctica para deshacer.
+- Las decisiones de diseño se pueden explicar a partir de evidencia de usuario, tarea y contexto.
 
-## Source basis
+## Base de las fuentes
 
-Derived from the supplied `Figma_to_React_Native.pdf` and `Mobile_UX_UI_Blueprint.pdf`.
-
+Derivada de los archivos suministrados `Figma_to_React_Native.pdf` y `Mobile_UX_UI_Blueprint.pdf`.

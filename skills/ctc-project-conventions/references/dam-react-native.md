@@ -1,39 +1,38 @@
-# DAM: React Native, TypeScript, and Expo
+# DAM: React Native, TypeScript y Expo
 
-## Platform rules
+## Reglas de plataforma
 
-- Use the repository's Expo setup and verify the configured SDK. Class setup uses `create-expo-app`, `npx expo start`, and Expo Go on a device sharing the development network.
-- Use `View`, `Text`, `Image`, `TextInput`, `Pressable`, `ScrollView`, and `FlatList`; do not use HTML tags.
-- Keep visible strings inside `Text`. Give images non-zero dimensions.
-- Use `StyleSheet.create`, camelCase style properties, numeric density-independent values, and Flexbox. React Native defaults to column direction.
-- Use `ScrollView` for short static content and `FlatList` for collections that may grow, with a stable domain key.
+- Usá la configuración Expo del repositorio y verificá el SDK configurado. La clase usa `create-expo-app`, `npx expo start` y Expo Go en un dispositivo que comparte la red de desarrollo.
+- Usá `View`, `Text`, `Image`, `TextInput`, `Pressable`, `ScrollView` y `FlatList`; no uses etiquetas HTML.
+- Mantené las cadenas visibles dentro de `Text`. Asigná dimensiones mayores que cero a las imágenes.
+- Usá `StyleSheet.create`, propiedades de estilo en camelCase, valores numéricos independientes de densidad y Flexbox. React Native usa dirección de columna por defecto.
+- Usá `ScrollView` para contenido corto y estático, y `FlatList` para colecciones que puedan crecer, con una clave estable de dominio.
 
-## React and TypeScript
+## React y TypeScript
 
-- Components render UI; props are read-only inputs; state belongs to the component that changes it.
-- Define interfaces/types for props, API data, and domain values. Use `?` only when absence is valid. Never replace uncertainty with `any`.
-- Update state through its setter and create a new array/object; never mutate existing state.
-- Prefer props for shallow relationships. Use Context for real cross-cutting state such as authentication or theme, not as a default store.
-- Extract reusable stateful logic into a `use...` hook. Hooks return data/actions and do not render UI.
-- Use `useEffect` only to synchronize with HTTP, timers, subscriptions, or device APIs. Derive computable values during render.
+- Los componentes renderizan UI; las props son entradas de solo lectura; el estado pertenece al componente que lo cambia.
+- Definí interfaces/tipos para props, datos de API y valores de dominio. Usá `?` solo cuando la ausencia sea válida. Nunca reemplaces incertidumbre por `any`.
+- Actualizá estado mediante su setter y creá un array/objeto nuevo; nunca mutés el estado existente.
+- Preferí props para relaciones poco profundas. Usá Context para estado transversal real como autenticación o tema, no como store por defecto.
+- Extraé lógica de estado reutilizable a un hook `use...`. Los hooks devuelven datos/acciones y no renderizan UI.
+- Usá `useEffect` solo para sincronizar con HTTP, temporizadores, suscripciones o API del dispositivo. Derivá valores calculables durante el renderizado.
 
-## Data and forms
+## Datos y formularios
 
-- Represent remote work with loading, empty, error, success, and retry states.
-- Keep HTTP/business operations in an action or service, not in a large screen component.
-- Controlled inputs use `value` and `onChangeText`. For a complex form, a typed form library is acceptable only if the project already uses it or the team approves the dependency.
-- Preserve entered values after recoverable validation or network errors.
+- Representá trabajo remoto con estados de carga, vacío, error, éxito y reintento.
+- Mantené operaciones HTTP/de negocio en una acción o servicio, no en un componente de pantalla grande.
+- Las entradas controladas usan `value` y `onChangeText`. Para un formulario complejo, una librería de formularios tipada es aceptable solo si el proyecto ya la usa o el equipo aprueba la dependencia.
+- Conservá los valores ingresados después de errores recuperables de validación o red.
 
-See `../assets/react-native-async-list-pattern.tsx` for the state shape and list boundary.
+Consultá `../assets/react-native-async-list-pattern.tsx` para la forma del estado y el límite de la lista.
 
-## Review checks
+## Verificaciones de revisión
 
-- No direct state mutation, unstable index keys, unexplained `any`, or monolithic `App.tsx`.
-- A list item is a small typed component when it has meaningful presentation or interaction.
-- Effects have correct dependencies and perform external synchronization.
-- The first relevant terminal or device error is investigated before clearing cache; use a clean Expo cache only when cache is a plausible cause.
+- No debe haber mutación directa de estado, claves de índice inestables, `any` sin explicación ni un `App.tsx` monolítico.
+- Un ítem de lista es un componente tipado pequeño cuando tiene presentación o interacción significativa.
+- Los efectos tienen dependencias correctas y realizan sincronización externa.
+- Investigá el primer error relevante de terminal o dispositivo antes de limpiar caché; usá una caché limpia de Expo solo cuando la caché sea una causa plausible.
 
-## Source basis
+## Base de las fuentes
 
-Derived from the supplied React Native Essentials, Expo Essentials, Mobile Blueprint, Universal React Blueprint, and React + TypeScript construction manual.
-
+Derivada de los materiales suministrados React Native Essentials, Expo Essentials, Mobile Blueprint, Universal React Blueprint y el manual de construcción React + TypeScript.

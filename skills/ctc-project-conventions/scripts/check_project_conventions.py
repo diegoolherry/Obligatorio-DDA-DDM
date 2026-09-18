@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-"""Report a small set of high-confidence course-convention warnings."""
+"""Informa un conjunto pequeño de advertencias de convenciones de clase."""
 
 import argparse
 import re
 from pathlib import Path
 
 RULES = {
-    ".ts": [(r"\bany\b", "avoid TypeScript any")],
+    ".ts": [(r"\bany\b", "evitá TypeScript any")],
     ".tsx": [
-        (r"\bany\b", "avoid TypeScript any"),
-        (r"key\s*=\s*\{\s*(?:index|i)\s*\}", "use a stable domain key"),
-        (r"</?(?:div|span|button|input|p)\b", "use React Native components, not HTML"),
+        (r"\bany\b", "evitá TypeScript any"),
+        (r"key\s*=\s*\{\s*(?:index|i)\s*\}", "usá una clave estable de dominio"),
+        (r"</?(?:div|span|button|input|p)\b", "usá componentes de React Native, no HTML"),
     ],
     ".razor": [
-        (r"new\s+\w+Service\s*\(", "inject services instead of constructing them"),
-        (r'@on(?:click|change|input)\s*=\s*"[A-Za-z_]\w*\(\)"', "pass the event method without parentheses"),
+        (r"new\s+\w+Service\s*\(", "inyectá servicios en lugar de construirlos"),
+        (r'@on(?:click|change|input)\s*=\s*"[A-Za-z_]\w*\(\)"', "pasá el método de evento sin paréntesis"),
     ],
 }
 
@@ -40,10 +40,10 @@ def main() -> int:
     if args.self_test:
         cases = [(r"\bany\b", "let value: any"), (RULES[".razor"][1][0], '@onclick="Save()"')]
         assert all(re.search(pattern, sample) for pattern, sample in cases)
-        print("Self-test passed")
+        print("Autoprueba superada")
         return 0
     warnings = scan(Path(args.root))
-    print("\n".join(warnings) if warnings else "No convention warnings found")
+    print("\n".join(warnings) if warnings else "No se encontraron advertencias de convenciones")
     return 1 if args.strict and warnings else 0
 
 

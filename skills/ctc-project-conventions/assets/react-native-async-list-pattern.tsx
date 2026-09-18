@@ -14,7 +14,7 @@ type Props = {
 
 export function AsyncListScreen({ items, isLoading, errorMessage, onRetry }: Props) {
   if (isLoading) {
-    return <StateMessage message="Loading…" />;
+    return <StateMessage message="Cargando…" />;
   }
 
   if (errorMessage) {
@@ -22,14 +22,14 @@ export function AsyncListScreen({ items, isLoading, errorMessage, onRetry }: Pro
       <View style={styles.stateContainer}>
         <Text accessibilityRole="alert">{errorMessage}</Text>
         <Pressable accessibilityRole="button" onPress={onRetry} style={styles.button}>
-          <Text style={styles.buttonText}>Retry</Text>
+          <Text style={styles.buttonText}>Reintentar</Text>
         </Pressable>
       </View>
     );
   }
 
   if (items.length === 0) {
-    return <StateMessage message="No results found." />;
+    return <StateMessage message="No se encontraron resultados." />;
   }
 
   return (

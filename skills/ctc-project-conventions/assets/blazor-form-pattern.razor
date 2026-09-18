@@ -3,15 +3,15 @@
 <EditForm Model="request" OnValidSubmit="SubmitAsync">
     <DataAnnotationsValidator />
 
-    <label for="origin">Origin</label>
+    <label for="origin">Origen</label>
     <InputText id="origin" @bind-Value="request.Origin" />
     <ValidationMessage For="@(() => request.Origin)" />
 
-    <label for="travel-date">Travel date</label>
+    <label for="travel-date">Fecha de viaje</label>
     <InputDate id="travel-date" @bind-Value="request.TravelDate" />
     <ValidationMessage For="@(() => request.TravelDate)" />
 
-    <button type="submit">Search trips</button>
+    <button type="submit">Buscar viajes</button>
 </EditForm>
 
 @code {
@@ -40,4 +40,3 @@
         public DateOnly? TravelDate { get; set; }
     }
 }
-

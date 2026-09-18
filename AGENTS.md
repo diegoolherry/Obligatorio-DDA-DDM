@@ -1,10 +1,9 @@
-# Repository guidance
+# Guía del repositorio
 
-## Project skill
+## Skill del proyecto
 
-Before planning, implementing, debugging, or reviewing Blazor, C#, API, React Native, TypeScript, Expo, or mobile UX work, load and follow:
+Antes de planificar, implementar, depurar o revisar trabajo de Blazor, C#, API, React Native, TypeScript, Expo o UX móvil, cargá y seguí:
 
 `skills/ctc-project-conventions/SKILL.md`
 
-The current assignment rubric and repository configuration override the skill when they conflict. Report the conflict instead of silently guessing, and update the skill only when the team approves the new convention.
-
+La consigna vigente y la configuración del repositorio prevalecen sobre la skill si hay conflicto. Informalo en lugar de asumir una solución, y actualizá la skill solo cuando el equipo apruebe la nueva convención.

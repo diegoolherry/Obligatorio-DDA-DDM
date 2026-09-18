@@ -1,50 +1,50 @@
 ---
 name: ctc-project-conventions
-description: Apply the course conventions for Blazor, C#, APIs, React Native, TypeScript, Expo, and mobile UX in this repository. Use when planning, implementing, debugging, or reviewing .razor, .cs, .ts, or .tsx files, forms, components, services, hooks, lists, HTTP states, or Figma-to-native work.
+description: Aplicar las convenciones de clase para Blazor, C#, API, React Native, TypeScript, Expo y UX móvil. Usar al planificar, implementar, depurar o revisar archivos .razor, .cs, .ts o .tsx, formularios, componentes, servicios, hooks, listas, estados HTTP o trabajo de Figma a nativo.
 ---
 
-# CTC Project Conventions
+# Convenciones del proyecto CTC
 
-## Activation Contract
+## Contrato de activación
 
-1. Read `references/shared-workflow.md`.
-2. Read `references/dda-blazor.md` for Blazor/C# work or `references/dam-react-native.md` for mobile work.
-3. Read `references/mobile-ux.md` before creating or changing a user flow or screen.
-4. Treat the course rubric and current project configuration as authoritative when they conflict with this skill; report the conflict and update the skill only with user approval.
+1. Leé `references/shared-workflow.md`.
+2. Leé `references/dda-blazor.md` para trabajo de Blazor/C# o `references/dam-react-native.md` para trabajo móvil.
+3. Leé `references/mobile-ux.md` antes de crear o cambiar un flujo de usuario o una pantalla.
+4. Si la consigna o la configuración vigente contradice esta skill, informá el conflicto y seguí la fuente vigente. Actualizá la skill solo con aprobación del equipo.
 
-## Hard Rules
+## Reglas obligatorias
 
-- Preserve strict responsibility boundaries: UI renders and dispatches events; services/actions own business or data operations; models/types define contracts.
-- Register Blazor services through dependency injection and inject them; never construct a service in a Razor component.
-- Use typed contracts. Do not introduce TypeScript `any` to silence errors.
-- Never mutate React state directly or edit a shared Blazor model accidentally; create a new or copied value.
-- Model loading, empty, error, success, and retry where remote data is involved.
-- Use native React Native elements, not HTML elements, and keep visible text inside `Text`.
-- Add no dependency merely to avoid understanding or implementing a small course concept.
-- Keep each change small, compilable, and explainable by both students.
+- Mantené límites claros de responsabilidad: la UI renderiza y despacha eventos; los servicios o acciones poseen las operaciones de negocio o datos; los modelos y tipos definen contratos.
+- Registrá los servicios de Blazor mediante inyección de dependencias e inyectalos; nunca construyas un servicio dentro de un componente Razor.
+- Usá contratos tipados. No introduzcas `any` en TypeScript para ocultar errores.
+- No mutés directamente el estado de React ni edites accidentalmente un modelo compartido de Blazor; creá o copiá un valor.
+- Modelá carga, vacío, error, éxito y reintento cuando intervengan datos remotos.
+- Usá elementos nativos de React Native, no elementos HTML, y mantené el texto visible dentro de `Text`.
+- No agregues una dependencia solamente para evitar comprender o implementar un concepto pequeño de clase.
+- Mantené cada cambio pequeño, compilable y explicable por ambos estudiantes.
 
-## Decision Gates
+## Puertas de decisión
 
-- **Blazor:** decide page versus reusable component, then UI versus service responsibility, before writing code.
-- **React Native:** decide props versus local state; use Context only for genuinely global state and effects only for external systems.
-- **Collections:** use LINQ in C#; use stable keys and `FlatList` for mobile collections that can grow.
-- **Forms:** define the typed model and validation rules before UI fields.
-- **UX:** define the user goal, happy path, failure paths, permissions, and connectivity behavior before visual polish.
-- **API:** keep clients dependent on explicit request/response contracts, not server entities. Until API course material or the rubric defines more, avoid inventing project policy.
+- **Blazor:** decidí página versus componente reutilizable y luego responsabilidad de UI versus servicio antes de escribir código.
+- **React Native:** decidí props versus estado local; usá Context solo para estado realmente global y efectos solo para sistemas externos.
+- **Colecciones:** usá LINQ en C#; usá claves estables y `FlatList` para colecciones móviles que puedan crecer.
+- **Formularios:** definí el modelo tipado y las reglas de validación antes de los campos de UI.
+- **UX:** definí objetivo del usuario, camino feliz, fallos, permisos y conectividad antes del pulido visual.
+- **API:** mantené a los clientes dependientes de contratos explícitos de solicitud/respuesta, no de entidades del servidor. Hasta que la consigna o el material de API definan más, no inventes políticas del proyecto.
 
-## Execution Steps
+## Pasos de ejecución
 
-1. Inspect nearby code and identify the applicable reference rules.
-2. Write the user flow and interface states for behavior that crosses screens or the network.
-3. Implement the smallest coherent vertical slice with typed boundaries.
-4. Validate using the project build/tests plus `scripts/check_project_conventions.py` when available.
-5. Report assumptions, skipped checks, and any intentional deviation from the course conventions.
+1. Inspeccioná el código cercano e identificá las reglas de referencia aplicables.
+2. Escribí el flujo de usuario y los estados de interfaz para comportamientos que cruzan pantallas o la red.
+3. Implementá el corte vertical coherente más pequeño, con límites tipados.
+4. Validá con la compilación o pruebas del proyecto y `scripts/check_project_conventions.py` cuando esté disponible.
+5. Informá supuestos, verificaciones omitidas y cualquier desvío intencional de las convenciones de clase.
 
-## Output Contract
+## Contrato de salida
 
-For implementation or review, state the affected layer, files changed, checks run, and unresolved assumptions. Explain architectural choices in course terms rather than naming patterns without justification.
+En una implementación o revisión, indicá la capa afectada, los archivos modificados, las verificaciones ejecutadas y los supuestos sin resolver. Explicá las decisiones arquitectónicas con conceptos de clase en lugar de nombrar patrones sin justificación.
 
-## References
+## Referencias
 
 - `references/shared-workflow.md`
 - `references/dda-blazor.md`
@@ -52,4 +52,3 @@ For implementation or review, state the affected layer, files changed, checks ru
 - `references/mobile-ux.md`
 - `assets/blazor-form-pattern.razor`
 - `assets/react-native-async-list-pattern.tsx`
-
