@@ -35,7 +35,7 @@ The product idea and several real-world rules are known, but there is no shared 
 
 - Branch: `codex/project-course-skill`
 - Current task: complete
-- Work-unit commits: pending
-- Running authored changed lines: pending commit measurement
+- Work-unit commits: MVP-1 `50e88ac` (`docs: define Berrutti academic MVP`)
+- Running authored changed lines: 380
 - MVP-1 evidence: `docs/mvp.md` separates confirmed observations, academic decisions, and open questions; contains 19 scannable sections, 13 business rules, 10 acceptance scenarios, explicit exclusions, and a definition-of-done checklist. Structure checks and the project convention checker passed.
 - Next step: compare this baseline with the official assignment when it is published.
