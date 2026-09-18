@@ -1,0 +1,43 @@
+@using System.ComponentModel.DataAnnotations
+
+<EditForm Model="request" OnValidSubmit="SubmitAsync">
+    <DataAnnotationsValidator />
+
+    <label for="origin">Origin</label>
+    <InputText id="origin" @bind-Value="request.Origin" />
+    <ValidationMessage For="@(() => request.Origin)" />
+
+    <label for="travel-date">Travel date</label>
+    <InputDate id="travel-date" @bind-Value="request.TravelDate" />
+    <ValidationMessage For="@(() => request.TravelDate)" />
+
+    <button type="submit">Search trips</button>
+</EditForm>
+
+@code {
+    [Parameter, EditorRequired]
+    public EventCallback<TripSearchRequest> OnSubmit { get; set; }
+
+    private TripSearchRequest request = new();
+
+    private async Task SubmitAsync()
+    {
+        var submittedRequest = new TripSearchRequest
+        {
+            Origin = request.Origin,
+            TravelDate = request.TravelDate
+        };
+
+        await OnSubmit.InvokeAsync(submittedRequest);
+    }
+
+    public sealed class TripSearchRequest
+    {
+        [Required]
+        public string Origin { get; set; } = string.Empty;
+
+        [Required]
+        public DateOnly? TravelDate { get; set; }
+    }
+}
+
