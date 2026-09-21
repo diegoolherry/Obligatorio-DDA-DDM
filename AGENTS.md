@@ -7,3 +7,15 @@ Antes de planificar, implementar, depurar o revisar trabajo de Blazor, C#, API, 
 `skills/ctc-project-conventions/SKILL.md`
 
 La consigna vigente y la configuración del repositorio prevalecen sobre la skill si hay conflicto. Informalo en lugar de asumir una solución, y actualizá la skill solo cuando el equipo apruebe la nueva convención.
+
+## Backlog compartido del MVP
+
+`docs/mvp-tasks.json` es la fuente de verdad del backlog. Debe mantenerse como JSON válido y sus tareas deben conservar un `id` y `createdAt` inmutables.
+
+- Usá únicamente los estados `pending`, `in_progress`, `blocked` y `done`. Las transiciones válidas son `pending` → `in_progress` o `blocked`; `in_progress` → `blocked` o `done`; y `blocked` → `pending` o `in_progress` al resolver el impedimento. Una tarea `done` no se reabre: creá una tarea nueva si surge trabajo adicional.
+- Antes de iniciar una tarea, comprobá que sus dependencias estén en `done`; cualquier excepción debe quedar justificada como bloqueo o decisión explícita en `evidence`.
+- Al pasar por primera vez a `in_progress`, registrá `startedAt` con la hora actual del sistema en ISO 8601 y offset UTC explícito. No modifiques ese valor después.
+- Al pasar a `done`, verificá todos los `acceptanceCriteria`, registrá en `evidence` los comandos, resultados o enlaces que lo demuestren y completá `completedAt` y `completedBy`. Antes de completarla, estos campos permanecen en `null` y no se inventa evidencia de finalización.
+- Al bloquear una tarea, conservá el motivo concreto y qué la desbloquea en `evidence`; no marques trabajo incompleto como `done`.
+- Obtené cada timestamp de la hora actual del sistema con un offset UTC explícito; no fabriques fechas, horas ni los separes en campos distintos.
+- El `reviewer` debe ser la otra persona: Diego revisa las tareas de Enzo y Enzo revisa las tareas de Diego. La revisión cruzada debe confirmar los criterios de aceptación antes de marcar una tarea como `done`.

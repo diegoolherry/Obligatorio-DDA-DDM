@@ -1,0 +1,185 @@
+{
+  "metadata": {
+    "nombre": "Backlog compartido del MVP académico",
+    "descripcion": "Plan de cortes verticales para el MVP de venta y validación de pasajes y abonos.",
+    "fuente": "docs/mvp.md",
+    "ordenRecomendado": "Las tareas se ejecutan en el orden de construcción indicado, completando una integración ejecutable por etapa.",
+    "mantenidoEn": "AGENTS.md",
+    "createdAt": "2026-09-21T17:45:04-03:00"
+  },
+  "tasks": [
+    {
+      "id": "MVP-001",
+      "name": "Fundación, contratos y autenticación por roles",
+      "description": "Crear la solución integrada con API, portal Blazor y aplicación React Native/Expo; definir contratos tipados iniciales y habilitar inicio/cierre de sesión con cuentas ficticias para pasajero, cobrador y administrador. La API debe aplicar la autorización por rol.",
+      "priority": "alta",
+      "area": ["API", "Blazor", "React Native"],
+      "status": "pending",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-09-21T17:45:04-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "Las tres cuentas ficticias pueden iniciar y cerrar sesión desde los clientes que corresponden a su rol.",
+        "La API rechaza una operación protegida cuando el rol no está autorizado.",
+        "Los contratos expuestos son tipados y no exponen entidades de persistencia."
+      ],
+      "evidence": null
+    },
+    {
+      "id": "MVP-002",
+      "name": "Configuración operativa y datos de demostración",
+      "description": "Implementar la administración de paradas, tramos, servicios, tarifas y usuarios de demostración, incluyendo Ombúes, Radial de Conchillas y Colonia; dejar configurados los dos servicios conectados y sus políticas de asiento.",
+      "priority": "alta",
+      "area": ["API", "Blazor"],
+      "status": "pending",
+      "assignee": "Enzo",
+      "reviewer": "Diego",
+      "createdAt": "2026-09-21T17:45:04-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": ["MVP-001"],
+      "acceptanceCriteria": [
+        "Un administrador puede gestionar paradas, tramos, servicios y tarifas ficticias desde Blazor.",
+        "Los datos de demostración incluyen los dos servicios Ombúes–Radial y Radial–Colonia para una fecha de prueba.",
+        "El primer servicio no requiere asiento y el segundo asigna asiento automáticamente."
+      ],
+      "evidence": null
+    },
+    {
+      "id": "MVP-003",
+      "name": "Búsqueda de itinerario de dos tramos",
+      "description": "Implementar la búsqueda de pasajero en Blazor y React Native contra la API para origen, destino y fecha; devolver y mostrar el itinerario ordenado, transbordo, horarios, precio total y política de asiento por tramo.",
+      "priority": "alta",
+      "area": ["API", "Blazor", "React Native"],
+      "status": "pending",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-09-21T17:45:04-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": ["MVP-001", "MVP-002"],
+      "acceptanceCriteria": [
+        "La búsqueda Ombúes–Colonia devuelve un itinerario ordenado de dos tramos conectados por Radial de Conchillas.",
+        "Ambos clientes muestran horarios, transbordo, precio total y la política de asiento de cada tramo.",
+        "La búsqueda contempla carga, resultado vacío, error y reintento."
+      ],
+      "evidence": null
+    },
+    {
+      "id": "MVP-004",
+      "name": "Compra, pago simulado y emisión de tickets",
+      "description": "Completar el corte de compra en ambos clientes con pago simulado determinista. La API debe registrar el pago y, solo tras una aprobación, crear en una operación consistente la compra y un ticket por tramo con QR opaco y asiento opcional.",
+      "priority": "alta",
+      "area": ["API", "Blazor", "React Native"],
+      "status": "pending",
+      "assignee": "Enzo",
+      "reviewer": "Diego",
+      "createdAt": "2026-09-21T17:45:04-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": ["MVP-003"],
+      "acceptanceCriteria": [
+        "Un pago simulado aprobado registra importe, fecha, usuario, referencia y estado, y emite dos tickets con QR distintos.",
+        "Un pago simulado rechazado no emite tickets y permite reintentar la compra.",
+        "No se solicitan ni almacenan datos financieros reales.",
+        "El ticket del primer tramo no tiene asiento y el segundo tiene un asiento asignado automáticamente."
+      ],
+      "evidence": null
+    },
+    {
+      "id": "MVP-005",
+      "name": "Visualización QR y validación de ticket",
+      "description": "Permitir que el pasajero consulte y muestre cada QR de ticket y que el cobrador seleccione el tramo actual, escanee el código y reciba el resultado de la validación desde la API. La validación debe consumir el ticket de forma atómica.",
+      "priority": "alta",
+      "area": ["API", "Blazor", "React Native"],
+      "status": "pending",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-09-21T17:45:04-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": ["MVP-004"],
+      "acceptanceCriteria": [
+        "El pasajero puede consultar tickets vigentes o utilizados y mostrar el QR opaco de cada tramo.",
+        "El cobrador recibe resultados claros para ticket válido, ya utilizado, vencido, tramo incorrecto y código inexistente.",
+        "El primer escaneo válido marca el ticket como utilizado y un segundo escaneo del mismo ticket es rechazado.",
+        "Un ticket de otro tramo no se consume."
+      ],
+      "evidence": null
+    },
+    {
+      "id": "MVP-006",
+      "name": "Asignación, consulta y consumo de abonos",
+      "description": "Implementar el flujo completo de abonos: el administrador asigna o renueva dos abonos relacionados para un itinerario; el pasajero los consulta y muestra su QR; el cobrador los valida y la API descuenta una unidad del abono del tramo correspondiente de forma atómica.",
+      "priority": "alta",
+      "area": ["API", "Blazor", "React Native"],
+      "status": "pending",
+      "assignee": "Enzo",
+      "reviewer": "Diego",
+      "createdAt": "2026-09-21T17:45:04-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": ["MVP-002", "MVP-005"],
+      "acceptanceCriteria": [
+        "Una asignación de 20 unidades crea dos abonos relacionados con la misma cantidad inicial y saldos independientes.",
+        "El pasajero puede consultar vigencia, saldo y QR de cada abono desde Blazor y React Native.",
+        "Una validación válida descuenta exactamente una unidad solo del abono del tramo actual.",
+        "Los abonos sin saldo, vencidos o suspendidos son rechazados sin permitir saldo negativo."
+      ],
+      "evidence": null
+    },
+    {
+      "id": "MVP-007",
+      "name": "Panel administrativo y auditoría operativa",
+      "description": "Completar el panel Blazor de administración para usuarios, roles, abonos, pagos simulados y validaciones; registrar los cambios administrativos relevantes y las operaciones con actor y fecha para su consulta.",
+      "priority": "media",
+      "area": ["API", "Blazor"],
+      "status": "pending",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-09-21T17:45:04-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": ["MVP-002", "MVP-004", "MVP-006"],
+      "acceptanceCriteria": [
+        "El administrador puede consultar y gestionar usuarios, roles y abonos de demostración.",
+        "El panel permite consultar pagos simulados y validaciones con su resultado.",
+        "Los cambios administrativos relevantes registran quién los realizó y cuándo.",
+        "Las operaciones administrativas permanecen protegidas por la autorización de la API."
+      ],
+      "evidence": null
+    },
+    {
+      "id": "MVP-008",
+      "name": "Integración, estados de error y recorrido de demostración",
+      "description": "Integrar los recorridos de los tres roles, completar estados de carga, vacío, error, éxito y reintento en los flujos remotos, y preparar datos y evidencia reproducible para demostrar la compra, validación y consumo de abonos de punta a punta.",
+      "priority": "alta",
+      "area": ["API", "Blazor", "React Native"],
+      "status": "pending",
+      "assignee": "Enzo",
+      "reviewer": "Diego",
+      "createdAt": "2026-09-21T17:45:04-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": ["MVP-005", "MVP-006", "MVP-007"],
+      "acceptanceCriteria": [
+        "El recorrido demostrable configura datos, busca Ombúes–Colonia, aprueba un pago, emite dos tickets y valida cada ticket una sola vez.",
+        "El recorrido también muestra dos abonos relacionados y descuenta una unidad del abono correcto en cada tramo.",
+        "Los clientes comunican carga, vacío, error, éxito y reintento en cada flujo remoto aplicable.",
+        "Los datos y mensajes de demostración se identifican como ficticios y no se presentan como reglas operativas reales."
+      ],
+      "evidence": null
+    }
+  ]
+}
