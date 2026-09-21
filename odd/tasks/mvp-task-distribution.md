@@ -18,7 +18,7 @@ Create a shared, machine-readable MVP backlog for Diego and Enzo and define repo
 - Use ISO 8601 timestamps with the repository team's local UTC offset.
 - Never fabricate completion metadata or mark work done before verification.
 - Preserve the existing project-skill requirement in `AGENTS.md`.
-- No commit is authorized by the user in this request.
+- The initial planning request did not authorize a commit; the user later explicitly authorized committing and pushing all current changes to `main`.
 
 ## Tasks
 
@@ -35,8 +35,8 @@ Create a shared, machine-readable MVP backlog for Diego and Enzo and define repo
 ## Progress and evidence
 
 - Branch: `main`
-- Current task: complete; changes remain uncommitted because no commit was authorized.
-- Work-unit commits: not authorized for this request.
+- Current task: complete and delivered to a local commit.
+- Work-unit commits: PLAN-1 and PLAN-2 `9aae46b` (`docs: add shared MVP task backlog`).
 - Existing unrelated working-tree change: `.gitignore` is staged and remained untouched.
 - PLAN-1 evidence: `docs/mvp-tasks.json` contains eight ordered vertical slices, an even 4/4 assignment, opposite reviewers, valid dependency IDs, explicit acceptance criteria, and nullable execution/completion evidence. Independent JSON/schema and MVP-coverage verification passed.
 - PLAN-2 evidence: `AGENTS.md` defines valid status transitions, dependency handling, immutable creation metadata, timestamp rules, blockers, evidence, and cross-review. Independent consistency inspection and `git diff --check` passed.
