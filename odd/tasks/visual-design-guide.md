@@ -29,9 +29,9 @@ Los requisitos y flujos ya están documentados, pero el equipo no dispone de cri
 - [x] **DES-3 — Validar consistencia y cierre documental**
   - Aceptación: enlaces, alcance, legibilidad y `git diff --check` pasan; los supuestos pendientes quedan visibles.
   - Verificación: revisión independiente encontró y se corrigieron dos omisiones (demora también aproximada y auditoría RF-007 detallada); segunda revisión sin defectos. `git diff --check` pasó para archivos versionados con advertencias LF→CRLF previas; escaneo directo del nuevo `DESIGN.md` sin tabs ni espacios finales, UTF-8 y salto final.
-- [ ] **DES-4 — Registrar la unidad documental en un commit** *(en progreso)*
+- [x] **DES-4 — Registrar la unidad documental en un commit**
   - Aceptación: la unidad documental tiene un commit convencional en rama de trabajo, contiene exclusivamente `DESIGN.md` y este seguimiento, y la identidad del commit queda registrada aquí sin incluir cambios previos no relacionados.
-  - Autorización: el usuario pidió expresamente crear el commit; no se presume autorización para push o PR.
+  - Evidencia: `af630f24e3a0646a8f3122931d70c682f6510fc1` (`docs: define academic MVP visual and UX guide`) contiene solo `DESIGN.md` y `odd/tasks/visual-design-guide.md`. El usuario autorizó el commit local; no autorizó push ni PR.
 
 ## Progreso y evidencia
 
@@ -41,5 +41,5 @@ Los requisitos y flujos ya están documentados, pero el equipo no dispone de cri
 - El sitio publica horarios como imagen y ofrece consultas de presupuesto/contacto: no implica que esas funciones ni datos reales entren en este MVP.
 - DES-1 verificado: seis páginas consultadas, sitio público separado del MVP, logo observado pero no reutilizable; mapa de roles y flujos contrastado con requisitos por exploración independiente. Propuesta cromática calculada: `#14324A` sobre blanco 13.25:1; `#A74220` sobre blanco 6.10:1; `#245746` sobre blanco 8.31:1. Son colores propuestos, no tokens oficiales.
 - `DESIGN.md` redactado y verificado sin implementar UI. La auditoría delimita RF-007 y la llegada/demora se rotulan aproximadas. Los enlaces externos se consultaron durante la investigación; la verificación final comprobó sintaxis y presencia de enlaces, no disponibilidad remota nueva.
-- Rama de trabajo creada: `docs/visual-design-guide`. La guía y este seguimiento se preparan para un commit local autorizado; sin push ni PR. El trabajo previo en `docs/mvp.md`, `docs/mvp-tasks.json` y `odd/tasks/mvp-geolocation-alignment.md` permanece intacto.
-- Próximo paso: confirmar el índice limitado a estos dos archivos y registrar la unidad documental; después conservar el hash en este seguimiento.
+- Rama de trabajo: `docs/visual-design-guide`. Unidad documental registrada en `af630f24e3a0646a8f3122931d70c682f6510fc1`; `git show --name-only HEAD` confirmó los dos archivos previstos y `git diff --cached --check` pasó. Esta actualización del seguimiento registra el hash en un commit separado, sin alterar el diseño. El trabajo previo en `docs/mvp.md`, `docs/mvp-tasks.json` y `odd/tasks/mvp-geolocation-alignment.md` permanece fuera de ambos commits.
+- Próximo paso: revisar/aprobar la identidad propia con el equipo. No se hizo push ni PR.
