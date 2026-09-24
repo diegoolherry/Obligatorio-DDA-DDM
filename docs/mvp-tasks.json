@@ -180,6 +180,29 @@
         "Los datos y mensajes de demostración se identifican como ficticios y no se presentan como reglas operativas reales."
       ],
       "evidence": null
+    },
+    {
+      "id": "MVP-009",
+      "name": "Geolocalización básica de demostración",
+      "description": "Cubrir RF-008 y RF-009: publicar posiciones básicas desde un dispositivo o celular embarcado autorizado y asociado al servicio ficticio, y consultar última posición, llegada aproximada y demora básica con parámetros académicos configurables.",
+      "priority": "media",
+      "area": ["API", "Blazor", "React Native"],
+      "status": "pending",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-09-24T01:13:28-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": ["MVP-001", "MVP-002"],
+      "acceptanceCriteria": [
+        "La API acepta una posición básica solo de un dispositivo o celular embarcado autorizado y asociado a un servicio de demostración existente; rechaza dispositivos no autorizados, servicios inexistentes y posiciones incompletas sin reemplazar la última posición.",
+        "Cada publicación aceptada conserva dispositivo, servicio, posición y fecha/hora de recepción; la periodicidad se contrasta con el parámetro académico configurado.",
+        "El pasajero consulta la última posición y su actualización; la información que supera el umbral configurable se marca como desactualizada y la ausencia de posiciones o un error se comunican con opción de reintento.",
+        "Con datos vigentes y referencias configuradas se muestran llegada aproximada y estado básico de demora (en horario o con demora); con datos insuficientes o desactualizados se informa indisponibilidad sin inventar precisión.",
+        "La periodicidad de publicación y el umbral de desactualización son parámetros académicos visibles en la configuración y configurables; las referencias de llegada y demora son configurables y los datos se identifican como ficticios."
+      ],
+      "evidence": null
     }
   ]
 }

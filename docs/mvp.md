@@ -6,7 +6,7 @@
 
 ## 1. Resultado esperado
 
-El MVP permitirá que una persona compre digitalmente un viaje compuesto por uno o más tramos, reciba un ticket QR por cada tramo y pueda mostrarlo al cobrador. También permitirá administrar abonos por tramo y descontar una unidad cada vez que el cobrador valide su QR.
+El MVP permitirá que una persona compre digitalmente un viaje compuesto por uno o más tramos, reciba un ticket QR por cada tramo y pueda mostrarlo al cobrador. También permitirá administrar abonos por tramo y descontar una unidad cada vez que el cobrador valide su QR. Un dispositivo o celular transportado en el ómnibus publicará posiciones básicas para un servicio de demostración; el pasajero consultará la última posición conocida, una llegada aproximada y un estado básico de demora cuando haya datos suficientes.
 
 La solución integrará:
 
@@ -27,6 +27,7 @@ El MVP se considera demostrable cuando se puede completar de punta a punta este 
 6. El cobrador valida cada ticket desde la aplicación móvil.
 7. Un segundo intento de usar el mismo ticket es rechazado.
 8. El pasajero también puede mostrar sus dos abonos y observar cómo se descuenta una unidad del abono correspondiente en cada tramo.
+9. Un dispositivo o celular embarcado autorizado y asociado a un servicio publica periódicamente posiciones ficticias; la demostración contrasta el intervalo entre publicaciones con el parámetro académico configurado. El pasajero consulta la última actualización y, con datos suficientes, una llegada aproximada y el estado básico de demora. También se muestran información desactualizada y ausencia de datos.
 
 ## 3. Evidencia, decisiones y dudas
 
@@ -55,6 +56,7 @@ Para evitar convertir recuerdos o simplificaciones académicas en reglas reales,
 - La validación requiere conexión con la API. El trabajo sin conexión queda fuera del MVP.
 - El administrador asigna o renueva abonos. No se modela la solicitud ni aprobación de becas.
 - Las cuentas de demostración se precargan para cada rol.
+- La ubicación y las referencias de llegada/demora son académicas y configurables; no representan seguimiento operativo real.
 
 ### 3.3 Dudas que no deben resolverse inventando
 
@@ -70,9 +72,10 @@ Estas dudas no bloquean el prototipo: se usarán datos ficticios y reglas config
 
 | Actor | Blazor | Aplicación móvil | Responsabilidades principales |
 | --- | --- | --- | --- |
-| Pasajero | Sí | Sí | Buscar viajes, comprar, consultar tickets, mostrar QR y consultar abonos/saldos. |
+| Pasajero | Sí | Sí | Buscar viajes, comprar, consultar tickets, mostrar QR, consultar abonos/saldos y la información básica de llegada del servicio. |
 | Cobrador | No | Sí | Escanear y validar tickets o abonos del tramo actual. |
-| Administrador | Sí | No | Gestionar rutas, servicios, tarifas, usuarios y abonos; consultar operaciones. |
+| Administrador | Sí | No | Gestionar rutas, servicios, tarifas, usuarios, abonos y datos ficticios; consultar operaciones. |
+| Dispositivo o celular embarcado | No | Canal de publicación asociado al servicio | Publicar posiciones básicas desde el ómnibus, sujeto a autorización de la API. |
 
 La aplicación móvil será una sola. Después de iniciar sesión, la navegación y las acciones disponibles dependerán del rol. La API deberá autorizar cada operación; ocultar una pantalla no será considerado seguridad suficiente.
 
@@ -96,6 +99,8 @@ La aplicación móvil será una sola. Después de iniciar sesión, la navegació
 - Mostrar el QR de un ticket.
 - Consultar abonos, vigencia y unidades restantes.
 - Mostrar el QR del abono correspondiente al tramo.
+- Consultar la última posición conocida y su momento de actualización; distinguir información desactualizada, sin datos o con error y permitir reintentar la consulta.
+- Consultar una llegada aproximada y un estado básico de demora (en horario o con demora) solo si existen datos suficientes y referencias configuradas.
 - Ver estados de carga, resultado vacío, error, éxito y reintento.
 
 ### 5.3 Experiencia del cobrador
@@ -118,7 +123,14 @@ La aplicación móvil será una sola. Después de iniciar sesión, la navegació
 - Consultar pagos simulados y validaciones.
 - Registrar quién realizó cambios administrativos relevantes y cuándo.
 
-### 5.5 Pago simulado
+### 5.5 Geolocalización básica de demostración
+
+- Autorizar desde la API un dispositivo o celular transportado en el ómnibus y asociado a un servicio de demostración antes de aceptar su publicación periódica de posiciones básicas.
+- Conservar dispositivo, servicio, posición y fecha/hora de recepción de cada publicación aceptada; rechazar identidad no autorizada, servicio inexistente o posición incompleta sin reemplazar la última posición conocida.
+- Configurar como parámetros académicos la periodicidad de publicación, el umbral de desactualización y las referencias necesarias para estimar llegada y demora.
+- Consultar la última posición conocida y su actualización; marcarla como desactualizada al superar el umbral configurado. La llegada y la demora son aproximadas y se informan como no disponibles si faltan datos vigentes o referencias.
+
+### 5.6 Pago simulado
 
 - Permitir resultados deterministas de aprobación y rechazo.
 - Registrar importe, fecha, usuario, referencia de compra y estado.
@@ -174,8 +186,10 @@ La aplicación móvil será una sola. Después de iniciar sesión, la navegació
 | RN-09 | Una validación correcta de abono descuenta exactamente una unidad del abono del tramo validado. |
 | RN-10 | Un abono vencido, suspendido o sin saldo no puede utilizarse. |
 | RN-11 | La API, no la interfaz, decide si una validación es válida y aplica el cambio atómicamente. |
-| RN-12 | Cada endpoint sensible exige el rol correspondiente. |
+| RN-12 | Cada endpoint sensible exige el rol correspondiente o, para publicar ubicación, la identidad del dispositivo autorizado. |
 | RN-13 | En el MVP, un abono autoriza el par de paradas indicado en ambos sentidos; cada validación consume una unidad. |
+| RN-14 | Una posición publicada debe provenir de un dispositivo o celular transportado en el ómnibus, autorizado y asociado al servicio de demostración, y conservar su fecha/hora de recepción. |
+| RN-15 | La estimación y el estado de demora usan solo referencias y umbrales configurados para el MVP académico. |
 
 ## 8. Modelo de dominio preliminar
 
@@ -193,6 +207,7 @@ La aplicación móvil será una sola. Después de iniciar sesión, la navegació
 | Asignación de abonos | Agrupa los abonos entregados juntos para un itinerario y período. |
 | Abono | Pasajero, tipo —por ejemplo, estudiante—, par de paradas autorizado, vigencia, unidades iniciales, saldo y QR opaco. |
 | Validación | Tipo, ticket o abono, servicio, cobrador, fecha, resultado y saldo resultante cuando corresponda. |
+| Posición recibida | Dispositivo autorizado, servicio asociado, posición básica y fecha/hora de recepción. |
 
 Los modelos expuestos por la API serán contratos explícitos. Los clientes no dependerán directamente de las entidades de persistencia.
 
@@ -227,8 +242,8 @@ Las transiciones serán controladas por la API. La interfaz mostrará el estado,
 | --- | --- |
 | Blazor Web App | Portal del pasajero, formularios validados y panel administrativo. |
 | React Native + Expo | Compra/consulta del pasajero y escaneo/validación del cobrador según el rol. |
-| API ASP.NET Core | Autenticación, autorización, reglas, contratos, pagos simulados y validaciones atómicas. |
-| Persistencia | Usuarios, configuración operativa, compras, tickets, abonos, pagos y validaciones. Tecnología pendiente de la consigna. |
+| API ASP.NET Core | Autenticación, autorización de usuarios y dispositivos de publicación, reglas, contratos, pagos simulados, posiciones básicas y validaciones atómicas. |
+| Persistencia | Usuarios, configuración operativa, compras, tickets, abonos, pagos, validaciones y posiciones recibidas. Tecnología pendiente de la consigna. |
 | Simulador de pagos | Produce respuestas de prueba controladas sin integrar dinero real. |
 
 No se elegirán todavía bibliotecas de QR, autenticación ni persistencia. Esa selección deberá considerar la consigna, compatibilidad con Expo Go y el contenido enseñado en clase.
@@ -247,6 +262,10 @@ No se elegirán todavía bibliotecas de QR, autenticación ni persistencia. Esa 
 | CA-08 | El abono está activo y tiene saldo | Se valida en su tramo | El saldo disminuye exactamente en una unidad. |
 | CA-09 | El abono no tiene saldo | Se intenta validar | La operación es rechazada sin generar saldo negativo. |
 | CA-10 | Un usuario pasajero conoce una URL administrativa | Intenta ejecutar la operación | La API responde sin autorización. |
+| CA-11 | Un dispositivo embarcado autorizado está asociado a un servicio existente | Publica una posición válida | Se conservan dispositivo, servicio, posición y fecha/hora de recepción. |
+| CA-12 | El dispositivo no está autorizado, el servicio es inexistente o los datos de posición están incompletos | Intenta publicar | La API rechaza la publicación sin reemplazar la última posición. |
+| CA-13 | Existe una posición vigente y referencias académicas suficientes | El pasajero consulta el servicio | Ve la posición y actualización, llegada aproximada y estado básico de demora. |
+| CA-14 | La posición está desactualizada, faltan datos o falla la consulta | El pasajero consulta | Ve la limitación o error y puede reintentar; no se fabrica una estimación. |
 
 ## 12. Requisitos de calidad del MVP
 
@@ -258,6 +277,8 @@ No se elegirán todavía bibliotecas de QR, autenticación ni persistencia. Esa 
 - Registro de errores suficiente para explicar una demostración fallida.
 - Navegación clara, un objetivo principal por pantalla y controles táctiles accesibles.
 - Datos ficticios claramente identificados.
+- Periodicidad de publicación y umbral de desactualización visibles como parámetros académicos configurables; información vencida identificada al superar el umbral.
+- Llegada y demora identificadas como aproximadas, sin estimaciones cuando faltan datos requeridos; carga, sin datos, error y reintento en la consulta remota.
 
 ## 13. Fuera del MVP
 
@@ -266,7 +287,8 @@ No se elegirán todavía bibliotecas de QR, autenticación ni persistencia. Esa 
 - Solicitud, evaluación o financiación de becas.
 - Venta presencial en agencia y cobro en efectivo arriba del ómnibus.
 - Funcionamiento sin conexión y sincronización posterior.
-- Geolocalización del ómnibus en tiempo real.
+- Seguimiento continuo garantizado, mapas interactivos, telemetría oficial, precisión operativa y predicción avanzada de llegada o demora.
+- Optimización mediante ubicación y analítica histórica de recorridos o conexiones.
 - Notificaciones push.
 - Mapa interactivo para elegir asiento.
 - Reprogramaciones, devoluciones y reembolsos completos.
@@ -283,6 +305,8 @@ No se elegirán todavía bibliotecas de QR, autenticación ni persistencia. Esa 
 - Un pasajero, un cobrador y un administrador ficticios.
 - Dos abonos relacionados de 20 unidades.
 - Un escenario de pago aprobado y otro rechazado.
+- Un dispositivo o celular embarcado ficticio asociado a un servicio y posiciones de demostración con fecha/hora de recepción; casos con datos vigentes, desactualizados y ausentes.
+- Parámetros académicos configurados para periodicidad, desactualización y referencias de llegada/demora, con un caso sin datos suficientes.
 
 ## 15. División sugerida entre dos estudiantes
 
@@ -305,6 +329,7 @@ Ambos deben trabajar en Blazor, API y React Native durante el proyecto para pode
 | Dos validaciones consumen el mismo recurso | Aplicar la validación y el cambio de estado en una operación atómica. |
 | La biblioteca de escaneo no funciona en Expo Go | Hacer una prueba técnica temprana antes de comprometer la implementación. |
 | Se confunde prototipo con producto oficial | Mostrar el aviso académico en documentación y datos de demostración. |
+| La ubicación se interpreta como seguimiento operativo preciso | Mostrar actualización, vencimiento y límites de estimación; usar solo datos y parámetros académicos. |
 
 ## 17. Orden recomendado de construcción
 
@@ -315,7 +340,8 @@ Ambos deben trabajar en Blazor, API y React Native durante el proyecto para pode
 5. Mostrar QR y validar ticket de un solo uso.
 6. Crear, consultar y consumir abonos.
 7. Completar panel administrativo y registro de operaciones.
-8. Preparar datos, estados de error y recorrido de demostración.
+8. Integrar los recorridos de compra, validación y abonos de los tres roles; preparar sus datos, estados de error y evidencia reproducible de demostración (MVP-008), sin ampliar esa tarea a geolocalización.
+9. Incorporar publicación autorizada de posiciones y consulta básica de ubicación, llegada aproximada y demora con datos ficticios (MVP-009); depende de la fundación y los servicios configurados y se demuestra por separado con posiciones vigentes, desactualizadas y ausentes, más error y reintento.
 
 Cada etapa debe terminar en una integración ejecutable, no en capas aisladas sin recorrido visible.
 
@@ -330,6 +356,9 @@ Cada etapa debe terminar en una integración ejecutable, no en capas aisladas si
 - [ ] Un QR utilizado no puede volver a validarse.
 - [ ] Los dos abonos empiezan con igual cupo y consumen saldos independientes.
 - [ ] El pago rechazado no genera tickets.
+- [ ] Un dispositivo o celular embarcado autorizado y asociado publica posiciones básicas, con fecha/hora de recepción, sin alterar la última posición ante publicaciones inválidas.
+- [ ] El pasajero distingue última posición y actualización, datos desactualizados o ausentes y errores con reintento.
+- [ ] Llegada y demora aproximadas se muestran solo con datos suficientes y parámetros académicos configurados de publicación, vencimiento y referencias.
 - [ ] Las pantallas remotas contemplan carga, vacío, error, éxito y reintento.
 - [ ] No se utilizan datos financieros ni datos operativos reales.
 - [ ] Las dudas pendientes están documentadas y no escondidas en el código.
