@@ -37,4 +37,4 @@ Create an evolving Markdown source for the future Word project delivery and esta
 - REPORT-1 and REPORT-2 were implemented by the bounded writer and read back by the parent. Writer checks found 17 repository-file links resolving and all nine MVP tasks still `pending`.
 - Native risk assessment was unavailable because untracked files require explicit review scope; the returned plan required an independent verifier.
 - REPORT-3 completed at `2026-09-25T01:03:39-03:00`: independent verification and focused re-verification passed with no blockers. Git reports an LF→CRLF conversion warning for `AGENTS.md`, not a whitespace error.
-- Commit: pending explicit user authorization.
+- Work-unit commit: `c0feb242cfceb7e554ab94523dac18ae990f977e` (`docs: add living project report`) contains `AGENTS.md`, the reconciled MySQL decision in `docs/mvp.md`, `docs/project-report.md`, and this tracking document. The user explicitly authorized direct delivery to `origin/main`; `.codegraph/` remains excluded.
