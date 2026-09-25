@@ -1,0 +1,85 @@
+# Informe académico del proyecto — pasajes y abonos
+
+> **Estado del documento:** borrador vivo; Markdown es la fuente para la futura entrega en Word. No representa un sistema oficial ni un producto desplegado. Los datos operativos son ficticios.
+>
+> **Leyenda:** **Verificado** = respaldado por evidencia revisable; **Decidido** = elección del equipo todavía no necesariamente implementada; **Planificado** = objetivo con trabajo pendiente; **Pendiente** = falta decisión, evidencia o confirmación. Cada afirmación de ejecución deberá enlazar su prueba, fecha y resultado.
+
+## 1. Resumen y estado actual
+
+El proyecto académico propone una plataforma de venta y validación de pasajes y abonos por tramo: un portal Blazor para pasajeros y administración, una aplicación React Native/Expo para pasajeros y cobradores, y una API compartida. La compra usa pagos simulados, cada tramo emite su propio ticket QR y el cobrador valida tickets o descuenta unidades del abono correspondiente. La consulta de posición, llegada y demora es una demostración básica con datos ficticios, no seguimiento operativo garantizado. El alcance detallado y sus límites están en [MVP](mvp.md).
+
+| Tema | Estado | Evidencia / próximo paso |
+| --- | --- | --- |
+| Alcance, requisitos y escenarios | **Planificado** | [Requerimientos](requerimientos.md), [historias](user-stories.md) y [MVP](mvp.md); contrastar con la consigna oficial. |
+| Ejecución del MVP | **Verificado** (estado del backlog, no funcionalidad) | [Backlog](mvp-tasks.json): las nueve tareas MVP-001 a MVP-009 figuran `pending`; no se afirma implementación ni pruebas aprobadas. |
+| Clientes y API compartida | **Decidido** | Portal Blazor + móvil React Native/TypeScript/Expo, API para reglas y contratos explícitos; verificar arquitectura en código al comenzar. |
+| Arquitectura de API | **Decidido** | Controllers → Services → Repositories → EF Core DbContext; documentar interfaces y responsabilidades con evidencia al implementarlas. |
+| Persistencia | **Decidido** | MySQL seleccionado e instalado localmente; [MVP §10](mvp.md#10-arquitectura-y-límites) ya refleja esta decisión. La integración con EF Core, el esquema, el usuario de aplicación y el entorno de producción continúan **pendientes de verificación**. |
+| Despliegue | **Pendiente** | No hay entorno de producción, proveedor ni despliegue comprobados en este informe. |
+
+## 2. Contexto, problema y objetivos
+
+- **Problema y destinatarios — Planificado:** permitir a pasajeros consultar y comprar un itinerario de varios tramos, presentar cada comprobante y consultar abonos; permitir al cobrador validarlos y al administrador preparar datos ficticios. Reconstruir la justificación y antecedentes para la entrega sin atribuir patrocinio a la empresa que inspiró el caso.
+- **Objetivo demostrable — Planificado:** recorrido Ombúes → Radial de Conchillas → Colonia, con dos tickets, validación de un solo uso y dos abonos de saldos independientes; agregar consulta básica de ubicación con estados de información vigente, desactualizada y ausente. Ver criterios en [MVP §2](mvp.md#2-criterio-de-éxito-del-mvp).
+- **Límites — Decidido:** sin cobro real, datos financieros reales, integración empresarial, validación sin conexión ni predicción avanzada. Consultar [MVP §13](mvp.md#13-fuera-del-mvp) antes de ampliar alcance.
+- **Pendiente:** confirmar consigna oficial, supuestos de operación y objetivos académicos definitivos; separar experiencia relatada, simplificación de demo y requisito exigido.
+
+## 3. Requisitos y trazabilidad
+
+| Entregable | Fuente vigente | Ampliación necesaria en este informe |
+| --- | --- | --- |
+| Actores, flujos y reglas de negocio | [MVP](mvp.md) | Explicar contexto y decisiones que afectan a ambos clientes. |
+| Requisitos funcionales y no funcionales | [RF/RNF](requerimientos.md) | Sintetizar prioridades, restricciones y mediciones cuando exista evidencia. |
+| Historias y aceptación | [Historias](user-stories.md) | Enlazar demostraciones y resultados sin copiar criterios volátiles. |
+| Estado, dependencias y responsables por corte | [Backlog JSON](mvp-tasks.json) | Resumir únicamente hitos realmente terminados y evidencia de revisión cruzada. |
+
+**Pendiente:** matriz final requisito → historia → tarea → prueba/resultado; criterios de aceptación ejecutados y cambios de alcance aprobados. El backlog, no este resumen, determina qué tarea está terminada.
+
+## 4. Solución y decisiones tecnológicas
+
+| Área | Estado | Decisión / evidencia a incorporar |
+| --- | --- | --- |
+| Canales | **Decidido** | Blazor para pasajero y administración; una app React Native/Expo con vistas según rol para pasajero y cobrador. [Guía UX](../DESIGN.md) contiene propuestas visuales, no UI implementada. |
+| Límite compartido | **Decidido** | API con DTO/contratos explícitos para ambos clientes; autorización y reglas en servidor, no en visibilidad de pantallas. |
+| Capas del servidor | **Decidido** | Controllers → Services → Repositories → EF Core DbContext; documentar dependencias, persistencia y manejo transaccional al existir código. |
+| Base de datos | **Decidido** | MySQL instalado y conexión administrativa local comprobada con `root`; **pendiente** crear el usuario de aplicación y verificar EF Core, migraciones, respaldos y compatibilidad de despliegue. |
+| QR, pagos y ubicación | **Planificado** | QR opacos por ticket/abono, pago determinista sin datos bancarios y posición de dispositivo embarcado autorizado. Pendientes librerías, configuración y pruebas. |
+
+**Alternativas y justificación — Pendiente:** comparar opciones de persistencia, hosting, autenticación, generación/lectura QR y publicación de ubicación según consigna, costo, compatibilidad y riesgos; registrar descartes con fuentes. No confundir tecnología elegida con integración completada.
+
+## 5. Ambientes, factibilidad y recursos
+
+| Apartado de la entrega | Estado | Qué falta documentar |
+| --- | --- | --- |
+| Desarrollo | **Pendiente** | Versiones verificadas de SDK .NET, Node/Expo, MySQL, IDE, SO, configuración reproducible y dependencias. |
+| Producción y despliegue | **Pendiente** | Proveedor, topología, red, secretos, base de datos, dominio, respaldos, observabilidad y procedimiento de publicación/reversión. |
+| Usuario final | **Planificado** | Navegador para Blazor, celular compatible para pasajero/cobrador, cámara y conectividad para QR; comprobar requisitos mínimos y permisos. |
+| Factibilidad técnica | **Pendiente** | Prueba temprana de cámara/QR en Expo, transacciones para consumos concurrentes, compatibilidad de API y base de datos. |
+| Factibilidad operativa y capacitación | **Pendiente** | Guías de uso para tres roles, datos de demo, permisos, recuperación de fallos y entrenamiento necesario. |
+| Factibilidad económica y legal | **Pendiente** | Costos de hosting/dispositivos/tiempo, licencias, privacidad de cuentas y ubicación, uso de marca e imágenes; no atribuir aval empresarial. |
+| Herramientas y alternativas | **Pendiente** | Inventario con versiones, finalidad, costos/licencias, alternativas evaluadas y criterios de selección. |
+
+## 6. Equipo, iteraciones y cronograma
+
+**Planificado:** dos estudiantes desarrollan cortes verticales que atraviesan clientes y API, con revisión cruzada. [Backlog](mvp-tasks.json) fija responsables, revisor, dependencias y orden sugerido; no sustituirlo por fechas inferidas. **Pendiente:** explicitar roles efectivos, disponibilidad, formación necesaria, iteraciones, hitos, estimaciones, calendario y ruta crítica (dependencias MVP-001/002 antes de flujos consumidores). Registrar desvíos y decisiones con fecha cuando ocurran; no declarar hitos alcanzados por el mero hecho de estar planificados.
+
+## 7. Calidad, pruebas y gestión de configuración
+
+**Planificado:** verificar autorización por rol, emisión solo tras pago aprobado, QR de un solo uso, consumo atómico de abonos, estados de carga/error y datos de ubicación vencidos o insuficientes. [RNF y evidencia esperada](requerimientos.md#requisitos-no-funcionales) definen qué medir; faltan resultados. **Pendiente:** estrategia y herramientas de pruebas unitarias, integración y recorrido manual, matriz de casos y resultados con comando/fecha/entorno; control de versiones, ramas, revisión cruzada, registro de defectos, cambios y versiones entregables. No convertir criterios de aceptación en afirmaciones de pruebas exitosas.
+
+## 8. Riesgos, puesta en marcha y cierre
+
+| Tema | Estado | Seguimiento |
+| --- | --- | --- |
+| Consigna y alcance | **Pendiente** | Contrastar propuesta con consigna oficial; conservar decisiones y dudas de [MVP](mvp.md). |
+| Integración web/móvil/API | **Planificado** | Probar contratos comunes temprano y evitar duplicación de reglas. |
+| Concurrencia y seguridad | **Planificado** | Probar validaciones simultáneas y autorización, sin exponer datos en QR. |
+| Cámara y conectividad | **Pendiente** | Validar dispositivo/Expo y resultados cuando no hay red. |
+| Ubicación académica | **Planificado** | Marcar antigüedad y precisión limitada; no atribuir telemetría oficial. |
+| Implantación y soporte | **Pendiente** | Plan de instalación, configuración, demostración, monitoreo, rollback y soporte; nada desplegado se presume. |
+
+**Conclusiones — Pendiente:** redactar al cierre con logros medidos, limitaciones, desvíos, aprendizaje y trabajo futuro. **Bibliografía — Pendiente:** reunir consigna, material docente, documentación técnica con versión/fecha y fuentes utilizadas; diferenciar referencias de evidencia de ejecución.
+
+## 9. Mantenimiento y preparación de entrega
+
+Tras un cambio importante en requisitos, arquitectura, tecnología, tareas MVP completadas, pruebas, despliegue, riesgos, cronograma o equipo, revisar esta síntesis y actualizar estados y evidencia; la regla operativa figura en [AGENTS.md](../AGENTS.md). Mantener enlaces a fuentes canónicas y ampliar secciones solo con información comprobable. Antes de exportar a Word: reconciliar alcance y backlog, completar pendientes o declararlos como limitaciones, verificar enlaces y citas, y revisar formato/tablas en el documento convertido. El archivo Markdown sigue siendo la fuente de verdad.

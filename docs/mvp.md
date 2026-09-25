@@ -243,10 +243,10 @@ Las transiciones serán controladas por la API. La interfaz mostrará el estado,
 | Blazor Web App | Portal del pasajero, formularios validados y panel administrativo. |
 | React Native + Expo | Compra/consulta del pasajero y escaneo/validación del cobrador según el rol. |
 | API ASP.NET Core | Autenticación, autorización de usuarios y dispositivos de publicación, reglas, contratos, pagos simulados, posiciones básicas y validaciones atómicas. |
-| Persistencia | Usuarios, configuración operativa, compras, tickets, abonos, pagos, validaciones y posiciones recibidas. Tecnología pendiente de la consigna. |
+| Persistencia | MySQL almacenará usuarios, configuración operativa, compras, tickets, abonos, pagos, validaciones y posiciones recibidas. La API accederá mediante EF Core y el patrón Repository. |
 | Simulador de pagos | Produce respuestas de prueba controladas sin integrar dinero real. |
 
-No se elegirán todavía bibliotecas de QR, autenticación ni persistencia. Esa selección deberá considerar la consigna, compatibilidad con Expo Go y el contenido enseñado en clase.
+MySQL es la tecnología de persistencia decidida para el proyecto y su conexión administrativa local ya fue comprobada. Antes de crear migraciones se deberá seleccionar y verificar un proveedor de EF Core compatible con la versión de .NET, crear un usuario exclusivo para la API y resolver el alojamiento de producción. Las bibliotecas de QR y autenticación continúan pendientes y deberán considerar la consigna, la compatibilidad con Expo Go y el contenido enseñado en clase.
 
 ## 11. Escenarios de aceptación
 

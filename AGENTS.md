@@ -19,3 +19,7 @@ La consigna vigente y la configuración del repositorio prevalecen sobre la skil
 - Al bloquear una tarea, conservá el motivo concreto y qué la desbloquea en `evidence`; no marques trabajo incompleto como `done`.
 - Obtené cada timestamp de la hora actual del sistema con un offset UTC explícito; no fabriques fechas, horas ni los separes en campos distintos.
 - El `reviewer` debe ser la otra persona: Diego revisa las tareas de Enzo y Enzo revisa las tareas de Diego. La revisión cruzada debe confirmar los criterios de aceptación antes de marcar una tarea como `done`.
+
+## Informe académico vivo
+
+`docs/project-report.md` es la fuente Markdown del informe académico; la versión Word se genera después, no se mantiene como fuente paralela. Después de cambios importantes en arquitectura, requisitos o alcance, decisiones tecnológicas, cortes MVP terminados, evidencia de pruebas/calidad, despliegue/infraestructura, riesgos, cronograma o proceso del equipo, revisá el informe y actualizá las secciones afectadas. Enlazá evidencia verificable, distinguí decisiones y planes de resultados comprobados, marcá lo pendiente explícitamente y nunca inventes implementación, pruebas o despliegue completados. Conservá `docs/mvp-tasks.json` como autoridad para estados y finalización de tareas.
