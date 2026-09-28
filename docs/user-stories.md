@@ -62,19 +62,19 @@ Estas historias permiten revisar cada requisito funcional sin reinterpretar el a
 - **Dado** que no existen servicios compatibles, **cuando** ejecuto la búsqueda, **entonces** veo un resultado vacío comprensible y puedo modificar los criterios para reintentar.
 - **Dado** un fallo al consultar la API, **cuando** la búsqueda no puede completarse, **entonces** veo un estado de error y una opción de reintento.
 
-### US-004 — Comprar con pago simulado
+### US-004 — Comprar con pago de prueba
 
 | Campo | Definición |
 | --- | --- |
 | Requisito vinculado | RF-004 |
 | Prioridad | Alta |
-| Historia | Como Pasajero, quiero confirmar un itinerario mediante un pago simulado para recibir los tickets QR de sus tramos. |
+| Historia | Como Pasajero, quiero pagar en un escenario TEST de Mercado Pago para recibir los tickets QR de mis tramos solo tras aprobación verificada por la API. |
 
 **Criterios de aceptación**
 
-- **Dado** un itinerario válido y un resultado de pago simulado aprobado, **cuando** confirmo la compra, **entonces** se registra la compra y recibo un ticket con QR opaco por cada tramo.
-- **Dado** un resultado de pago simulado rechazado, **cuando** finaliza el intento, **entonces** no se emiten tickets y puedo reintentar sin ingresar datos financieros reales.
-- **Dado** un error al confirmar la operación, **cuando** la API no devuelve una aprobación, **entonces** la interfaz informa el error y no presenta tickets como emitidos.
+- **Dado** un itinerario válido y aprobación en un escenario TEST del proveedor, **cuando** la API verifica ese resultado, **entonces** registra la compra y entrega un ticket con QR opaco por tramo.
+- **Dado** un rechazo en un escenario TEST, **cuando** finaliza el intento, **entonces** no se emiten tickets y puedo reintentar sin que la aplicación solicite ni almacene números de tarjeta/CVV.
+- **Dado** un éxito declarado solo por el cliente, resultado no verificado o error de verificación, **cuando** la API procesa el intento, **entonces** no presenta tickets como emitidos y la interfaz informa el estado sin inventar aprobación.
 
 ## Tickets y abonos
 
@@ -142,7 +142,7 @@ Estas historias permiten revisar cada requisito funcional sin reinterpretar el a
 | --- | --- |
 | Requisito vinculado | RF-007 |
 | Prioridad | Media |
-| Historia | Como Administrador, quiero consultar pagos simulados y validaciones para revisar las operaciones de demostración y su auditoría básica. |
+| Historia | Como Administrador, quiero consultar pagos de prueba y validaciones para revisar las operaciones de demostración y su auditoría básica. |
 
 **Criterios de aceptación**
 

@@ -6,15 +6,16 @@
 
 ## 1. Resumen y estado actual
 
-El proyecto académico propone una plataforma de venta y validación de pasajes y abonos por tramo: un portal Blazor para pasajeros y administración, una aplicación React Native/Expo para pasajeros y cobradores, y una API compartida. La compra usa pagos simulados, cada tramo emite su propio ticket QR y el cobrador valida tickets o descuenta unidades del abono correspondiente. La consulta de posición, llegada y demora es una demostración básica con datos ficticios, no seguimiento operativo garantizado. El alcance detallado y sus límites están en [MVP](mvp.md).
+El proyecto académico propone una plataforma de venta y validación de pasajes y abonos por tramo: un portal Blazor para pasajeros y administración, una aplicación React Native/Expo para pasajeros y cobradores, y una API compartida. La compra propone la API de Mercado Pago con credenciales TEST (aún sin integración implementada ni cobros reales), cada tramo emite su propio ticket QR y el cobrador valida tickets o descuenta unidades del abono correspondiente. La consulta de posición, llegada y demora es una demostración básica con datos ficticios, no seguimiento operativo garantizado. El alcance detallado y sus límites están en [MVP](mvp.md).
 
 | Tema | Estado | Evidencia / próximo paso |
 | --- | --- | --- |
 | Alcance, requisitos y escenarios | **Planificado** | [Requerimientos](requerimientos.md), [historias](user-stories.md) y [MVP](mvp.md); contrastar con la consigna oficial. |
-| Ejecución del MVP | **Verificado** (estado del backlog, no funcionalidad) | [Backlog](mvp-tasks.json): las nueve tareas MVP-001 a MVP-009 figuran `pending`; no se afirma implementación ni pruebas aprobadas. |
+| Ejecución del MVP | **Verificado** (estado del backlog, no funcionalidad) | [Backlog](mvp-tasks.json): diez tareas: MVP-001 a MVP-009 `pending` y MVP-010 `in_progress`; ninguna está terminada ni implica implementación o pruebas aprobadas. |
 | Clientes y API compartida | **Decidido** | Portal Blazor + móvil React Native/TypeScript/Expo, API para reglas y contratos explícitos; verificar arquitectura en código al comenzar. |
 | Arquitectura de API | **Decidido** | Controllers → Services → Repositories → EF Core DbContext; documentar interfaces y responsabilidades con evidencia al implementarlas. |
-| Persistencia | **Decidido** | MySQL seleccionado e instalado localmente; [MVP §10](mvp.md#10-arquitectura-y-límites) ya refleja esta decisión. La integración con EF Core, el esquema, el usuario de aplicación y el entorno de producción continúan **pendientes de verificación**. |
+| Persistencia | **Decidido** (motor), **propuesto** (modelo) | MySQL seleccionado e instalado localmente; [MVP §10](mvp.md#10-arquitectura-y-límites) refleja el motor. El [borrador UML y ER](design/data-model.md) requiere decisiones y revisión de Enzo; esquema, integración EF Core, usuario de aplicación y entorno de producción siguen pendientes. |
+| Pagos TEST | **Decidido, revisable; no implementado** | [MVP §5.6](mvp.md#56-pago-de-prueba-con-mercado-pago): API de Mercado Pago en TEST, resultado verificado por la API antes de emitir tickets. Producto de checkout, referencia/estados externos y reintentos pendientes; producción necesita decisión futura. |
 | Despliegue | **Pendiente** | No hay entorno de producción, proveedor ni despliegue comprobados en este informe. |
 
 ## 2. Contexto, problema y objetivos
@@ -31,7 +32,7 @@ El proyecto académico propone una plataforma de venta y validación de pasajes 
 | Actores, flujos y reglas de negocio | [MVP](mvp.md) | Explicar contexto y decisiones que afectan a ambos clientes. |
 | Requisitos funcionales y no funcionales | [RF/RNF](requerimientos.md) | Sintetizar prioridades, restricciones y mediciones cuando exista evidencia. |
 | Historias y aceptación | [Historias](user-stories.md) | Enlazar demostraciones y resultados sin copiar criterios volátiles. |
-| Estado, dependencias y responsables por corte | [Backlog JSON](mvp-tasks.json) | Resumir únicamente hitos realmente terminados y evidencia de revisión cruzada. |
+| Estado, dependencias y responsables por corte | [Backlog JSON](mvp-tasks.json) | MVP-010 diseña antes de MVP-001; resumir únicamente hitos realmente terminados y evidencia de revisión cruzada. |
 
 **Pendiente:** matriz final requisito → historia → tarea → prueba/resultado; criterios de aceptación ejecutados y cambios de alcance aprobados. El backlog, no este resumen, determina qué tarea está terminada.
 
@@ -43,7 +44,7 @@ El proyecto académico propone una plataforma de venta y validación de pasajes 
 | Límite compartido | **Decidido** | API con DTO/contratos explícitos para ambos clientes; autorización y reglas en servidor, no en visibilidad de pantallas. |
 | Capas del servidor | **Decidido** | Controllers → Services → Repositories → EF Core DbContext; documentar dependencias, persistencia y manejo transaccional al existir código. |
 | Base de datos | **Decidido** | MySQL instalado y conexión administrativa local comprobada con `root`; **pendiente** crear el usuario de aplicación y verificar EF Core, migraciones, respaldos y compatibilidad de despliegue. |
-| QR, pagos y ubicación | **Planificado** | QR opacos por ticket/abono, pago determinista sin datos bancarios y posición de dispositivo embarcado autorizado. Pendientes librerías, configuración y pruebas. |
+| QR, pagos y ubicación | **Planificado** | QR opacos, escenarios de aprobación/rechazo del proveedor en TEST y posición de dispositivo embarcado autorizado. La aplicación no solicita ni guarda números de tarjeta/CVV; faltan integración, selección de checkout y pruebas. |
 
 **Alternativas y justificación — Pendiente:** comparar opciones de persistencia, hosting, autenticación, generación/lectura QR y publicación de ubicación según consigna, costo, compatibilidad y riesgos; registrar descartes con fuentes. No confundir tecnología elegida con integración completada.
 
@@ -61,11 +62,11 @@ El proyecto académico propone una plataforma de venta y validación de pasajes 
 
 ## 6. Equipo, iteraciones y cronograma
 
-**Planificado:** dos estudiantes desarrollan cortes verticales que atraviesan clientes y API, con revisión cruzada. [Backlog](mvp-tasks.json) fija responsables, revisor, dependencias y orden sugerido; no sustituirlo por fechas inferidas. **Pendiente:** explicitar roles efectivos, disponibilidad, formación necesaria, iteraciones, hitos, estimaciones, calendario y ruta crítica (dependencias MVP-001/002 antes de flujos consumidores). Registrar desvíos y decisiones con fecha cuando ocurran; no declarar hitos alcanzados por el mero hecho de estar planificados.
+**Planificado:** primero revisión del modelado MVP-010 (Diego, revisor Enzo); MVP-001 depende de su finalización, sin iniciarse aún. Luego dos estudiantes desarrollan cortes verticales que atraviesan clientes y API, con revisión cruzada. [Backlog](mvp-tasks.json) fija responsables, revisor, dependencias y orden sugerido; no sustituirlo por fechas inferidas. **Pendiente:** explicitar roles efectivos, disponibilidad, formación necesaria, iteraciones, hitos, estimaciones, calendario y ruta crítica (dependencias MVP-001/002 antes de flujos consumidores). Registrar desvíos y decisiones con fecha cuando ocurran; no declarar hitos alcanzados por el mero hecho de estar planificados.
 
 ## 7. Calidad, pruebas y gestión de configuración
 
-**Planificado:** verificar autorización por rol, emisión solo tras pago aprobado, QR de un solo uso, consumo atómico de abonos, estados de carga/error y datos de ubicación vencidos o insuficientes. [RNF y evidencia esperada](requerimientos.md#requisitos-no-funcionales) definen qué medir; faltan resultados. **Pendiente:** estrategia y herramientas de pruebas unitarias, integración y recorrido manual, matriz de casos y resultados con comando/fecha/entorno; control de versiones, ramas, revisión cruzada, registro de defectos, cambios y versiones entregables. No convertir criterios de aceptación en afirmaciones de pruebas exitosas.
+**Planificado:** verificar autorización por rol, emisión solo tras aprobación TEST verificada por la API (no por el cliente), QR de un solo uso, consumo atómico de abonos, estados de carga/error y datos de ubicación vencidos o insuficientes. [RNF y evidencia esperada](requerimientos.md#requisitos-no-funcionales) definen qué medir; faltan resultados. **Pendiente:** estrategia y herramientas de pruebas unitarias, integración y recorrido manual, matriz de casos y resultados con comando/fecha/entorno; control de versiones, ramas, revisión cruzada, registro de defectos, cambios y versiones entregables. No convertir criterios de aceptación en afirmaciones de pruebas exitosas.
 
 ## 8. Riesgos, puesta en marcha y cierre
 

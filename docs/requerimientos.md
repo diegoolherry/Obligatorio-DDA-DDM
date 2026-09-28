@@ -4,7 +4,7 @@ Este documento convierte el alcance preliminar en requisitos verificables para e
 
 ## Lectura rápida
 
-- El MVP cubre compra simulada, tickets y abonos con QR, administración básica y geolocalización básica del ómnibus.
+- El MVP propone compra con Mercado Pago en TEST (sin cobros reales), tickets y abonos con QR, administración básica y geolocalización básica del ómnibus.
 - La API conserva la decisión de autorización y validación; los clientes solo muestran el resultado.
 - Las frecuencias, tolerancias y métricas identificadas como parámetros son objetivos académicos configurables, no compromisos operativos.
 
@@ -12,7 +12,7 @@ Este documento convierte el alcance preliminar en requisitos verificables para e
 
 | Actor | Objetivo en el MVP | Canal previsto |
 | --- | --- | --- |
-| Pasajero | Buscar, comprar con pago simulado, consultar sus tickets/abonos y su información básica de llegada. | Blazor y aplicación móvil. |
+| Pasajero | Buscar, comprar con pago TEST de Mercado Pago, consultar sus tickets/abonos y su información básica de llegada. | Blazor y aplicación móvil. |
 | Cobrador | Seleccionar el tramo actual y validar QR de ticket o abono. | Aplicación móvil. |
 | Administrador | Configurar datos ficticios, abonos y consultar operaciones. | Blazor. |
 | Dispositivo o celular embarcado | Publicar posiciones básicas desde el ómnibus para el servicio de demostración al que está asociado. | Dispositivo/celular transportado en el ómnibus. |
@@ -45,15 +45,16 @@ Este documento convierte el alcance preliminar en requisitos verificables para e
 | RF-001 | Alta | El usuario inicia y cierra sesión y solo accede a acciones de su rol. | Una operación protegida solicitada por un rol no autorizado es rechazada por la API. |
 | RF-002 | Alta | El administrador gestiona paradas, tramos, servicios, tarifas y usuarios ficticios; configura la política de asiento del servicio. | Los datos de demostración permiten dejar disponibles los dos servicios conectados y sus atributos. |
 | RF-003 | Alta | El pasajero busca por origen, destino y fecha y consulta un itinerario ordenado con tramos, transbordo, horarios, precio total y política de asiento. | Para datos compatibles se muestra el itinerario; sin coincidencias se comunica resultado vacío y se permite una nueva búsqueda. |
-| RF-004 | Alta | El pasajero confirma un pago simulado y, si resulta aprobado, recibe una compra y un QR opaco por cada tramo. | Un resultado aprobado emite los tickets correspondientes; un rechazo no emite tickets ni registra datos financieros reales. |
+| RF-004 | Alta | El pasajero realiza un pago de prueba mediante la API de Mercado Pago con credenciales TEST y recibe una compra y un QR opaco por tramo solo tras aprobación verificada por la API. | En escenarios de prueba del proveedor, aprobación verificada emite tickets; rechazo o éxito informado solo por el cliente no los emite. La aplicación no solicita ni almacena números de tarjeta/CVV. |
 | RF-005 | Alta | El pasajero consulta y muestra el QR de cada ticket; el Cobrador lo valida para el tramo actual y recibe un resultado claro. | Se mantiene el contrato de `MVP-005`: válido, ya utilizado, vencido, tramo incorrecto o código inexistente; solo la API consume un ticket válido de forma atómica. |
 | RF-006 | Alta | El administrador asigna o renueva abonos relacionados; el pasajero consulta saldo, vigencia y QR, y el Cobrador los valida. | Se mantiene el contrato de `MVP-006`: una validación válida descuenta una unidad, solo del abono del tramo actual y de forma atómica; los estados no utilizables se rechazan sin saldo negativo. |
-| RF-007 | Media | El administrador consulta pagos simulados y validaciones; conservan actor y fecha la creación o actualización de paradas, tramos, servicios, tarifas y usuarios/roles de demostración, además de la asignación, renovación o suspensión de abonos. | La consulta permite verificar el actor y la fecha de cada una de esas operaciones administrativas delimitadas. |
+| RF-007 | Media | El administrador consulta pagos de prueba y validaciones; conservan actor y fecha la creación o actualización de paradas, tramos, servicios, tarifas y usuarios/roles de demostración, además de la asignación, renovación o suspensión de abonos. | La consulta permite verificar el actor y la fecha de cada una de esas operaciones administrativas delimitadas. |
 | RF-008 | Media | Un dispositivo o celular transportado en el ómnibus, autorizado por la API y asociado a un servicio de demostración, registra periódicamente una posición básica. | Cada publicación aceptada conserva el dispositivo autorizado, servicio, posición y fecha/hora de recepción; la periodicidad se verifica contra el parámetro académico configurado. |
 | RF-009 | Media | El pasajero consulta la última posición conocida, una llegada aproximada y un estado básico de demora del servicio. | Si hay datos vigentes se muestran los tres indicadores; si faltan o están desactualizados se informa la limitación sin fabricar precisión. |
 
 ### Límites funcionales deliberados
 
+- La integración de Mercado Pago TEST es una decisión actual revisable y no está implementada. Producto de checkout, referencia externa, mapeo de estados y ciclo de reintentos siguen pendientes; producción/cobros reales requieren nueva decisión de alcance.
 - `RF-005` y `RF-006` remiten a los comportamientos ya aprobados en `MVP-005` y `MVP-006`; no agregan políticas nuevas de QR, consumo ni validación.
 - La ubicación puede mostrarse como dato aproximado de demostración; no habilita decisiones automáticas de cobro, validación, recorrido ni asignación de asientos.
 - Los clientes deben comunicar carga, vacío, error, éxito y reintento en los flujos remotos aplicables, incluida la consulta de ubicación.
@@ -82,7 +83,7 @@ Todos los valores siguientes son **objetivos académicos del MVP** o **parámetr
 | RN-02 | Una compra aprobada genera un ticket por cada tramo. | RF-004 |
 | RN-03 | El QR es opaco y no contiene datos personales ni estado completo. | RF-004, RF-005, RF-006 |
 | RN-04 | Un ticket solo se valida una vez y en su servicio/tramo correspondiente. | RF-005 |
-| RN-07 | Los tickets se emiten solo después de aprobar el pago simulado. | RF-004 |
+| RN-07 | Los tickets se emiten solo tras verificar la aprobación del proveedor TEST desde la API, nunca por éxito informado solo por el cliente. | RF-004 |
 | RN-08 | Dos abonos relacionados empiezan con igual cantidad inicial y conservan saldos independientes. | RF-006 |
 | RN-09 | Una validación correcta de abono consume exactamente una unidad del abono del tramo validado. | RF-006 |
 | RN-10 | Un abono vencido, suspendido o sin saldo no puede utilizarse. | RF-006 |

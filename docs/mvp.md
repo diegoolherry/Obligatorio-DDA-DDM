@@ -13,7 +13,7 @@ La solución integrará:
 - **Blazor:** portal de pasajeros y panel administrativo.
 - **API:** reglas de negocio, autenticación, autorización y persistencia.
 - **React Native con TypeScript y Expo:** una aplicación móvil con experiencia diferenciada para pasajero y cobrador.
-- **Pago digital simulado:** sin cobros reales ni almacenamiento de datos bancarios.
+- **Pago de prueba:** propuesta vigente revisable de integración con la API de Mercado Pago y credenciales TEST; sin cobros reales ni datos de tarjeta almacenados por la aplicación. Aún no implementado.
 
 ## 2. Criterio de éxito del MVP
 
@@ -22,7 +22,7 @@ El MVP se considera demostrable cuando se puede completar de punta a punta este 
 1. Un administrador configura paradas, tramos, servicios, tarifas y un abono.
 2. Un pasajero busca un viaje de Ombúes a Colonia.
 3. El sistema presenta un itinerario con dos tramos: Ombúes–Radial de Conchillas y Radial de Conchillas–Colonia.
-4. El pasajero realiza un pago simulado aprobado.
+4. El pasajero completa un escenario de pago aprobado con Mercado Pago en entorno TEST; la API verifica el resultado del proveedor.
 5. El sistema emite dos tickets, cada uno con su propio QR.
 6. El cobrador valida cada ticket desde la aplicación móvil.
 7. Un segundo intento de usar el mismo ticket es rechazado.
@@ -49,7 +49,7 @@ Para evitar convertir recuerdos o simplificaciones académicas en reglas reales,
 
 ### 3.2 Decisiones académicas del MVP
 
-- La compra digital del itinerario completo se paga en una sola operación simulada y emite todos sus tickets de tramo.
+- La compra digital del itinerario completo se paga en una operación de prueba mediante la API de Mercado Pago con credenciales TEST y emite todos sus tickets de tramo solo tras verificar aprobación con el proveedor. Es una decisión actual revisable, no una integración implementada ni autorización para cobrar dinero real.
 - El asiento del tramo Radial–Colonia se asigna automáticamente. No se implementa un mapa de asientos.
 - Cada ticket tiene un QR diferente y de un solo uso.
 - Cada abono tiene su propio QR; validarlo descuenta únicamente una unidad de ese abono.
@@ -93,7 +93,7 @@ La aplicación móvil será una sola. Después de iniciar sesión, la navegació
 - Buscar un viaje indicando origen, destino, fecha y servicio disponible.
 - Visualizar el itinerario completo antes de comprar.
 - Ver los tramos, horarios, transbordo, precio total y política de asiento de cada tramo.
-- Confirmar la compra mediante un pago simulado.
+- Confirmar la compra mediante un pago de prueba con Mercado Pago; el producto de checkout sigue sin elegirse.
 - Recibir un ticket independiente por tramo.
 - Consultar tickets vigentes y utilizados.
 - Mostrar el QR de un ticket.
@@ -120,7 +120,7 @@ La aplicación móvil será una sola. Después de iniciar sesión, la navegació
 - Gestionar tarifas por tramo.
 - Consultar y gestionar usuarios y roles de demostración.
 - Asignar o renovar dos abonos relacionados para un itinerario, con la misma cantidad inicial de unidades.
-- Consultar pagos simulados y validaciones.
+- Consultar pagos de prueba y validaciones.
 - Registrar quién realizó cambios administrativos relevantes y cuándo.
 
 ### 5.5 Geolocalización básica de demostración
@@ -130,12 +130,12 @@ La aplicación móvil será una sola. Después de iniciar sesión, la navegació
 - Configurar como parámetros académicos la periodicidad de publicación, el umbral de desactualización y las referencias necesarias para estimar llegada y demora.
 - Consultar la última posición conocida y su actualización; marcarla como desactualizada al superar el umbral configurado. La llegada y la demora son aproximadas y se informan como no disponibles si faltan datos vigentes o referencias.
 
-### 5.6 Pago simulado
+### 5.6 Pago de prueba con Mercado Pago
 
-- Permitir resultados deterministas de aprobación y rechazo.
-- Registrar importe, fecha, usuario, referencia de compra y estado.
-- Emitir tickets únicamente después de una aprobación.
-- No solicitar ni guardar número real de tarjeta, CVV, cuenta bancaria ni documento financiero equivalente.
+- Integrar la API de Mercado Pago con credenciales TEST como decisión vigente revisable; probar aprobación y rechazo con escenarios del proveedor, sin inventar mecánica determinista local.
+- Registrar importe, fecha, usuario, referencia del intento y estado de dominio; proponer referencia externa y mapeo de estados del proveedor sin cerrar aún el ciclo compra/reintentos.
+- La API debe verificar el resultado con el proveedor antes de emitir tickets; nunca confiar únicamente en un éxito informado por el cliente.
+- La aplicación no debe solicitar ni guardar número de tarjeta, CVV o datos financieros equivalentes. El producto de checkout está pendiente de selección; producción y cobros reales requieren decisión de alcance explícita.
 
 ## 6. Flujos principales
 
@@ -146,8 +146,8 @@ La aplicación móvil será una sola. Después de iniciar sesión, la navegació
 3. La interfaz muestra el itinerario y el precio total.
 4. El primer tramo indica “sin asiento asignado”.
 5. El segundo tramo muestra el asiento asignado automáticamente.
-6. El pasajero confirma el pago simulado.
-7. Si se aprueba, la API crea la compra y los dos tickets en una única operación consistente.
+6. El pasajero realiza el pago en un escenario TEST del proveedor.
+7. Si la API verifica la aprobación del proveedor, crea la compra y los dos tickets en una única operación consistente.
 8. El pasajero puede consultar y mostrar cada QR por separado.
 9. Si se rechaza, no se emiten tickets y la interfaz permite reintentar.
 
@@ -181,7 +181,7 @@ La aplicación móvil será una sola. Después de iniciar sesión, la navegació
 | RN-04 | Un ticket solo puede validarse una vez y para su servicio/tramo correspondiente. |
 | RN-05 | El asiento es opcional en el modelo de ticket y obligatorio solo cuando el servicio lo requiere. |
 | RN-06 | Ombúes–Radial no asigna asiento; Radial–Colonia sí lo asigna en los datos de demostración. |
-| RN-07 | Los tickets se emiten únicamente después de aprobar el pago simulado. |
+| RN-07 | Los tickets se emiten únicamente después de que la API verifica la aprobación del pago de prueba con el proveedor; el cliente no decide la aprobación. |
 | RN-08 | Dos abonos relacionados comienzan con la misma cantidad de unidades, pero mantienen saldos independientes. |
 | RN-09 | Una validación correcta de abono descuenta exactamente una unidad del abono del tramo validado. |
 | RN-10 | Un abono vencido, suspendido o sin saldo no puede utilizarse. |
@@ -193,16 +193,18 @@ La aplicación móvil será una sola. Después de iniciar sesión, la navegació
 
 ## 8. Modelo de dominio preliminar
 
+El [borrador canónico de modelado UML y ER MySQL](design/data-model.md) desarrolla esta lista como propuesta para revisión cruzada; no autoriza migraciones ni resuelve decisiones comerciales pendientes. Primero revisar el dominio, después la representación relacional y finalmente los contratos DTO independientes.
+
 | Entidad | Responsabilidad y datos esenciales |
 | --- | --- |
 | Usuario | Identidad, credenciales académicas, estado y roles. |
 | Parada | Nombre y ubicación descriptiva. |
-| Tramo | Parada de origen, parada de destino y orden dentro de una ruta. |
+| Tramo | Parada de origen y destino; el orden dentro de una ruta es provisional y está pendiente de definir frente al orden de servicios en el itinerario. |
 | Servicio | Tramo, fecha, horario, capacidad y política de asiento. |
 | Tarifa | Precio vigente para un tramo o servicio. |
 | Itinerario | Combinación ordenada de servicios que conecta origen y destino. |
-| Compra | Pasajero, itinerario, importe total, pago y fecha. |
-| Pago | Estado simulado: pendiente, aprobado o rechazado. |
+| Compra | Pasajero, itinerario, importe total congelado y fecha; su vínculo con reintentos de pago sigue abierto. |
+| Pago | Importe, estado del dominio y referencia externa del proveedor cuando exista; un rechazo puede no tener compra emitida. |
 | Ticket | Servicio, pasajero, QR opaco, estado y asiento opcional. |
 | Asignación de abonos | Agrupa los abonos entregados juntos para un itinerario y período. |
 | Abono | Pasajero, tipo —por ejemplo, estudiante—, par de paradas autorizado, vigencia, unidades iniciales, saldo y QR opaco. |
@@ -220,7 +222,7 @@ Los modelos expuestos por la API serán contratos explícitos. Los clientes no d
 - `Vencido`
 - `Cancelado` — reservado para una etapa posterior
 
-### Pago simulado
+### Pago de prueba
 
 - `Pendiente`
 - `Aprobado`
@@ -234,7 +236,7 @@ Los modelos expuestos por la API serán contratos explícitos. Los clientes no d
 - `Vencido`
 - `Suspendido`
 
-Las transiciones serán controladas por la API. La interfaz mostrará el estado, pero no lo decidirá por sí sola.
+Los estados de pago son del dominio propuesto, no una afirmación sobre estados soportados por Mercado Pago; su mapeo está pendiente. Las transiciones serán controladas por la API. La interfaz mostrará el estado, pero no lo decidirá por sí sola.
 
 ## 10. Arquitectura y límites
 
@@ -242,9 +244,9 @@ Las transiciones serán controladas por la API. La interfaz mostrará el estado,
 | --- | --- |
 | Blazor Web App | Portal del pasajero, formularios validados y panel administrativo. |
 | React Native + Expo | Compra/consulta del pasajero y escaneo/validación del cobrador según el rol. |
-| API ASP.NET Core | Autenticación, autorización de usuarios y dispositivos de publicación, reglas, contratos, pagos simulados, posiciones básicas y validaciones atómicas. |
+| API ASP.NET Core | Autenticación, autorización, reglas, contratos, verificación del resultado del proveedor TEST antes de emitir tickets, posiciones y validaciones atómicas. |
 | Persistencia | MySQL almacenará usuarios, configuración operativa, compras, tickets, abonos, pagos, validaciones y posiciones recibidas. La API accederá mediante EF Core y el patrón Repository. |
-| Simulador de pagos | Produce respuestas de prueba controladas sin integrar dinero real. |
+| Mercado Pago TEST | Integración API propuesta, aún no implementada; escenarios de prueba del proveedor sin cobro real. Producto de checkout y mecanismo de verificación por decidir. |
 
 MySQL es la tecnología de persistencia decidida para el proyecto y su conexión administrativa local ya fue comprobada. Antes de crear migraciones se deberá seleccionar y verificar un proveedor de EF Core compatible con la versión de .NET, crear un usuario exclusivo para la API y resolver el alojamiento de producción. Las bibliotecas de QR y autenticación continúan pendientes y deberán considerar la consigna, la compatibilidad con Expo Go y el contenido enseñado en clase.
 
@@ -253,8 +255,8 @@ MySQL es la tecnología de persistencia decidida para el proyecto y su conexión
 | ID | Dado | Cuando | Entonces |
 | --- | --- | --- | --- |
 | CA-01 | Hay servicios compatibles Ombúes–Radial y Radial–Colonia | El pasajero busca Ombúes–Colonia | Recibe un itinerario ordenado de dos tramos. |
-| CA-02 | El itinerario es válido | El pago simulado se aprueba | Se crean una compra y dos tickets con QR distintos. |
-| CA-03 | El pago simulado se rechaza | Finaliza el intento | No se emiten tickets y se puede reintentar. |
+| CA-02 | El itinerario es válido | La API verifica la aprobación del pago TEST con el proveedor | Se crean una compra y dos tickets con QR distintos. |
+| CA-03 | El proveedor rechaza el intento TEST | Finaliza el intento | No se emiten tickets y se puede reintentar. |
 | CA-04 | El ticket corresponde al tramo actual | El cobrador lo escanea por primera vez | La validación es exitosa y el ticket queda utilizado. |
 | CA-05 | El ticket ya fue utilizado | Se vuelve a escanear | La API rechaza el uso duplicado. |
 | CA-06 | El ticket pertenece a otro tramo | El cobrador lo escanea | La API informa “tramo incorrecto” y no lo consume. |
@@ -282,7 +284,7 @@ MySQL es la tecnología de persistencia decidida para el proyecto y su conexión
 
 ## 13. Fuera del MVP
 
-- Pasarela de pago real y almacenamiento de tarjetas.
+- Cobros reales, credenciales de producción y almacenamiento de tarjetas; habilitarlos requeriría una decisión de alcance futura.
 - Integración con sistemas internos de Berrutti o de la Intendencia.
 - Solicitud, evaluación o financiación de becas.
 - Venta presencial en agencia y cobro en efectivo arriba del ómnibus.
@@ -304,7 +306,7 @@ MySQL es la tecnología de persistencia decidida para el proyecto y su conexión
 - Una tarifa por tramo y un total calculado.
 - Un pasajero, un cobrador y un administrador ficticios.
 - Dos abonos relacionados de 20 unidades.
-- Un escenario de pago aprobado y otro rechazado.
+- Escenarios de pago aprobado y rechazado del proveedor en TEST, pendientes de ejecutar.
 - Un dispositivo o celular embarcado ficticio asociado a un servicio y posiciones de demostración con fecha/hora de recepción; casos con datos vigentes, desactualizados y ausentes.
 - Parámetros académicos configurados para periodicidad, desactualización y referencias de llegada/demora, con un caso sin datos suficientes.
 
@@ -314,7 +316,7 @@ La división debe hacerse por funcionalidades verticales y con revisión cruzada
 
 | Estudiante | Responsabilidad inicial | Revisión cruzada |
 | --- | --- | --- |
-| A | Búsqueda, itinerarios, compra, pago simulado y tickets. | Revisa abonos y validación. |
+| A | Búsqueda, itinerarios, compra, pago TEST y tickets. | Revisa abonos y validación. |
 | B | Abonos, QR, validación y administración operativa. | Revisa compra y tickets. |
 
 Ambos deben trabajar en Blazor, API y React Native durante el proyecto para poder explicar la integración completa.
@@ -333,15 +335,16 @@ Ambos deben trabajar en Blazor, API y React Native durante el proyecto para pode
 
 ## 17. Orden recomendado de construcción
 
-1. Crear solución, clientes y API con autenticación mínima por roles.
-2. Configurar paradas, tramos, servicios y tarifas ficticias.
-3. Implementar búsqueda e itinerario de dos tramos.
-4. Implementar pago simulado y emisión de tickets.
-5. Mostrar QR y validar ticket de un solo uso.
-6. Crear, consultar y consumir abonos.
-7. Completar panel administrativo y registro de operaciones.
-8. Integrar los recorridos de compra, validación y abonos de los tres roles; preparar sus datos, estados de error y evidencia reproducible de demostración (MVP-008), sin ampliar esa tarea a geolocalización.
-9. Incorporar publicación autorizada de posiciones y consulta básica de ubicación, llegada aproximada y demora con datos ficticios (MVP-009); depende de la fundación y los servicios configurados y se demuestra por separado con posiciones vigentes, desactualizadas y ausentes, más error y reintento.
+1. Revisar y acordar el borrador de modelado UML y ER MySQL ([MVP-010](mvp-tasks.json)); es dependencia de MVP-001 y no habilita implementación mientras esté en revisión.
+2. Crear solución, clientes y API con autenticación mínima por roles.
+3. Configurar paradas, tramos, servicios y tarifas ficticias.
+4. Implementar búsqueda e itinerario de dos tramos.
+5. Integrar pago TEST de Mercado Pago, verificación por la API y emisión de tickets.
+6. Mostrar QR y validar ticket de un solo uso.
+7. Crear, consultar y consumir abonos.
+8. Completar panel administrativo y registro de operaciones.
+9. Integrar los recorridos de compra, validación y abonos de los tres roles; preparar sus datos, estados de error y evidencia reproducible de demostración (MVP-008), sin ampliar esa tarea a geolocalización.
+10. Incorporar publicación autorizada de posiciones y consulta básica de ubicación, llegada aproximada y demora con datos ficticios (MVP-009); depende de la fundación y los servicios configurados y se demuestra por separado con posiciones vigentes, desactualizadas y ausentes, más error y reintento.
 
 Cada etapa debe terminar en una integración ejecutable, no en capas aisladas sin recorrido visible.
 
