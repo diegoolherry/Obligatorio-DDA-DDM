@@ -1,4 +1,4 @@
-# MVP académico de pasajes y abonos por tramo
+# Proyecto académico de pasajes y abonos por tramo
 
 Estamos definiendo un prototipo académico de transporte: permitir que un pasajero busque y compre un itinerario, presente un ticket QR por tramo y consulte sus abonos; que un cobrador valide esos comprobantes; y que un administrador prepare los datos de demostración. Es un proyecto inspirado en una operativa observada, **no un sistema oficial ni afiliado a la empresa**. La propuesta es preliminar y debe contrastarse con la consigna del curso.
 
