@@ -6,9 +6,9 @@ Add a minimal automatic pull-request check for documentation changes so the data
 
 ## Tasks
 
-- [x] Add a GitHub Actions PR workflow that validates backlog JSON and changed-file whitespace without installing dependencies. Local evidence: `python -m json.tool docs/mvp-tasks.json > /dev/null` and `git diff --check` both exited 0; `git diff --check main HEAD` exited 0 (main and HEAD currently resolve to the same commit). Workflow execution on GitHub is not yet observed.
-- [ ] Verify workflow locally where possible and open its own issue-linked CI PR; record a passing GitHub check before merge.
-- [ ] Update the data-model PR against main, observe its passing check, then merge the draft without marking MVP-010 done.
+- [x] Add a GitHub Actions PR workflow that validates backlog JSON and changed-file whitespace without installing dependencies. Local evidence: `python -m json.tool docs/mvp-tasks.json > /dev/null` and `git diff --check` exited 0; the pre-commit check against `main HEAD` had an empty diff.
+- [x] Verify workflow in [PR #4](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/4), linked to approved issue #3; `validate` completed `SUCCESS`, then PR #4 merged as `8dcd919b`.
+- [ ] Update data-model [PR #2](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/2) against main, observe its passing check, then merge the draft without marking MVP-010 done.
 
 ## Scope and routing
 
