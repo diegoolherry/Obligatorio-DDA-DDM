@@ -1,0 +1,23 @@
+name: Documentation validation
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate backlog JSON
+        run: python -m json.tool docs/mvp-tasks.json > /dev/null
+      - name: Check PR diff whitespace
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: git diff --check "$BASE_SHA" HEAD
