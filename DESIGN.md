@@ -1,4 +1,4 @@
-# Guía visual y de experiencia de usuario — MVP académico
+# Obligatorio Berruti — Guía visual y de experiencia de usuario — MVP académico
 
 > **Estado:** propuesta para revisión del equipo, anterior a la consigna oficial. Producto académico ficticio inspirado en un contexto público de transporte; no es un canal de Berrutti ni representa un servicio afiliado, sus datos u operación real.
 

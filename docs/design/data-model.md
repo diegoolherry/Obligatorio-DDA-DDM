@@ -1,4 +1,4 @@
-# Borrador de modelado de datos del MVP
+# Obligatorio Berruti — Borrador de modelado de datos del MVP
 
 **Estado: propuesta para revisión de Enzo, no esquema aprobado.** Primero se representan conceptos y reglas del dominio en UML; luego una posible persistencia MySQL en ER. Las cardinalidades y restricciones marcadas **propuesta** no autorizan por sí solas políticas comerciales. Fuentes: [MVP](../mvp.md), [requisitos](../requerimientos.md), [historias](../user-stories.md) y [backlog](../mvp-tasks.json). No se encontró consigna oficial; contrastar este borrador con ella antes de implementar.
 
@@ -177,3 +177,24 @@ El **dominio** expresa reglas y comportamiento; las tablas son una alternativa d
 6. ¿Qué garantiza la unicidad de asiento por servicio y qué ocurre ante concurrencia/cupo lleno? La asignación automática de la demo ya está decidida, no su algoritmo ni la política de reserva.
 
 Hasta resolver estas preguntas y obtener revisión cruzada, no derivar de este borrador migraciones ni contratos definitivos.
+
+## 5. Modelo conceptual complementario de la entrega final
+
+**Propuesta complementaria, no esquema aprobado ni implementación.** Las mejoras del equipo se delimitan en [alcance final](../final-scope.md); no son exigencias académicas explícitas. El UML/ER MVP y las seis preguntas anteriores permanecen intactos. Estos conceptos permiten discutir la ampliación sin decidir silenciosamente cómo migrar `tramo`, `servicio`, tarifas, pagos o abonos existentes.
+
+| Concepto candidato | Relación e invariante de diseño |
+| --- | --- |
+| Ruta dirigida / variante | Secuencia de paradas con sentido explícito; variantes no comparten órdenes numéricos por inferencia. |
+| Parada en ruta | Pertenencia y orden local; identificar la ocurrencia ordenada evita confundir visitas a una misma parada. |
+| Calendario de operación | Días hábiles, fines de semana, feriados, vigencia y excepciones por bloque/variante; validación de fuente pendiente. |
+| Salida | Instancia fechada de una ruta dirigida, con secuencia y vehículo asignado; su correspondencia con `Servicio` MVP sigue por acordar. |
+| Vehículo / configuración | Vehículo asignado determina plano académico 22/28/42/46; configuración contiene filas, posiciones y números únicos de asiento. |
+| Asiento de salida | Identidad de inventario = salida + asiento de su configuración; reutilizar vehículo no comparte inventario entre salidas. |
+| Ocupación confirmada | Asiento de salida e intervalo de embarque/desembarque válido de esa misma ruta/salida; no permite superposiciones. |
+| Selección / intento de compra | Selección de cliente no es ocupación confirmada; asociación de intento/pago/compra y hold requiere decisión. |
+
+Relaciones propuestas: una ruta dirigida contiene una secuencia de ocurrencias de parada y puede generar múltiples salidas según calendario; una salida usa un vehículo y su configuración, que define los asientos ofrecidos. Un asiento de salida admite múltiples ocupaciones solamente en intervalos no superpuestos. Un itinerario con transbordo refiere varias salidas y requiere selección/asignación independiente en cada una.
+
+La regla formal `[a,b)` contra `[c,d)` y sus ejemplos se mantienen en [disponibilidad por intervalo](../final-scope.md#4-disponibilidad-por-intervalo), junto con [estados de compra y decisiones pendientes](../final-scope.md#5-compra-y-estados-de-experiencia). La confirmación atómica/idempotente del servidor es aceptación futura: PK/FK o un UNIQUE por asiento/salida no bastan para permitir reutilización y excluir superposición. Estrategia transaccional, representación física e índices requieren diseño y pruebas; no se proponen migraciones aquí.
+
+**Puertas pendientes:** acordar relación ruta/salida con el modelo MVP, configuración ante cambio de vehículo y política de hold/pago TEST. Una entidad durable de reserva temporal y sus estados no se dan por aprobados. No cambia la limitación TEST/sin producción ni se resuelven tarifa, checkout, reintentos, abonos o retención de validaciones. La evidencia de horarios y sus límites está en [catálogo y fuente](../final-scope.md#2-catálogo-y-evidencia-de-horarios); capacidades y planos no prueban asignaciones reales. La revisión cruzada debe preceder contratos definitivos.

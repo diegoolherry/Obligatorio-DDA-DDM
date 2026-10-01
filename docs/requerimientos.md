@@ -1,4 +1,4 @@
-# Requerimientos del MVP académico
+# Obligatorio Berruti — Requerimientos del MVP académico
 
 Este documento convierte el alcance preliminar en requisitos verificables para el MVP académico inspirado en Berrutti. Usa datos y reglas ficticios: no describe ni garantiza la operación oficial de una empresa de transporte.
 

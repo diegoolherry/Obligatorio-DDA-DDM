@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "nombre": "Backlog compartido del MVP académico",
-    "descripcion": "Plan de cortes verticales para el MVP de venta y validación de pasajes y abonos.",
+    "nombre": "Obligatorio Berruti — Backlog compartido del MVP académico",
+    "descripcion": "Plan de cortes verticales del MVP y ampliaciones finales del equipo en docs/final-scope.md; responsables FIN propuestos, pendientes de aprobación humana.",
     "fuente": "docs/mvp.md",
     "ordenRecomendado": "Las tareas se ejecutan en el orden de construcción indicado, completando una integración ejecutable por etapa.",
     "mantenidoEn": "AGENTS.md",
@@ -286,6 +286,114 @@
         "El borrador distingue dominio, persistencia y DTO y documenta escenarios de rechazo y concurrencia."
       ],
       "evidence": "Borrador en docs/design/data-model.md; se corrigen propuestas de cardinalidad itinerario/servicio, compra/ticket y compra/pago y se documenta la decisión actual revisable de Mercado Pago TEST. Pendientes ciclo de reintentos, checkout, mapeo de estados y revisión humana de Enzo. No se afirma aprobación, integración ni pruebas del proveedor."
+    },
+    {
+      "id": "FIN-001",
+      "name": "Catálogo de rutas dirigidas y calendarios verificados",
+      "description": "Implementar catálogo de las familias y variantes aprobadas en docs/final-scope.md, con secuencia de paradas, salidas fechadas, vigencias y excepciones verificadas por bloque de horario.",
+      "priority": "alta",
+      "area": [
+        "API",
+        "Blazor"
+      ],
+      "status": "pending",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-10-01T18:42:19.328164-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [
+        "MVP-001",
+        "MVP-002"
+      ],
+      "acceptanceCriteria": [
+        "Las cinco familias aprobadas y variantes Polancos tienen dirección, paradas ordenadas y salidas válidas; órdenes de distintas rutas no se comparan.",
+        "Se validan días hábiles, fines de semana, feriados y excepciones por bloque; 02/03/26–20/12/26 solo se aplica al bloque principal Palmira–Colonia cuando corresponde.",
+        "La transcripción completa y sus pruebas conservan llegadas aproximadas, documentan una fuente reproducible autorizada y no infieren tarifas, capacidades ni flota real."
+      ],
+      "evidence": "Planificado, no iniciado. Diego/Enzo son responsables propuestos, sin aprobación humana. Fuente visual no versionada ni pública; transcripción/verificación y reproducibilidad pendientes. Resolver correspondencia ruta/salida con modelo MVP en revisión antes de contratos definitivos."
+    },
+    {
+      "id": "FIN-002",
+      "name": "Configuraciones académicas de vehículos y asientos por salida",
+      "description": "Implementar configuraciones 22/28/42/46 y su vínculo al vehículo asignado a cada salida, sin afirmar planos oficiales ni asignaciones de línea regular.",
+      "priority": "alta",
+      "area": [
+        "API",
+        "Blazor"
+      ],
+      "status": "pending",
+      "assignee": "Enzo",
+      "reviewer": "Diego",
+      "createdAt": "2026-10-01T18:42:19.328164-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [
+        "FIN-001"
+      ],
+      "acceptanceCriteria": [
+        "Pruebas verifican 2+2, pasillo central y numeración por fila: 22/42/46 terminan en dos asientos izquierdos; 28 contiene siete filas completas.",
+        "El vehículo asignado determina configuración y asientos de salida; salidas distintas del mismo vehículo tienen inventarios independientes.",
+        "Configuración ausente o incompatible no ofrece un plano inventado; cambios de vehículo fuerzan revalidación y la política de reasignación se acuerda antes de implementarla."
+      ],
+      "evidence": "Planificado, no iniciado. Enzo/Diego son responsables propuestos, sin aprobación humana. Planos académicos, no verificación de flota regular; política ante cambio de vehículo pendiente."
+    },
+    {
+      "id": "FIN-003",
+      "name": "Disponibilidad por intervalo y confirmación concurrente de compra",
+      "description": "Implementar en servidor consultas de asiento por intervalo y confirmación atómica/idempotente integrada con checkout TEST, tras acordar explícitamente la política de reserva temporal y pago.",
+      "priority": "alta",
+      "area": [
+        "API"
+      ],
+      "status": "pending",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-10-01T18:42:19.328164-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [
+        "FIN-002",
+        "MVP-004"
+      ],
+      "acceptanceCriteria": [
+        "Antes de implementar el ciclo, decisión explícita y revisión cruzada definen duración, inicio y liberación del hold y política de pago TEST pendiente, rechazado y aprobado/verificado tarde; sin valores predeterminados inventados.",
+        "El servidor valida extremos de la misma ruta/salida con embarque menor que desembarque y aplica superposición a<d && c<b; pruebas cubren adyacencia, inclusión, separación, intervalos inválidos y salidas distintas.",
+        "Pruebas concurrentes impiden doble venta superpuesta; solicitudes repetidas o respuesta perdida no duplican compra ni tickets y confirmación revalida configuración e inventario.",
+        "Solo aprobación TEST verificada por API permite emisión según política acordada; no hay cobros reales, credenciales de producción ni almacenamiento de tarjetas/CVV."
+      ],
+      "evidence": "Planificado, no iniciado. Diego/Enzo son responsables propuestos, sin aprobación humana. PUERTA ABIERTA: hold y políticas de pago pendiente/rechazado/tardío no decididos; requieren acuerdo previo, además de dependencias done. Atomicidad/idempotencia son aceptación de diseño, no implementación comprobada."
+    },
+    {
+      "id": "FIN-004",
+      "name": "Selección web de asiento y pruebas de compra de punta a punta",
+      "description": "Integrar en Blazor selección por salida e intervalo, revisión del itinerario y checkout TEST con estados de fallo y evidencia reproducible end-to-end.",
+      "priority": "alta",
+      "area": [
+        "Blazor",
+        "API"
+      ],
+      "status": "pending",
+      "assignee": "Enzo",
+      "reviewer": "Diego",
+      "createdAt": "2026-10-01T18:42:19.328164-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [
+        "FIN-003",
+        "MVP-008"
+      ],
+      "acceptanceCriteria": [
+        "El plano web corresponde al vehículo y muestra disponibilidad del intervalo; transbordos permiten selección independiente sin asumir mismo asiento.",
+        "La UI comunica carga, vacío, error, sin conexión, conflicto, cambio de configuración, pago pendiente/rechazado/no verificado, respuesta perdida y éxito sin depender solo de color ni prometer reserva visual.",
+        "Pruebas end-to-end cubren relevo adyacente, superposición rechazada, competencia concurrente, cambio de vehículo, reintento idempotente y pagos TEST incluidos casos tardíos según la política previamente aprobada.",
+        "La evidencia de revisión cruzada y comandos/resultados acredita tickets solo tras confirmación autoritativa; selección del cliente no se presenta como venta ni implementación sin pruebas."
+      ],
+      "evidence": "Planificado, no iniciado. Enzo/Diego son responsables propuestos, sin aprobación humana. Depende de política hold/pago resuelta en FIN-003 y fundamentos MVP terminados; no amplía selección de asiento a móvil ni pagos a producción."
     }
   ]
 }

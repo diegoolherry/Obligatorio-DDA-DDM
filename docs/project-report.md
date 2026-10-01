@@ -1,4 +1,4 @@
-# Informe académico del proyecto — pasajes y abonos
+# Obligatorio Berruti — Informe académico del proyecto — pasajes y abonos
 
 > **Estado del documento:** borrador vivo; Markdown es la fuente para la futura entrega en Word. No representa un sistema oficial ni un producto desplegado. Los datos operativos son ficticios.
 >
@@ -6,17 +6,21 @@
 
 ## 1. Resumen y estado actual
 
+**Obligatorio Berruti** es el nombre del proyecto académico; **Berrutti** refiere al operador real que inspiró el caso, sin implicar afiliación ni aval.
+
 El proyecto académico propone una plataforma de venta y validación de pasajes y abonos por tramo: un portal Blazor para pasajeros y administración, una aplicación React Native/Expo para pasajeros y cobradores, y una API compartida. La compra propone la API de Mercado Pago con credenciales TEST (aún sin integración implementada ni cobros reales), cada tramo emite su propio ticket QR y el cobrador valida tickets o descuenta unidades del abono correspondiente. La consulta de posición, llegada y demora es una demostración básica con datos ficticios, no seguimiento operativo garantizado. El alcance detallado y sus límites están en [MVP](mvp.md).
 
 | Tema | Estado | Evidencia / próximo paso |
 | --- | --- | --- |
 | Alcance, requisitos y escenarios | **Planificado** | [Requerimientos](requerimientos.md), [historias](user-stories.md) y [MVP](mvp.md); contrastar con la consigna oficial. |
-| Ejecución del MVP | **Verificado** (estado del backlog, no funcionalidad) | [Backlog](mvp-tasks.json): diez tareas: MVP-001 a MVP-009 `pending` y MVP-010 `in_progress`; ninguna está terminada ni implica implementación o pruebas aprobadas. |
+| Ejecución y planificación final | **Estado del backlog, no funcionalidad** | [Backlog](mvp-tasks.json): diez tareas MVP sin cambios (nueve `pending`, MVP-010 `in_progress`) y cuatro FIN `pending`: trece pendientes, una en curso, ninguna terminada. Responsables FIN propuestos, sin aprobación humana de asignación. |
 | Clientes y API compartida | **Decidido** | Portal Blazor + móvil React Native/TypeScript/Expo, API para reglas y contratos explícitos; verificar arquitectura en código al comenzar. |
 | Arquitectura de API | **Decidido** | Controllers → Services → Repositories → EF Core DbContext; documentar interfaces y responsabilidades con evidencia al implementarlas. |
 | Persistencia | **Decidido** (motor), **propuesto** (modelo) | MySQL seleccionado e instalado localmente; [MVP §10](mvp.md#10-arquitectura-y-límites) refleja el motor. El [borrador UML y ER](design/data-model.md) requiere decisiones y revisión de Enzo; esquema, integración EF Core, usuario de aplicación y entorno de producción siguen pendientes. |
 | Pagos TEST | **Decidido, revisable; no implementado** | [MVP §5.6](mvp.md#56-pago-de-prueba-con-mercado-pago): API de Mercado Pago en TEST, resultado verificado por la API antes de emitir tickets. Producto de checkout, referencia/estados externos y reintentos pendientes; producción necesita decisión futura. |
 | Despliegue | **Pendiente** | No hay entorno de producción, proveedor ni despliegue comprobados en este informe. |
+
+El MVP de las primeras semanas de octubre es un corte inicial; la entrega completa incorpora las mejoras del equipo del [alcance final](final-scope.md), no requisitos académicos explícitos: catálogo/calendarios, planos académicos de vehículos y selección web con disponibilidad por intervalo. El [modelo complementario](design/data-model.md#5-modelo-conceptual-complementario-de-la-entrega-final) no sustituye el UML/ER MVP. Todo sigue planificado, sin implementación ni revisión humana acreditada.
 
 ## 2. Contexto, problema y objetivos
 
@@ -63,6 +67,8 @@ El proyecto académico propone una plataforma de venta y validación de pasajes 
 ## 6. Equipo, iteraciones y cronograma
 
 **Planificado:** primero revisión del modelado MVP-010 (Diego, revisor Enzo); MVP-001 depende de su finalización, sin iniciarse aún. Luego dos estudiantes desarrollan cortes verticales que atraviesan clientes y API, con revisión cruzada. [Backlog](mvp-tasks.json) fija responsables, revisor, dependencias y orden sugerido; no sustituirlo por fechas inferidas. **Pendiente:** explicitar roles efectivos, disponibilidad, formación necesaria, iteraciones, hitos, estimaciones, calendario y ruta crítica (dependencias MVP-001/002 antes de flujos consumidores). Registrar desvíos y decisiones con fecha cuando ocurran; no declarar hitos alcanzados por el mero hecho de estar planificados.
+
+Para la entrega final, FIN-001..004 ordenan catálogo/calendarios, configuraciones de vehículos, disponibilidad concurrente/compra y selección web con pruebas end-to-end, sobre fundamentos MVP. No se fija fecha final ni se inician tareas con dependencias pendientes. La reserva temporal y la política de pagos TEST pendientes/rechazados o aprobados tarde requieren decisión y revisión antes de implementar el ciclo ([puerta abierta](final-scope.md#puerta-abierta-reserva-temporal-y-pago)). La transcripción/verificación completa del horario y una fuente reproducible compartible siguen pendientes; no se infieren tarifas ni flota real del horario.
 
 ## 7. Calidad, pruebas y gestión de configuración
 

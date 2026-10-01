@@ -1,14 +1,18 @@
-# Proyecto académico de pasajes y abonos por tramo
+# Obligatorio Berruti
+
+MVP académico de pasajes y abonos por tramo.
 
 Estamos definiendo un prototipo académico de transporte: permitir que un pasajero busque y compre un itinerario, presente un ticket QR por tramo y consulte sus abonos; que un cobrador valide esos comprobantes; y que un administrador prepare los datos de demostración. Es un proyecto inspirado en una operativa observada, **no un sistema oficial ni afiliado a la empresa**. La propuesta es preliminar y debe contrastarse con la consigna del curso.
 
 ## Por dónde empezar
 
 1. Leé el [alcance y los escenarios del MVP](docs/mvp.md) para distinguir reglas observadas, decisiones académicas y dudas abiertas.
-2. Consultá el [backlog](docs/mvp-tasks.json) para estados, responsables, dependencias y criterios de aceptación vigentes. Al redactar este README hay nueve tareas `pending` y una `in_progress` (MVP-010, modelado); el diseño espera revisión cruzada de Enzo. Este resumen no reemplaza el JSON.
+2. Consultá el [backlog](docs/mvp-tasks.json) para estados, responsables, dependencias y criterios de aceptación vigentes. Las diez tareas MVP conservan nueve `pending` y una `in_progress` (MVP-010, modelado); las cuatro FIN están `pending`, con responsables propuestos. El diseño espera revisión cruzada de Enzo. Este resumen no reemplaza el JSON.
 3. Para el diseño, mirá el [borrador UML/ER](docs/design/data-model.md) y la [guía de experiencia](DESIGN.md). El [informe académico vivo](docs/project-report.md) reúne decisiones, evidencia y pendientes; su Markdown es la fuente para una eventual versión Word.
 
 Todavía **no hay código rastreado de API, Blazor ni aplicación móvil**. No hay migraciones, integración con proveedor de pagos ni despliegue verificados. MySQL está instalado y se comprobó una conexión administrativa local, pero no está integrado con la API; el modelo de datos sigue siendo una propuesta, no un esquema aprobado.
+
+El MVP de las primeras semanas de octubre es el primer corte, no toda la entrega. El [alcance final](docs/final-scope.md) agrega mejoras del equipo (no requisitos académicos explícitos): rutas/calendarios y selección web de asientos por intervalo; todavía no están implementadas.
 
 ## Recorrido que queremos demostrar
 

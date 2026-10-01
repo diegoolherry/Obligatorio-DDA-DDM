@@ -1,4 +1,4 @@
-# MVP académico — Venta y validación de pasajes y abonos
+# Obligatorio Berruti — MVP académico — Venta y validación de pasajes y abonos
 
 > **Estado:** definición preliminar previa a la consigna oficial.
 >

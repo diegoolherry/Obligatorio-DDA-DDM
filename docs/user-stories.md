@@ -1,4 +1,4 @@
-# Historias de usuario del MVP académico
+# Obligatorio Berruti — Historias de usuario del MVP académico
 
 Estas historias permiten revisar cada requisito funcional sin reinterpretar el alcance. Todos los datos, parámetros de ubicación y resultados operativos son de demostración; no representan reglas ni niveles de servicio oficiales.
 

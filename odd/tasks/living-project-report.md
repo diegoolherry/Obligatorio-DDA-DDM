@@ -32,8 +32,8 @@ Create an evolving Markdown source for the future Word project delivery and esta
 ## Progress and evidence
 
 - Started at `2026-09-25T00:58:01-03:00` after explicit user authorization to create both files.
-- Source reference inspected read-only: `D:/CTC/Semestre-3/Ing-Software/Tercera-Entrega-Ing-DiegoOlherry-EnzoFajardo.docx`.
-- Applicable skill: `C:/Users/User/.agents/skills/cognitive-doc-design/SKILL.md`.
+- Source reference inspected read-only: previous third-delivery Word document for the Software Engineering course (local, not versioned; private path omitted).
+- Applicable skill: `cognitive-doc-design` (installed locally; private path omitted).
 - REPORT-1 and REPORT-2 were implemented by the bounded writer and read back by the parent. Writer checks found 17 repository-file links resolving and all nine MVP tasks still `pending`.
 - Native risk assessment was unavailable because untracked files require explicit review scope; the returned plan required an independent verifier.
 - REPORT-3 completed at `2026-09-25T01:03:39-03:00`: independent verification and focused re-verification passed with no blockers. Git reports an LF→CRLF conversion warning for `AGENTS.md`, not a whitespace error.
