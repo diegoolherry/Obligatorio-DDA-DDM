@@ -31,7 +31,7 @@ Apply the approved decomposition of MVP-001 into five executable child tasks in 
 
 ## Progress
 
-SUB-1 and SUB-2 complete. Baseline main: f92769c. Branch: docs/mvp-foundation-subtasks. Only pre-existing .codegraph/ was untracked before this unit. No commits or publishing performed.
+SUB-1 and SUB-2 complete. Baseline main: f92769c. Branch: docs/mvp-foundation-subtasks. Only pre-existing .codegraph/ was untracked before this unit. Work-unit commit: `886419df281ee73d86d8dd641dcb3f7ad535fb36` (`docs(backlog): decompose foundation milestone into child tasks`). Staged whitespace check passed; exactly the five intended files were included. `.codegraph/` remained excluded.
 
 Writer self-checks PASS: original 14 records preserved, five new children, JSON, IDs, hierarchy/dependency DAG, lifecycle nulls, counts, local links/anchors and whitespace. Clock command: `python -c "from datetime import datetime; print(datetime.now().astimezone().isoformat())"`; observed `2026-10-05T19:43:34.283590-03:00`, used for all five child createdAt fields. App tests/external links not applicable or omitted; human design review remains pending. Native assessment was unassessable due untracked scope, so independent verification applied.
 
