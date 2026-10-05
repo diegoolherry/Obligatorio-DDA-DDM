@@ -335,7 +335,7 @@ Ambos deben trabajar en Blazor, API y React Native durante el proyecto para pode
 
 ## 17. Orden recomendado de construcción
 
-1. Revisar y acordar el borrador de modelado UML y ER MySQL ([MVP-010](mvp-tasks.json)); es dependencia de MVP-001 y no habilita implementación mientras esté en revisión.
+1. Revisar y acordar el borrador de modelado UML y ER MySQL ([MVP-010](tasks.json)); es dependencia de MVP-001 y no habilita implementación mientras esté en revisión.
 2. Crear solución, clientes y API con autenticación mínima por roles.
 3. Configurar paradas, tramos, servicios y tarifas ficticias.
 4. Implementar búsqueda e itinerario de dos tramos.

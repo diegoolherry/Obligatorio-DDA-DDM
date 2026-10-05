@@ -8,9 +8,9 @@ Antes de planificar, implementar, depurar o revisar trabajo de Blazor, C#, API, 
 
 La consigna vigente y la configuración del repositorio prevalecen sobre la skill si hay conflicto. Informalo en lugar de asumir una solución, y actualizá la skill solo cuando el equipo apruebe la nueva convención.
 
-## Backlog compartido del MVP
+## Backlog compartido del proyecto completo
 
-`docs/mvp-tasks.json` es la fuente de verdad del backlog. Debe mantenerse como JSON válido y sus tareas deben conservar un `id` y `createdAt` inmutables.
+`docs/tasks.json` es la fuente de verdad del backlog del proyecto académico completo, incluidos el MVP y la entrega final. Mantiene un único array `tasks`; cada tarea usa un array `area` con etiquetas `API`, `Web`, `Mobile` y/o `Docs`. Las tareas transversales incluyen varias áreas, sin dividirse por capa. Los IDs legados `MVP-*` y `FIN-*` se conservan estables: no se renumeran al cambiar el alcance o la clasificación. Debe mantenerse como JSON válido y sus tareas deben conservar un `id` y `createdAt` inmutables.
 
 - Usá únicamente los estados `pending`, `in_progress`, `blocked` y `done`. Las transiciones válidas son `pending` → `in_progress` o `blocked`; `in_progress` → `blocked` o `done`; y `blocked` → `pending` o `in_progress` al resolver el impedimento. Una tarea `done` no se reabre: creá una tarea nueva si surge trabajo adicional.
 - Antes de iniciar una tarea, comprobá que sus dependencias estén en `done`; cualquier excepción debe quedar justificada como bloqueo o decisión explícita en `evidence`.
@@ -22,4 +22,4 @@ La consigna vigente y la configuración del repositorio prevalecen sobre la skil
 
 ## Informe académico vivo
 
-`docs/project-report.md` es la fuente Markdown del informe académico; la versión Word se genera después, no se mantiene como fuente paralela. Después de cambios importantes en arquitectura, requisitos o alcance, decisiones tecnológicas, cortes MVP terminados, evidencia de pruebas/calidad, despliegue/infraestructura, riesgos, cronograma o proceso del equipo, revisá el informe y actualizá las secciones afectadas. Enlazá evidencia verificable, distinguí decisiones y planes de resultados comprobados, marcá lo pendiente explícitamente y nunca inventes implementación, pruebas o despliegue completados. Conservá `docs/mvp-tasks.json` como autoridad para estados y finalización de tareas.
+`docs/project-report.md` es la fuente Markdown del informe académico; la versión Word se genera después, no se mantiene como fuente paralela. Después de cambios importantes en arquitectura, requisitos o alcance, decisiones tecnológicas, cortes MVP terminados, evidencia de pruebas/calidad, despliegue/infraestructura, riesgos, cronograma o proceso del equipo, revisá el informe y actualizá las secciones afectadas. Enlazá evidencia verificable, distinguí decisiones y planes de resultados comprobados, marcá lo pendiente explícitamente y nunca inventes implementación, pruebas o despliegue completados. Conservá `docs/tasks.json` como autoridad para estados y finalización de tareas.

@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "nombre": "Obligatorio Berruti — Backlog compartido del MVP académico",
+    "nombre": "Obligatorio Berruti — Backlog compartido del proyecto académico completo",
     "descripcion": "Plan de cortes verticales del MVP y ampliaciones finales del equipo en docs/final-scope.md; responsables FIN propuestos, pendientes de aprobación humana.",
     "fuente": "docs/mvp.md",
     "ordenRecomendado": "Las tareas se ejecutan en el orden de construcción indicado, completando una integración ejecutable por etapa.",
@@ -15,8 +15,8 @@
       "priority": "alta",
       "area": [
         "API",
-        "Blazor",
-        "React Native"
+        "Web",
+        "Mobile"
       ],
       "status": "pending",
       "assignee": "Diego",
@@ -42,7 +42,7 @@
       "priority": "alta",
       "area": [
         "API",
-        "Blazor"
+        "Web"
       ],
       "status": "pending",
       "assignee": "Enzo",
@@ -68,8 +68,8 @@
       "priority": "alta",
       "area": [
         "API",
-        "Blazor",
-        "React Native"
+        "Web",
+        "Mobile"
       ],
       "status": "pending",
       "assignee": "Diego",
@@ -96,8 +96,8 @@
       "priority": "alta",
       "area": [
         "API",
-        "Blazor",
-        "React Native"
+        "Web",
+        "Mobile"
       ],
       "status": "pending",
       "assignee": "Enzo",
@@ -124,8 +124,8 @@
       "priority": "alta",
       "area": [
         "API",
-        "Blazor",
-        "React Native"
+        "Web",
+        "Mobile"
       ],
       "status": "pending",
       "assignee": "Diego",
@@ -152,8 +152,8 @@
       "priority": "alta",
       "area": [
         "API",
-        "Blazor",
-        "React Native"
+        "Web",
+        "Mobile"
       ],
       "status": "pending",
       "assignee": "Enzo",
@@ -181,7 +181,7 @@
       "priority": "media",
       "area": [
         "API",
-        "Blazor"
+        "Web"
       ],
       "status": "pending",
       "assignee": "Diego",
@@ -210,8 +210,8 @@
       "priority": "alta",
       "area": [
         "API",
-        "Blazor",
-        "React Native"
+        "Web",
+        "Mobile"
       ],
       "status": "pending",
       "assignee": "Enzo",
@@ -240,8 +240,8 @@
       "priority": "media",
       "area": [
         "API",
-        "Blazor",
-        "React Native"
+        "Web",
+        "Mobile"
       ],
       "status": "pending",
       "assignee": "Diego",
@@ -269,8 +269,7 @@
       "description": "Documentar y revisar el dominio y la persistencia propuesta antes de implementar contratos o migraciones; resolver decisiones abiertas sin presentar el borrador como esquema aprobado.",
       "priority": "alta",
       "area": [
-        "Diseño",
-        "Documentación"
+        "Docs"
       ],
       "status": "in_progress",
       "assignee": "Diego",
@@ -294,7 +293,7 @@
       "priority": "alta",
       "area": [
         "API",
-        "Blazor"
+        "Web"
       ],
       "status": "pending",
       "assignee": "Diego",
@@ -321,7 +320,7 @@
       "priority": "alta",
       "area": [
         "API",
-        "Blazor"
+        "Web"
       ],
       "status": "pending",
       "assignee": "Enzo",
@@ -373,7 +372,7 @@
       "description": "Integrar en Blazor selección por salida e intervalo, revisión del itinerario y checkout TEST con estados de fallo y evidencia reproducible end-to-end.",
       "priority": "alta",
       "area": [
-        "Blazor",
+        "Web",
         "API"
       ],
       "status": "pending",

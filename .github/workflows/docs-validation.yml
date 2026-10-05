@@ -16,7 +16,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Validate backlog JSON
-        run: python -m json.tool docs/mvp-tasks.json > /dev/null
+        run: python -m json.tool docs/tasks.json > /dev/null
       - name: Check PR diff whitespace
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
