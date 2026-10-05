@@ -393,6 +393,148 @@
         "La evidencia de revisión cruzada y comandos/resultados acredita tickets solo tras confirmación autoritativa; selección del cliente no se presenta como venta ni implementación sin pruebas."
       ],
       "evidence": "Planificado, no iniciado. Enzo/Diego son responsables propuestos, sin aprobación humana. Depende de política hold/pago resuelta en FIN-003 y fundamentos MVP terminados; no amplía selección de asiento a móvil ni pagos a producción."
+    },
+    {
+      "id": "MVP-001-01",
+      "parentId": "MVP-001",
+      "name": "Estructura integrada y verificaciones iniciales de API, Web y Mobile",
+      "description": "Preparar la estructura integrada de API, portal Blazor y aplicación React Native/TypeScript/Expo, con configuración reproducible sin secretos y verificaciones observables de compilación y arranque; sin implementar flujos de negocio.",
+      "priority": "alta",
+      "area": [
+        "API",
+        "Web",
+        "Mobile"
+      ],
+      "status": "pending",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-10-05T19:43:34.283590-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [
+        "MVP-010"
+      ],
+      "acceptanceCriteria": [
+        "La estructura distingue API, Web y Mobile, y documenta los requisitos y comandos reproducibles para compilar y arrancar cada parte.",
+        "La evidencia registra comandos y resultados observables de compilación y arranque de las tres partes en el entorno de desarrollo.",
+        "La configuración documenta cómo conectar los clientes con la API sin incluir secretos ni credenciales reales en el repositorio o la evidencia."
+      ],
+      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. No iniciado: depende de MVP-010 done, con decisiones resueltas y revisión cruzada de Enzo aún pendiente. No acredita implementación ni pruebas."
+    },
+    {
+      "id": "MVP-001-02",
+      "parentId": "MVP-001",
+      "name": "Contratos tipados iniciales de solicitud y respuesta",
+      "description": "Definir los contratos iniciales de solicitud/respuesta que necesitan los flujos de autenticación de MVP-001, con significado equivalente en C# y TypeScript y separados de las entidades de persistencia, a partir del diseño revisado; sin inventar endpoints ni mecanismos o bibliotecas de autenticación.",
+      "priority": "alta",
+      "area": [
+        "API",
+        "Web",
+        "Mobile"
+      ],
+      "status": "pending",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-10-05T19:43:34.283590-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [
+        "MVP-010",
+        "MVP-001-01"
+      ],
+      "acceptanceCriteria": [
+        "Los contratos iniciales de solicitud y respuesta son explícitos y tipados en C# y TypeScript, con campos y significado equivalentes documentados para ambos clientes.",
+        "Los clientes dependen de estos contratos y no de entidades de persistencia; la revisión comprueba esa separación y ausencia de any usado para ocultar errores de tipos.",
+        "La evidencia de compilación o verificación de tipos de API, Web y Mobile y la revisión cruzada permiten comprobar la compatibilidad de los contratos con el diseño aprobado."
+      ],
+      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. No iniciado: depende de MVP-010 y MVP-001-01 done; puerta de diseño y revisión cruzada de Enzo aún pendiente. No acredita implementación ni pruebas."
+    },
+    {
+      "id": "MVP-001-03",
+      "parentId": "MVP-001",
+      "name": "Inicio y cierre de sesión de pasajero en Web y Mobile",
+      "description": "Habilitar inicio y cierre de sesión de una cuenta ficticia de pasajero desde Blazor y React Native/Expo, usando los contratos revisados y autorización aplicada por la API; documentar resultados permitidos y denegados sin asumir un mecanismo de autenticación.",
+      "priority": "alta",
+      "area": [
+        "API",
+        "Web",
+        "Mobile"
+      ],
+      "status": "pending",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-10-05T19:43:34.283590-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [
+        "MVP-010",
+        "MVP-001-02"
+      ],
+      "acceptanceCriteria": [
+        "La cuenta ficticia de pasajero puede iniciar y cerrar sesión en Web y Mobile; tras el cierre, una operación protegida requiere autenticarse nuevamente.",
+        "La evidencia verifica que la API permite una operación protegida autorizada al pasajero y deniega una no autorizada a ese rol, además del acceso sin sesión; no basta con ocultar controles en los clientes.",
+        "Ambos clientes comunican carga, éxito, credenciales rechazadas, fallo de red o servidor y reintento sin mostrar éxito cuando la autenticación falla."
+      ],
+      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. No iniciado: depende de MVP-010 y MVP-001-02 done; puerta de diseño y revisión cruzada de Enzo aún pendiente. No acredita implementación ni pruebas."
+    },
+    {
+      "id": "MVP-001-04",
+      "parentId": "MVP-001",
+      "name": "Inicio y cierre de sesión de conductor/cobrador en Mobile",
+      "description": "Habilitar inicio y cierre de sesión de una cuenta ficticia de conductor/cobrador en React Native/Expo para el rol cobrador previsto en el MVP, con contratos revisados y autorización aplicada por la API; no agrega un rol nuevo ni depende del flujo de pasajero.",
+      "priority": "alta",
+      "area": [
+        "API",
+        "Mobile"
+      ],
+      "status": "pending",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-10-05T19:43:34.283590-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [
+        "MVP-010",
+        "MVP-001-02"
+      ],
+      "acceptanceCriteria": [
+        "La cuenta ficticia de conductor/cobrador puede iniciar y cerrar sesión en Mobile; tras el cierre, una operación protegida requiere autenticarse nuevamente.",
+        "La evidencia verifica que la API permite una operación protegida autorizada al cobrador y deniega una no autorizada a ese rol, además del acceso sin sesión; no basta con ocultar controles en Mobile.",
+        "Mobile comunica carga, éxito, credenciales rechazadas, fallo de red o servidor y reintento sin mostrar éxito cuando la autenticación falla."
+      ],
+      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. No iniciado: depende de MVP-010 y MVP-001-02 done; puerta de diseño y revisión cruzada de Enzo aún pendiente. No acredita implementación ni pruebas."
+    },
+    {
+      "id": "MVP-001-05",
+      "parentId": "MVP-001",
+      "name": "Inicio y cierre de sesión de administrador en Web",
+      "description": "Habilitar inicio y cierre de sesión de una cuenta ficticia de administrador en Blazor, con contratos revisados y autorización aplicada por la API; sin implementar el panel operativo ni depender de otros flujos de autenticación.",
+      "priority": "alta",
+      "area": [
+        "API",
+        "Web"
+      ],
+      "status": "pending",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-10-05T19:43:34.283590-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [
+        "MVP-010",
+        "MVP-001-02"
+      ],
+      "acceptanceCriteria": [
+        "La cuenta ficticia de administrador puede iniciar y cerrar sesión en Web; tras el cierre, una operación protegida requiere autenticarse nuevamente.",
+        "La evidencia verifica que la API permite una operación administrativa al administrador y la deniega a un rol no autorizado y sin sesión; no basta con ocultar controles en Web.",
+        "Web comunica carga, éxito, credenciales rechazadas, fallo de red o servidor y reintento sin mostrar éxito cuando la autenticación falla."
+      ],
+      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. No iniciado: depende de MVP-010 y MVP-001-02 done; puerta de diseño y revisión cruzada de Enzo aún pendiente. No acredita implementación ni pruebas."
     }
   ]
 }
