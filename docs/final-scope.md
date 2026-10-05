@@ -7,7 +7,7 @@ La entrega completa conserva el [MVP](mvp.md) y agrega mejoras elegidas por el e
 | Corte | Objetivo planificado | Fuente |
 | --- | --- | --- |
 | Primeras semanas de octubre: MVP | Demo Ombúes–Radial–Colonia, asiento automático en el segundo servicio, tickets/abonos y pagos TEST | [MVP vigente](mvp.md) |
-| Entrega final completa | MVP más las ampliaciones de este documento; sin fecha final confirmada aquí | [Backlog compartido](mvp-tasks.json), tareas FIN |
+| Entrega final completa | MVP más las ampliaciones de este documento; sin fecha final confirmada aquí | [Backlog del proyecto completo](tasks.json), tareas FIN |
 
 El [modelo complementario](design/data-model.md#5-modelo-conceptual-complementario-de-la-entrega-final) no reemplaza el UML/ER MVP ni resuelve sus preguntas abiertas. No se amplían pagos a producción, reglas comerciales, tarifas, telemetría ni otros canales de selección de asiento por esta planificación.
 
@@ -74,4 +74,4 @@ Los estados deben usar texto además de color y distinguir seleccionado, disponi
 
 ## 6. Implementación posterior
 
-[FIN-001 a FIN-004](mvp-tasks.json) ordenan catálogo/calendarios → configuraciones → disponibilidad/compra → selección web y pruebas de punta a punta. Todos siguen `pending`, con responsables **propuestos**, no asignación humana confirmada. La documentación no completa implementación ni revisión humana. El [informe](project-report.md) resume ambos cortes sin sustituir este alcance ni los estados del JSON.
+[FIN-001 a FIN-004](tasks.json) ordenan catálogo/calendarios → configuraciones → disponibilidad/compra → selección web y pruebas de punta a punta. Todos siguen `pending`, con responsables **propuestos**, no asignación humana confirmada. La documentación no completa implementación ni revisión humana. El [informe](project-report.md) resume ambos cortes sin sustituir este alcance ni los estados del JSON.
