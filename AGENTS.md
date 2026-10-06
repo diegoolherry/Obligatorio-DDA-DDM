@@ -12,7 +12,11 @@
 
 Antes de planificar, implementar, depurar o revisar trabajo de Blazor, C#, API, React Native, TypeScript, Expo o UX móvil, cargá y seguí:
 
-`skills/ctc-project-conventions/SKILL.md`
+- `skills/ctc-project-conventions/SKILL.md` para el flujo compartido y UX móvil.
+- `.agents/skills/ctc-dda-blazor/SKILL.md` para Blazor, C# y API.
+- `.agents/skills/ctc-ddm-mobile/SKILL.md` para React Native, TypeScript, Expo y NativeWind/Tailwind.
+
+Cargá siempre la compartida y la especializada pertinente; cargá ambas especializadas si el trabajo cruza capas. Las especializadas son las fuentes canónicas de reglas por capa; las referencias antiguas quedan como enlaces de compatibilidad. Consultá [uso en Pi y Codex](.agents/skills/ctc-dda-blazor/references/uso-hosts.md) sin crear copias ni modificar settings.
 
 La consigna vigente y la configuración del repositorio prevalecen sobre la skill si hay conflicto. Informalo en lugar de asumir una solución, y actualizá la skill solo cuando el equipo apruebe la nueva convención.
 
