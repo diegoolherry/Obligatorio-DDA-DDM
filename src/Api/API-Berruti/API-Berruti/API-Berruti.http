@@ -1,0 +1,6 @@
+@API_Berruti_HostAddress = http://localhost:5095
+
+GET {{API_Berruti_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

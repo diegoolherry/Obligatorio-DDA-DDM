@@ -1,2 +1,8 @@
 # Local Pi runtime state
 .atl/
+
+# Local .NET build output and Visual Studio state (any depth)
+[Bb]in/
+[Oo]bj/
+.vs/
+*.csproj.user

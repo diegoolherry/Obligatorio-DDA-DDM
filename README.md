@@ -10,7 +10,7 @@ Estamos definiendo un prototipo académico de transporte: permitir que un pasaje
 2. Consultá el [backlog del proyecto completo](docs/tasks.json) para estados, responsables, dependencias y criterios de aceptación vigentes. Un único array `tasks` reúne 19 registros: 14 originales (diez MVP y cuatro FIN) y cinco hijos ejecutables de MVP-001 (`MVP-001-01` a `MVP-001-05`, vinculados por `parentId`). En total, 17 están `pending`, MVP-010 está `done` (modelado conceptual) y MVP-001-01 está `in_progress` (fundación parcial Mobile). Los cinco hijos tienen a Diego como responsable confirmado y a Enzo como revisor; todos dependen explícitamente de MVP-010, la estructura precede a los contratos y estos a los tres flujos de sesión independientes. MVP-001 es un hito con criterios originales autoritativos: no se completa automáticamente al completar hijos. Estos conteos no representan funcionalidades independientes ni progreso de implementación. Las áreas `API`, `Web`, `Mobile` y `Docs` permiten varias etiquetas por tarea transversal; los IDs `MVP-*` y `FIN-*` se conservan. Los responsables FIN son propuestos, sin asignación humana confirmada. La aprobación conceptual de Diego y Enzo fue reportada por el usuario; la revisión cruzada de la fundación sigue pendiente. Este resumen no reemplaza el JSON.
 3. Para el diseño, mirá el [borrador UML/ER](docs/design/data-model.md) y la [guía de experiencia](DESIGN.md). El [informe académico vivo](docs/project-report.md) reúne decisiones, evidencia y pendientes; su Markdown es la fuente para una eventual versión Word.
 
-Este corte incorpora únicamente la **base Mobile existente** en `src/Mobile`; API y Blazor siguen planificados en esta rama. No hay autenticación, integración cliente/API ni funcionalidades de producto. No hay migraciones, integración con proveedor de pagos ni despliegue verificados. MySQL está instalado y se comprobó una conexión administrativa local, pero no está integrado con la API; el modelo de datos sigue siendo una propuesta, no un esquema aprobado.
+Este corte añade el **scaffold API existente** y las exclusiones .NET a la base Mobile anterior, que permanece intacta. Blazor sigue planificado: su fuente no está presente hasta el próximo corte. No hay autenticación, integración cliente/API ni funcionalidades de producto. No hay migraciones, integración con proveedor de pagos ni despliegue verificados. MySQL está instalado y se comprobó una conexión administrativa local, pero no está integrado con la API; el modelo de datos sigue siendo una propuesta, no un esquema aprobado.
 
 El MVP de las primeras semanas de octubre es el primer corte, no toda la entrega. El [alcance final](docs/final-scope.md) agrega mejoras del equipo (no requisitos académicos explícitos): rutas/calendarios y selección web de asientos por intervalo; todavía no están implementadas.
 
@@ -30,6 +30,21 @@ npm start
 `npm run android` / `npm run ios` requieren un entorno compatible; `npm run export:android` genera un bundle JS, no una compilación Android nativa. Los comandos son instrucciones, **no ejecuciones de este corte documental**.
 
 La evidencia previa es parcial: typecheck, compatibilidad Expo y exportación JS pasaron según el registro original; dos intentos independientes de readiness Metro agotaron el tiempo. Posteriormente el usuario reportó éxito en celular mediante túnel/ngrok, no observado por el agente. La auditoría previa sigue sin remediar: 22 paquetes afectados (15 altos, 7 moderados). Ver [informe §7](docs/project-report.md#7-calidad-pruebas-y-gestión-de-configuración) y [registro Mobile](odd/tasks/mvp-001-01-mobile-foundation.md). No acredita revisión de Enzo ni finalización de MVP-001-01.
+
+## Base API: scaffold .NET 10
+
+La [solución API-Berruti.slnx](src/Api/API-Berruti/API-Berruti.slnx) contiene el [proyecto API-Berruti.csproj](src/Api/API-Berruti/API-Berruti/API-Berruti.csproj), con `net10.0` y `Microsoft.AspNetCore.OpenApi` `10.0.12`. [Program.cs](src/Api/API-Berruti/API-Berruti/Program.cs) registra Controllers y OpenAPI, expone OpenAPI solo en Development y conserva redirección HTTPS y middleware de autorización; esto **no implementa autenticación ni autorización por rol**. El ejemplo WeatherForecast devuelve cinco registros aleatorios, no datos del dominio.
+
+Instrucciones para un entorno preparado, **no ejecutadas en este corte**:
+
+```bash
+dotnet build src/Api/API-Berruti/API-Berruti.slnx --nologo
+dotnet run --project src/Api/API-Berruti/API-Berruti/API-Berruti.csproj --launch-profile http
+```
+
+Los [perfiles existentes](src/Api/API-Berruti/API-Berruti/Properties/launchSettings.json) usan Development: `http` publica `http://localhost:5095`; `https` publica `https://localhost:7053;http://localhost:5095`. No son el mecanismo del smoke test histórico: aquel usó `--no-build --no-launch-profile --urls http://127.0.0.1:5095` con Development explícito.
+
+El verificador de la sesión original observó SDK `10.0.401`, build API sin errores ni advertencias, `/weatherforecast` HTTP 200 con cinco registros JSON y `/openapi/v1.json` HTTP 200 con OpenAPI `3.1.1`. También observó `Failed to determine the https port for redirect`. Son **resultados históricos, no comprobaciones del candidato actual**; TLS, integración cliente/API y auth siguen sin verificar. [Informe §7](docs/project-report.md#7-calidad-pruebas-y-gestión-de-configuración) y [registro de este corte](odd/tasks/api-foundation-delivery.md) separan procedencia, checks locales y pendientes. `.gitignore` excluye artefactos .NET/Visual Studio, no soluciones, proyectos ni fuentes.
 
 ## Recorrido que queremos demostrar
 
@@ -54,7 +69,8 @@ El árbol resume los documentos y carpetas del proyecto, incluido el backlog com
 │   ├── requerimientos.md
 │   └── user-stories.md
 ├── src/
-│   └── Mobile/                # base Expo/TypeScript existente, sin negocio
+│   ├── Api/API-Berruti/        # solución y scaffold net10.0, sin negocio
+│   └── Mobile/                # base Expo/TypeScript anterior, sin negocio
 ├── odd/
 │   └── tasks/                 # registros de trabajo y evidencia
 ├── skills/
