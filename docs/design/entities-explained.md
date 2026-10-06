@@ -1,15 +1,16 @@
 # Entidades del borrador: para qué sirven y cómo se conectan
 
-**Respuesta corta:** el [modelo de datos](data-model.md) propone 16 conceptos de dominio para describir viajes, compras, abonos, validaciones y ubicación; su ER agrega cuatro tablas puente o técnicas. Este texto explica su propósito y sus vínculos, **no** aprueba el esquema ni acredita implementación. Las multiplicidades del dibujo son tentativas salvo reglas expresas del [MVP](../mvp.md) y los [requisitos](../requerimientos.md). Los motivos señalados como *rationale* explican la propuesta, no crean reglas nuevas.
+**Respuesta corta:** el [modelo de datos](data-model.md) propone 17 conceptos de dominio para describir viajes, compras, abonos, validaciones y ubicación; su ER agrega cuatro tablas puente o técnicas. Este texto explica su propósito y sus vínculos, **no** aprueba el esquema ni acredita implementación. Las multiplicidades del dibujo son tentativas salvo reglas expresas del [MVP](../mvp.md) y los [requisitos](../requerimientos.md). Los motivos señalados como *rationale* explican la propuesta, no crean reglas nuevas.
 
 ## Índice por recorrido
 
 | Recorrido | Conceptos |
 | --- | --- |
 | Preparar la oferta | [Usuario](#usuario), [Parada](#parada), [Tramo](#tramo), [Servicio](#servicio), [Tarifa](#tarifa) |
-| Comprar y viajar | [Itinerario](#itinerario), [Compra](#compra), [Pago](#pago), [Ticket](#ticket) |
+| Comprar y viajar | [Itinerario](#itinerario), [Intento de compra](#intento-de-compra), [Compra](#compra), [Pago](#pago), [Ticket](#ticket) |
 | Abonos y control | [Asignación de abonos](#asignación-de-abonos), [Abono](#abono), [Validación](#validación) |
 | Ubicación y administración | [Dispositivo](#dispositivo), [Posición recibida](#posición-recibida), [Configuración de ubicación](#configuración-de-ubicación), [Cambio administrativo](#cambio-administrativo) |
+| Ampliación final propuesta | [Rutas, salidas y asientos por intervalo](#ampliación-final-rutas-salidas-y-asientos-por-intervalo) |
 | Solo ER | [`rol`](#rol), [`usuario_rol`](#usuario_rol), [`compra_servicio`](#compra_servicio), [`dispositivo_servicio`](#dispositivo_servicio) |
 
 ## Preparar la oferta
@@ -46,20 +47,40 @@
 - **Relaciones:** selecciona servicios; al comprar, el ER propone conservar la secuencia en `compra_servicio` dentro de una compra. No exige tabla durable de itinerario para buscar.
 - **Por qué:** **Regla:** RN-01 exige orden. *Rationale:* Ombúes–Radial seguido por Radial–Colonia permite mostrar transbordo y total antes de pagar; persistir una ruta independiente sigue sin decidirse.
 
+### Intento de compra
+- **Propósito:** mantener una identidad durable para la operación que el pasajero intenta confirmar, aunque no llegue a existir una compra.
+- **Relaciones:** pertenece al pasajero, agrupa y conserva cero o más intentos de pago y genera **a lo sumo una compra confirmada**. Es distinto del hold temporal y de la compra final.
+- **Por qué:** **Acuerdo conceptual:** permite conservar rechazos y resolver resultados pendientes sin duplicar pagos ni compras. El UML lo denomina `IntentoCompra`; sus tablas, claves, índices y retención temporal siguen pendientes de diseño.
+
 ### Compra
-- **Propósito:** representar la operación aprobada del pasajero con fecha e importe total congelado.
-- **Relaciones:** pertenece a un usuario pasajero y agrupa servicios comprados mediante `compra_servicio`; cada uno origina un ticket. Un pago puede vincularse opcionalmente a ella.
-- **Por qué:** **Regla:** la API verifica aprobación del proveedor TEST antes de emitir todos los tickets (RN-02, RN-07). *Rationale:* el borrador ER conserva solo compras aprobadas; un rechazo puede quedar en pago sin compra. La vinculación entre reintentos y compra eventual está abierta.
+- **Propósito:** representar la operación confirmada del pasajero con fecha e importe total congelado.
+- **Relaciones:** pertenece a un usuario pasajero y resulta de un intento durable de compra; agrupa servicios comprados mediante `compra_servicio`, y cada uno origina un ticket.
+- **Por qué:** **Reglas:** la API verifica la aprobación del proveedor TEST (RN-02, RN-07); el acuerdo vigente exige además disponibilidad confirmada y hold vigente. Compra y tickets se generan de forma atómica e idempotente: repetir solicitudes o notificaciones no los duplica. El ER representa compras confirmadas, no intentos rechazados; el mecanismo técnico todavía no está implementado.
 
 ### Pago
 - **Propósito:** reflejar importe, fecha, estado del dominio y referencia externa cuando exista para un intento de pago de prueba.
-- **Relaciones:** corresponde al pasajero; su FK a compra es opcional y provisional, porque un intento rechazado no emite compra. La compra aprobada habilita la emisión de tickets, pero todavía falta diseñar la referencia de intento y los reintentos.
-- **Por qué:** **Regla:** el cliente no declara unilateralmente la aprobación; la API verifica el resultado del proveedor. La integración Mercado Pago TEST es propuesta revisable, no implementada; producto de checkout, verificación y mapeo de estados siguen abiertos. No se almacenan tarjetas ni CVV.
+- **Relaciones:** pertenece a un intento durable de compra, que conserva sus pagos aunque no genere compra confirmada. **No se adopta la anterior FK opcional `pago.compra_id`:** la representación física del vínculo está pendiente.
+- **Por qué:** **Regla:** el cliente no declara unilateralmente la aprobación; la API verifica el resultado del proveedor. Un rechazo definitivo permite reintentar con hold vigente; un resultado pendiente o desconocido bloquea otro pago hasta resolución autoritativa. Mercado Pago TEST sigue siendo una propuesta revisable, sin integración ni pruebas del proveedor ejecutadas; checkout, verificación y mapeo de estados están pendientes. No se almacenan tarjetas ni CVV.
+
+### Hold y resolución de pagos
+
+**Acuerdo conceptual del usuario, no implementación ni revisión humana de Enzo completada.** El hold protege un asiento de una salida para un intervalo de viaje; no se presenta como nueva tabla ni entidad física aprobada.
+
+| Situación | Regla acordada |
+| --- | --- |
+| Creación del hold | Dura **5 minutos configurables desde su creación en la API**; recargar o reintentar no reinicia el plazo. |
+| Rechazo definitivo con hold vigente | Admite otro pago en el mismo intento durable durante el tiempo restante, conservando el anterior y el vencimiento original. |
+| Pago pendiente o desconocido, incluida falla de red | Bloquea otro pago hasta resolución autoritativa de la API, incluso con hold vencido; perder la respuesta no demuestra rechazo. |
+| Aprobación verificada, disponibilidad confirmada y hold vigente | Genera una sola compra y todos sus tickets de forma atómica e idempotente. |
+| Vencimiento del hold | Libera el asiento para ese intervalo; no demuestra rechazo ni resuelve el pago pendiente. |
+| Aprobación después del vencimiento | No confirma compra ni emite tickets, aunque haya lugar; registra y sigue compensación/devolución hasta confirmación autoritativa. Solicitar devolución no equivale a haberla completado. |
+
+**Pendiente técnico:** persistencia, concurrencia, liberación, idempotencia y comparación temporal autoritativa. Una notificación tardía no prueba una aprobación tardía. El soporte de devoluciones del proveedor/checkout en TEST no está verificado y no se autoriza sustituirlo por una simulación. Transbordos todo-o-nada, límites por usuario, corte antes de salida, cancelación/renovación y reintento después del vencimiento permanecen abiertos. El detalle autoritativo está en [el acuerdo del modelo](data-model.md#acuerdo-conceptual-de-compra-hold-y-reintentos).
 
 ### Ticket
 - **Propósito:** acreditar un tramo comprado mediante QR opaco, estado y asiento opcional.
 - **Relaciones:** el ER propone un ticket por `compra_servicio`; este identifica su servicio y la compra permite conocer al pasajero. Las validaciones pueden referir ese ticket.
-- **Por qué:** **Reglas:** un ticket por tramo tras aprobación, QR sin datos personales ni estado completo, uso exitoso único para servicio/tramo correcto y asiento obligatorio solo cuando el servicio lo requiera (RN-02 a RN-05). *Rationale:* dos tramos comprados juntos necesitan dos controles independientes.
+- **Por qué:** **Reglas:** un ticket por tramo tras aprobación verificada, disponibilidad confirmada y hold vigente, QR sin datos personales ni estado completo, uso exitoso único para servicio/tramo correcto y asiento obligatorio solo cuando el servicio lo requiera (RN-02 a RN-05). *Rationale:* dos tramos comprados juntos necesitan dos controles independientes.
 
 ## Abonos y control
 
@@ -122,6 +143,23 @@
 - **Relaciones:** une `dispositivo` y `servicio`; `posicion_recibida` apunta a esta asociación.
 - **Por qué:** *rationale:* cada posición aceptada puede atribuirse al par correcto. La vigencia y autorización se comprueban en API; una publicación rechazada no crea posición.
 
+## Ampliación final: rutas, salidas y asientos por intervalo
+
+El [modelo complementario de la entrega final](data-model.md#5-modelo-conceptual-complementario-de-la-entrega-final) propone los siguientes conceptos fuera de los 17 del UML MVP. Son mejoras del equipo, no exigencias académicas explícitas ni un esquema aprobado; su correspondencia con `Tramo` y `Servicio` sigue por acordar.
+
+| Concepto candidato | Propósito y vínculo |
+| --- | --- |
+| Ruta dirigida / variante | Ordena ocurrencias de parada con sentido explícito; no comparte órdenes numéricos con otras variantes por inferencia. |
+| Parada en ruta | Identifica una ocurrencia ordenada dentro de una ruta, incluso si se visita más de una vez la misma parada. |
+| Calendario de operación | Define días, vigencia y excepciones por bloque/variante; la validación de su fuente sigue pendiente. |
+| Salida | Instancia fechada de una ruta, con secuencia y vehículo asignado; no equivale automáticamente al `Servicio` MVP. |
+| Vehículo / configuración | Define el plano académico y números únicos de asiento; los planos no acreditan asignaciones reales. |
+| Asiento de salida | Inventario identificado por salida y asiento de su configuración; reutilizar vehículo no comparte inventario entre salidas. |
+| Ocupación confirmada | Asocia asiento e intervalo de embarque/desembarque de la misma ruta/salida; admite reutilización solo sin superposición. |
+| Selección / intento de compra | La selección del cliente no es ocupación confirmada; el intento durable conserva pagos y confirma como máximo una compra según el acuerdo vigente. |
+
+El hold temporal protege ese asiento/intervalo sin convertirse en ocupación confirmada. La regla de superposición de intervalos `[a,b)` y sus ejemplos están en [disponibilidad por intervalo](../final-scope.md#4-disponibilidad-por-intervalo). Una restricción UNIQUE por asiento/salida no basta para permitir reutilización y evitar superposición; los mecanismos transaccionales e índices requieren diseño y pruebas. No se definen migraciones aquí.
+
 ## Antes de convertir el borrador en esquema
 
-La [lista de decisiones abiertas del modelo](data-model.md#4-decisiones-abiertas-para-revisión-humana) incluye tarifa/vigencia, identidad y reintentos de pago, ruta durable, sentido inverso de abonos, auditoría de QR desconocidos y concurrencia/cupos/asientos. Nada de lo explicado aquí cierra esas decisiones ni reemplaza revisión cruzada, migraciones o contratos API todavía por definir.
+La [lista de decisiones abiertas del modelo](data-model.md#4-decisiones-abiertas-para-revisión-humana) incluye tarifa/vigencia, persistencia del intento durable y sus pagos, checkout y verificación, mecanismos de hold/devolución, ruta durable, sentido inverso de abonos, auditoría de QR desconocidos y concurrencia/cupos/asientos. **Las reglas conceptuales de hold, reintentos y aprobación tardía ya están acordadas; sus mecanismos técnicos no.** Este texto no acredita implementación ni sustituye la revisión cruzada de Enzo, migraciones o contratos API todavía por definir. El [backlog](../tasks.json) conserva la autoridad sobre estados y finalización de tareas.
