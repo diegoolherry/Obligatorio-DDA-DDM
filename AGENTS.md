@@ -1,5 +1,13 @@
 # Guía del repositorio
 
+## Idioma de colaboración en GitHub
+
+- Escribí en español los títulos y las descripciones de issues y pull requests, incluidos sus encabezados, criterios de aceptación, resúmenes y planes de verificación.
+- Escribí en español los comentarios de colaboración y revisión de este proyecto.
+- Esta convención reemplaza el inglés por defecto del agente para esos textos. Aplicala también al delegar su redacción a subagentes.
+- Conservá sin traducir identificadores, nombres de archivos, comandos, etiquetas como `type:docs` y `status:approved`, y referencias de GitHub como `Closes #9` o `Refs #9`.
+- Esta regla no cambia las convenciones del código ni de los mensajes de commit. Tampoco autoriza traducir o editar publicaciones existentes: eso requiere un pedido explícito.
+
 ## Skill del proyecto
 
 Antes de planificar, implementar, depurar o revisar trabajo de Blazor, C#, API, React Native, TypeScript, Expo o UX móvil, cargá y seguí:
