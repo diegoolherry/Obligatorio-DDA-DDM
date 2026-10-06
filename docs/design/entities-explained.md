@@ -1,6 +1,6 @@
-# Entidades del borrador: para qué sirven y cómo se conectan
+# Entidades del modelo: para qué sirven y cómo se conectan
 
-**Respuesta corta:** el [modelo de datos](data-model.md) propone 17 conceptos de dominio para describir viajes, compras, abonos, validaciones y ubicación; su ER agrega cuatro tablas puente o técnicas. Este texto explica su propósito y sus vínculos, **no** aprueba el esquema ni acredita implementación. Las multiplicidades del dibujo son tentativas salvo reglas expresas del [MVP](../mvp.md) y los [requisitos](../requerimientos.md). Los motivos señalados como *rationale* explican la propuesta, no crean reglas nuevas.
+**Respuesta corta:** el [modelo de datos](data-model.md) describe 17 conceptos de dominio para viajes, compras, abonos, validaciones y ubicación; su ER agrega cuatro tablas puente o técnicas. El usuario informa que Diego y Enzo aprobaron el modelo conceptual actual como base evolutiva, conservando cambios futuros. Este texto registra esa aprobación reportada y explica sus vínculos; **no** aprueba el esquema físico ni acredita implementación, DTO definitivos o pruebas del proveedor. Las multiplicidades del dibujo son tentativas salvo reglas expresas del [MVP](../mvp.md) y los [requisitos](../requerimientos.md). Los motivos señalados como *rationale* explican la propuesta, no crean reglas nuevas.
 
 ## Índice por recorrido
 
@@ -38,13 +38,13 @@
 ### Tarifa
 - **Propósito:** representar precio y vigencia para cotizar el viaje.
 - **Relaciones:** el ER propone una FK al tramo, pero su aplicabilidad a tramo o servicio y el solapamiento de vigencias están pendientes; `compra_servicio` congelaría el precio aplicado al comprar.
-- **Por qué:** *rationale:* separa el precio ofertado, potencialmente cambiante, del importe histórico pagado. **Pendiente:** decidir cuál vigencia rige el cálculo; no inferir una política comercial del FK provisional.
+- **Por qué:** *rationale:* separa el precio ofertado, potencialmente cambiante, del importe histórico pagado. **Puerta futura de dominio:** decidir aplicabilidad y vigencia antes de implementar tarifas; no inferir una política comercial aprobada del FK provisional ni de la aprobación conceptual.
 
 ## Comprar y viajar
 
 ### Itinerario
 - **Propósito:** mostrar una selección ordenada de uno o más servicios que conecta origen y destino con un precio total.
-- **Relaciones:** selecciona servicios; al comprar, el ER propone conservar la secuencia en `compra_servicio` dentro de una compra. No exige tabla durable de itinerario para buscar.
+- **Relaciones:** selecciona servicios ordenados y representa la selección adquirida vinculada a Compra en UML. Compra → Ticket → Servicio identifica los servicios comprados, mientras Itinerario expresa su orden conceptual. El ER propone conservar la secuencia en `compra_servicio`; no exige tabla permanente de itinerario ni agrega otra entidad.
 - **Por qué:** **Regla:** RN-01 exige orden. *Rationale:* Ombúes–Radial seguido por Radial–Colonia permite mostrar transbordo y total antes de pagar; persistir una ruta independiente sigue sin decidirse.
 
 ### Intento de compra
@@ -64,7 +64,7 @@
 
 ### Hold y resolución de pagos
 
-**Acuerdo conceptual del usuario, no implementación ni revisión humana de Enzo completada.** El hold protege un asiento de una salida para un intervalo de viaje; no se presenta como nueva tabla ni entidad física aprobada.
+**Acuerdo incluido en la base conceptual evolutiva aprobada por Diego y Enzo, según lo informado por el usuario; no implementación.** El hold protege un asiento de una salida para un intervalo de viaje; no se presenta como nueva tabla ni entidad física aprobada.
 
 | Situación | Regla acordada |
 | --- | --- |
@@ -92,7 +92,7 @@
 ### Abono
 - **Propósito:** guardar vigencia, estado, QR opaco, unidades iniciales y saldo propio para un par de paradas.
 - **Relaciones:** pertenece a una asignación de un pasajero; sus extremos son paradas; cada intento de validación puede referirlo y el servicio aporta contexto.
-- **Por qué:** **Reglas:** el par autoriza ambos sentidos (RN-13), una validación exitosa descuenta una unidad solo de ese abono (RN-09), y vencido, suspendido o sin saldo no se usa (RN-10). *Rationale:* el segundo abono del ejemplo conserva saldo independiente aunque se hayan entregado juntos. El enlace de ida/vuelta con servicios concretos queda por resolver.
+- **Por qué:** **Reglas:** el par autoriza ambos sentidos (RN-13), una validación exitosa descuenta una unidad solo de ese abono (RN-09), y vencido, suspendido o sin saldo no se usa (RN-10). *Rationale:* el segundo abono del ejemplo conserva saldo independiente aunque se hayan entregado juntos. El enlace de ida/vuelta con servicios concretos es una decisión futura de dominio que debe resolverse antes de implementar esa correspondencia; la aprobación conceptual no elige cómo hacerlo.
 
 ### Validación
 - **Propósito:** representar un intento de control, su resultado, fecha y saldo resultante cuando consume abono.
@@ -160,6 +160,6 @@ El [modelo complementario de la entrega final](data-model.md#5-modelo-conceptual
 
 El hold temporal protege ese asiento/intervalo sin convertirse en ocupación confirmada. La regla de superposición de intervalos `[a,b)` y sus ejemplos están en [disponibilidad por intervalo](../final-scope.md#4-disponibilidad-por-intervalo). Una restricción UNIQUE por asiento/salida no basta para permitir reutilización y evitar superposición; los mecanismos transaccionales e índices requieren diseño y pruebas. No se definen migraciones aquí.
 
-## Antes de convertir el borrador en esquema
+## Antes de convertir el modelo en esquema
 
-La [lista de decisiones abiertas del modelo](data-model.md#4-decisiones-abiertas-para-revisión-humana) incluye tarifa/vigencia, persistencia del intento durable y sus pagos, checkout y verificación, mecanismos de hold/devolución, ruta durable, sentido inverso de abonos, auditoría de QR desconocidos y concurrencia/cupos/asientos. **Las reglas conceptuales de hold, reintentos y aprobación tardía ya están acordadas; sus mecanismos técnicos no.** Este texto no acredita implementación ni sustituye la revisión cruzada de Enzo, migraciones o contratos API todavía por definir. El [backlog](../tasks.json) conserva la autoridad sobre estados y finalización de tareas.
+La [lista de decisiones abiertas del modelo](data-model.md#4-decisiones-abiertas-para-revisión-humana) incluye tarifa/vigencia, persistencia del intento durable y sus pagos, checkout y verificación, mecanismos de hold/devolución, ruta durable, sentido inverso de abonos, auditoría de QR desconocidos y concurrencia/cupos/asientos. **Las reglas conceptuales de hold, reintentos y aprobación tardía ya están acordadas; sus mecanismos técnicos no.** La aprobación conjunta reportada por el usuario incluye la revisión de Enzo de la base conceptual, no una aprobación física. Este texto no acredita implementación ni sustituye el diseño y revisión específicos de migraciones o contratos API todavía por definir. El [backlog](../tasks.json) conserva la autoridad sobre estados y finalización de tareas.

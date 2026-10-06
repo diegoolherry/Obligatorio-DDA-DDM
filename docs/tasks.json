@@ -33,7 +33,7 @@
         "La API rechaza una operación protegida cuando el rol no está autorizado.",
         "Los contratos expuestos son tipados y no exponen entidades de persistencia."
       ],
-      "evidence": "MVP-010 es puerta de diseño revisado antes de iniciar implementación; MVP-001 permanece pending hasta revisión cruzada y resolución de decisiones abiertas."
+      "evidence": "MVP-010 está done tras validación documental independiente de sus tres criterios; Diego y Enzo aprobaron la base conceptual evolutiva según lo informado por el usuario. La dependencia original MVP-010 se conserva y está cumplida; MVP-001 permanece pending, sin inicio automático ni agregación de estados de hijos. Cada hijo conserva su propia puerta de dependencias. Las decisiones de dominio y mecanismos técnicos abiertos deben resolverse y revisarse antes de implementar la función correspondiente, no todos antes de preparar infraestructura. No acredita esquema físico, DTO definitivos, implementación ni pruebas."
     },
     {
       "id": "MVP-002",
@@ -92,7 +92,7 @@
     {
       "id": "MVP-004",
       "name": "Compra, pago TEST de Mercado Pago y emisión de tickets",
-      "description": "Completar la compra en ambos clientes con integración de la API de Mercado Pago mediante credenciales TEST, sin cobros reales. La API debe verificar el resultado del proveedor, registrar importe, fecha, usuario, referencia y estado, y solo tras aprobación verificada crear en una operación consistente la compra y un ticket por tramo con QR opaco y asiento opcional. Producto de checkout y reintentos siguen pendientes de diseño.",
+      "description": "Completar la compra en ambos clientes con integración de la API de Mercado Pago mediante credenciales TEST, sin cobros reales. La API debe verificar el resultado del proveedor, registrar importe, fecha, usuario, referencia y estado, y solo tras aprobación verificada crear en una operación consistente la compra y un ticket por tramo con QR opaco y asiento opcional. Rige el acuerdo conceptual de docs/design/data-model.md: hold de 5 minutos configurables desde creación en API, sin reinicio; rechazo definitivo admite reintento en el plazo restante, pendiente/desconocido bloquea otro pago hasta resolución autoritativa aun vencido el hold. Confirmar exige además disponibilidad y hold vigente; aprobación posterior al vencimiento no confirma ni emite y requiere seguimiento de devolución. Checkout, persistencia, concurrencia, comparación temporal, verificación y mecanismos de reintento/devolución TEST siguen pendientes.",
       "priority": "alta",
       "area": [
         "API",
@@ -115,7 +115,7 @@
         "La aplicación no solicita ni almacena números de tarjeta, CVV ni datos financieros equivalentes; no hay cobros reales ni credenciales de producción.",
         "El ticket del primer tramo no tiene asiento y el segundo tiene un asiento asignado automáticamente."
       ],
-      "evidence": null
+      "evidence": "Aclaración de los criterios originales, sin implementación: rechazo definitivo permite reintentar solo con hold vigente y tiempo restante; no verificado o pendiente/desconocido no emite tickets ni habilita otro pago hasta resolución autoritativa. La cardinalidad conceptual es a lo sumo una compra confirmada por intento durable con pagos conservados; no define cardinalidad física. Rige docs/design/data-model.md §2, base conceptual aprobada por Diego y Enzo según lo informado por el usuario. Soporte de devolución TEST no verificado, sin reemplazo simulado; integración y pruebas del proveedor pendientes."
     },
     {
       "id": "MVP-005",
@@ -266,25 +266,25 @@
     {
       "id": "MVP-010",
       "name": "Modelado conceptual UML y ER MySQL del MVP",
-      "description": "Documentar y revisar el dominio y la persistencia propuesta antes de implementar contratos o migraciones; resolver decisiones abiertas sin presentar el borrador como esquema aprobado.",
+      "description": "Documentar y revisar el dominio y la persistencia propuesta antes de implementar contratos o migraciones; registrar la aprobación reportada de la base conceptual evolutiva y las decisiones futuras que condicionan su implementación, sin presentar la persistencia candidata como esquema físico aprobado.",
       "priority": "alta",
       "area": [
         "Docs"
       ],
-      "status": "in_progress",
+      "status": "done",
       "assignee": "Diego",
       "reviewer": "Enzo",
       "createdAt": "2026-09-28T19:01:46-03:00",
       "startedAt": "2026-09-28T19:01:46-03:00",
-      "completedAt": null,
-      "completedBy": null,
+      "completedAt": "2026-10-06T00:29:10.047000-03:00",
+      "completedBy": "Diego",
       "dependencies": [],
       "acceptanceCriteria": [
         "El UML del dominio y el ER MySQL están vinculados con requisitos, historias y reglas del MVP.",
         "La revisión cruzada de Enzo confirma cardinalidades, integridad y decisiones abiertas antes de aprobar el diseño.",
         "El borrador distingue dominio, persistencia y DTO y documenta escenarios de rechazo y concurrencia."
       ],
-      "evidence": "Borrador en docs/design/data-model.md y síntesis en docs/project-report.md. Acuerdo conceptual del usuario: un intento durable de compra agrupa y conserva intentos de pago; rechazo definitivo permite reintentar, pero pendiente o resultado desconocido (incluida falla de red) bloquea otro intento hasta resolución autoritativa de la API. Aprobación verificada por API y disponibilidad confirmada generan una sola compra confirmada y sus tickets idempotentemente. UML armonizado; vínculo físico de pagos omitido del ER hasta diseñarlo. Pendientes esquema físico, checkout, mecanismo de verificación, mapeo del proveedor, política/duración de hold y tratamiento de aprobación tardía, compensaciones o reembolsos. Las menciones previas de reintentos pendientes o permitidos ante pago no verificado en MVP-004 y FIN-003 deben leerse con este acuerdo: no habilitan otro pago pendiente/desconocido; sus demás atributos se preservan sin reestructurar ni renombrar el backlog. El acuerdo no es revisión humana de Enzo, que sigue pendiente; no se afirma esquema aprobado, implementación, integración ni pruebas del proveedor."
+      "evidence": "Aprobación humana reportada: el usuario informa que Diego y Enzo aprobaron el modelo conceptual actual como base evolutiva, conservando cambios futuros; se registra su reporte, no una revisión realizada por el agente ni una fecha inventada. Trazabilidad de los tres criterios originales: (1) docs/design/data-model.md §1–3 vincula UML/ER con MVP, requisitos RF/RN/RNF e historias mediante sus fuentes y matriz; Compra enlaza la selección ordenada mediante Itinerario, sin entidad nueva ni tabla permanente, y mantiene 17 conceptos. (2) La aprobación conjunta reportada incluye la revisión cruzada de Enzo de cardinalidades, integridad y decisiones abiertas de la base conceptual, no del esquema físico; aplicabilidad/vigencia de tarifas y correspondencia bidireccional abono–servicio quedan como decisiones futuras que deben resolverse antes de implementar esas funciones. (3) §2–4 distingue dominio, persistencia candidata y DTO aún no definidos; documenta rechazo, pendiente/desconocido, concurrencia, duplicados y aprobación tardía como escenarios de diseño, no pruebas ejecutadas. Rige hold de 5 minutos configurables desde creación en API, sin reinicio; rechazo definitivo reintenta dentro del plazo restante, pendiente/desconocido bloquea otro pago hasta resolución autoritativa aun vencido el hold. Confirmar exige aprobación verificada, disponibilidad y hold vigente; aprobación posterior al vencimiento no confirma ni emite y sigue devolución hasta confirmación autoritativa. Persistencia, checkout, concurrencia/idempotencia, comparación temporal y mecanismos de verificación/devolución TEST pendientes; soporte de devolución no verificado, sin simulación autorizada. No acredita implementación, esquema físico aprobado, DTO definitivos, integración ni pruebas del proveedor. Síntesis en docs/design/entities-explained.md y docs/project-report.md. Cierre autorizado tras verificación documental independiente del agente: los tres criterios originales PASS, según el resultado recibido del coordinador y registrado en odd/tasks/model-approval-baseline.md. Fuentes exactas: trazabilidad en docs/design/data-model.md:3,196–199; aprobación conceptual de Enzo y Diego reportada por el usuario en docs/tasks.json:287 y docs/design/data-model.md:3; separación dominio/persistencia/DTO y escenarios de rechazo/concurrencia en docs/design/data-model.md:112,168–190,201. La revisión humana se atribuye exclusivamente al reporte del usuario, sin corroboración externa ni revisión impersonada; el agente verifica documentación, no ejecución de comportamientos. Comprobaciones independientes reportadas: 19 registros, 17 conceptos UML, ER/diccionario sin cambios y 77 enlaces locales/43 fragmentos válidos. MVP-010 pasa a done por cierre de modelado conceptual evolutivo, no de esquema físico, DTO, implementación o integración; no se ejecutaron pruebas de aplicación/proveedor."
     },
     {
       "id": "FIN-001",
@@ -342,7 +342,7 @@
     {
       "id": "FIN-003",
       "name": "Disponibilidad por intervalo y confirmación concurrente de compra",
-      "description": "Implementar en servidor consultas de asiento por intervalo y confirmación atómica/idempotente integrada con checkout TEST, tras acordar explícitamente la política de reserva temporal y pago.",
+      "description": "Implementar en servidor consultas de asiento por intervalo y confirmación atómica/idempotente integrada con checkout TEST, conforme al acuerdo conceptual de hold/reintentos/aprobación tardía de docs/design/data-model.md; definir y revisar sus mecanismos físicos y operativos antes de implementarlos.",
       "priority": "alta",
       "area": [
         "API"
@@ -364,7 +364,7 @@
         "Pruebas concurrentes impiden doble venta superpuesta; solicitudes repetidas o respuesta perdida no duplican compra ni tickets y confirmación revalida configuración e inventario.",
         "Solo aprobación TEST verificada por API permite emisión según política acordada; no hay cobros reales, credenciales de producción ni almacenamiento de tarjetas/CVV."
       ],
-      "evidence": "Planificado, no iniciado. Diego/Enzo son responsables propuestos, sin aprobación humana. PUERTA ABIERTA: hold y políticas de pago pendiente/rechazado/tardío no decididos; requieren acuerdo previo, además de dependencias done. Atomicidad/idempotencia son aceptación de diseño, no implementación comprobada."
+      "evidence": "Planificado, no iniciado. Diego/Enzo son responsables propuestos para esta tarea, sin aprobación humana de asignación. El primer criterio conserva su significado y se traza al acuerdo conceptual de docs/design/data-model.md §2: base evolutiva aprobada por ambos según lo informado por el usuario; hold de 5 minutos configurables desde creación en API, sin reinicio, liberación por vencimiento sin inferir rechazo; rechazo definitivo reintenta con tiempo restante, pendiente/desconocido bloquea otro pago hasta resolución autoritativa aun vencido el hold, aprobación posterior al vencimiento no confirma ni emite aunque haya lugar y sigue devolución hasta confirmación autoritativa. PUERTA TÉCNICA ABIERTA: persistencia, checkout/verificación/mapeo, concurrencia e idempotencia, liberación y comparación temporal autoritativa requieren diseño y revisión, además de dependencias done. Soporte de devolución TEST no verificado, sin reemplazo simulado. Atomicidad/idempotencia son aceptación de diseño, no implementación ni pruebas comprobadas; esta evidencia conceptual no completa los restantes criterios de FIN-003."
     },
     {
       "id": "FIN-004",
@@ -420,7 +420,7 @@
         "La evidencia registra comandos y resultados observables de compilación y arranque de las tres partes en el entorno de desarrollo.",
         "La configuración documenta cómo conectar los clientes con la API sin incluir secretos ni credenciales reales en el repositorio o la evidencia."
       ],
-      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. No iniciado: depende de MVP-010 done, con decisiones resueltas y revisión cruzada de Enzo aún pendiente. No acredita implementación ni pruebas."
+      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. MVP-010 está done tras validación documental independiente; aprobación conjunta de la base conceptual evolutiva según lo informado por el usuario. Su dependencia MVP-010 se conserva y está cumplida; este hijo permanece pending, sin inicio automático. Puede preparar infraestructura sin resolver todas las preguntas del modelo: las decisiones abiertas deben resolverse y revisarse antes de implementar la función correspondiente. No acredita esquema físico, DTO definitivos, implementación ni pruebas."
     },
     {
       "id": "MVP-001-02",
@@ -449,7 +449,7 @@
         "Los clientes dependen de estos contratos y no de entidades de persistencia; la revisión comprueba esa separación y ausencia de any usado para ocultar errores de tipos.",
         "La evidencia de compilación o verificación de tipos de API, Web y Mobile y la revisión cruzada permiten comprobar la compatibilidad de los contratos con el diseño aprobado."
       ],
-      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. No iniciado: depende de MVP-010 y MVP-001-01 done; puerta de diseño y revisión cruzada de Enzo aún pendiente. No acredita implementación ni pruebas."
+      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. MVP-010 está done tras validación documental independiente; aprobación conjunta de la base conceptual evolutiva según lo informado por el usuario. Este hijo permanece pending: conserva dependencias MVP-010 y MVP-001-01 done, esta última aún pendiente. Los contratos iniciales requieren definir y revisar sus decisiones específicas; las preguntas de otras funciones se resuelven antes de implementarlas, no todas antes de infraestructura. No acredita DTO definitivos, implementación ni pruebas."
     },
     {
       "id": "MVP-001-03",
@@ -478,7 +478,7 @@
         "La evidencia verifica que la API permite una operación protegida autorizada al pasajero y deniega una no autorizada a ese rol, además del acceso sin sesión; no basta con ocultar controles en los clientes.",
         "Ambos clientes comunican carga, éxito, credenciales rechazadas, fallo de red o servidor y reintento sin mostrar éxito cuando la autenticación falla."
       ],
-      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. No iniciado: depende de MVP-010 y MVP-001-02 done; puerta de diseño y revisión cruzada de Enzo aún pendiente. No acredita implementación ni pruebas."
+      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. MVP-010 está done tras validación documental independiente; aprobación conjunta de la base conceptual evolutiva según lo informado por el usuario. Este hijo permanece pending: conserva dependencias MVP-010 y MVP-001-02 done, esta última aún pendiente. Las decisiones específicas del flujo de pasajero deben definirse y revisarse antes de implementarlo; no se exige resolver preguntas de otras funciones antes de infraestructura. No acredita implementación ni pruebas."
     },
     {
       "id": "MVP-001-04",
@@ -506,7 +506,7 @@
         "La evidencia verifica que la API permite una operación protegida autorizada al cobrador y deniega una no autorizada a ese rol, además del acceso sin sesión; no basta con ocultar controles en Mobile.",
         "Mobile comunica carga, éxito, credenciales rechazadas, fallo de red o servidor y reintento sin mostrar éxito cuando la autenticación falla."
       ],
-      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. No iniciado: depende de MVP-010 y MVP-001-02 done; puerta de diseño y revisión cruzada de Enzo aún pendiente. No acredita implementación ni pruebas."
+      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. MVP-010 está done tras validación documental independiente; aprobación conjunta de la base conceptual evolutiva según lo informado por el usuario. Este hijo permanece pending: conserva dependencias MVP-010 y MVP-001-02 done, esta última aún pendiente. Las decisiones específicas del flujo de cobrador deben definirse y revisarse antes de implementarlo; no se exige resolver preguntas de otras funciones antes de infraestructura. No acredita implementación ni pruebas."
     },
     {
       "id": "MVP-001-05",
@@ -534,7 +534,7 @@
         "La evidencia verifica que la API permite una operación administrativa al administrador y la deniega a un rol no autorizado y sin sesión; no basta con ocultar controles en Web.",
         "Web comunica carga, éxito, credenciales rechazadas, fallo de red o servidor y reintento sin mostrar éxito cuando la autenticación falla."
       ],
-      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. No iniciado: depende de MVP-010 y MVP-001-02 done; puerta de diseño y revisión cruzada de Enzo aún pendiente. No acredita implementación ni pruebas."
+      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. MVP-010 está done tras validación documental independiente; aprobación conjunta de la base conceptual evolutiva según lo informado por el usuario. Este hijo permanece pending: conserva dependencias MVP-010 y MVP-001-02 done, esta última aún pendiente. Las decisiones específicas del flujo de administrador deben definirse y revisarse antes de implementarlo; no se exige resolver preguntas de otras funciones antes de infraestructura. No acredita implementación ni pruebas."
     }
   ]
 }

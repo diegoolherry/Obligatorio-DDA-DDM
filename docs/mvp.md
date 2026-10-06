@@ -133,7 +133,7 @@ La aplicación móvil será una sola. Después de iniciar sesión, la navegació
 ### 5.6 Pago de prueba con Mercado Pago
 
 - Integrar la API de Mercado Pago con credenciales TEST como decisión vigente revisable; probar aprobación y rechazo con escenarios del proveedor, sin inventar mecánica determinista local.
-- Registrar importe, fecha, usuario, referencia del intento y estado de dominio; proponer referencia externa y mapeo de estados del proveedor sin cerrar aún el ciclo compra/reintentos.
+- Registrar importe, fecha, usuario, referencia del intento y estado de dominio. La política conceptual de intento durable, pagos conservados, hold y reintentos ya está acordada en [el modelo canónico](design/data-model.md#acuerdo-conceptual-de-compra-hold-y-reintentos); representación física, checkout, mapeo/verificación de estados, concurrencia, comparación temporal y mecanismos de devolución TEST siguen pendientes, sin integración ni pruebas ejecutadas.
 - La API debe verificar el resultado con el proveedor antes de emitir tickets; nunca confiar únicamente en un éxito informado por el cliente.
 - La aplicación no debe solicitar ni guardar número de tarjeta, CVV o datos financieros equivalentes. El producto de checkout está pendiente de selección; producción y cobros reales requieren decisión de alcance explícita.
 
@@ -203,7 +203,7 @@ El [borrador canónico de modelado UML y ER MySQL](design/data-model.md) desarro
 | Servicio | Tramo, fecha, horario, capacidad y política de asiento. |
 | Tarifa | Precio vigente para un tramo o servicio. |
 | Itinerario | Combinación ordenada de servicios que conecta origen y destino. |
-| Compra | Pasajero, itinerario, importe total congelado y fecha; su vínculo con reintentos de pago sigue abierto. |
+| Compra | Pasajero, selección ordenada del itinerario, importe total congelado y fecha; el intento durable agrupa pagos conservados y genera a lo sumo una compra confirmada según [el acuerdo conceptual](design/data-model.md#acuerdo-conceptual-de-compra-hold-y-reintentos). La persistencia de ese vínculo y sus mecanismos operativos siguen pendientes. |
 | Pago | Importe, estado del dominio y referencia externa del proveedor cuando exista; un rechazo puede no tener compra emitida. |
 | Ticket | Servicio, pasajero, QR opaco, estado y asiento opcional. |
 | Asignación de abonos | Agrupa los abonos entregados juntos para un itinerario y período. |
