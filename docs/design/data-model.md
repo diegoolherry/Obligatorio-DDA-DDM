@@ -1,6 +1,6 @@
-# Obligatorio Berruti — Borrador de modelado de datos del MVP
+# Obligatorio Berruti — Modelo conceptual del MVP y persistencia candidata
 
-**Estado: propuesta para revisión de Enzo, no esquema aprobado.** Primero se representan conceptos y reglas del dominio en UML; luego una posible persistencia MySQL en ER. Las cardinalidades y restricciones marcadas **propuesta** no autorizan por sí solas políticas comerciales. Fuentes: [MVP](../mvp.md), [requisitos](../requerimientos.md), [historias](../user-stories.md) y [backlog](../tasks.json). No se encontró consigna oficial; contrastar este borrador con ella antes de implementar.
+**Estado: base conceptual evolutiva aprobada por Diego y Enzo, según lo informado por el usuario; no esquema físico aprobado.** Se registra esa aprobación humana reportada, sin atribuir al agente la revisión de ninguno de ellos ni inventar una fecha de revisión. Primero se representan conceptos y reglas del dominio en UML; luego una posible persistencia MySQL en ER. La aprobación admite cambios futuros; las cardinalidades y restricciones marcadas **propuesta** no autorizan por sí solas políticas comerciales ni contratos DTO definitivos. Fuentes: [MVP](../mvp.md), [requisitos](../requerimientos.md), [historias](../user-stories.md) y [backlog](../tasks.json). No se encontró consigna oficial; contrastar este borrador con ella antes de implementar.
 
 ## 1. Dominio (UML)
 
@@ -90,6 +90,7 @@ classDiagram
   Usuario "1" <-- "0..*" IntentoCompra : pasajero
   IntentoCompra "1" --> "0..*" Pago : conserva intentos
   IntentoCompra "1" --> "0..1" Compra : confirmacion idempotente
+  Compra "0..*" --> "1" Itinerario : seleccion comprada ordenada
   Compra "1" --> "1..*" Ticket : aprobacion y disponibilidad
   Servicio "1" <-- "0..*" Ticket : viaje
   Usuario "1" <-- "0..*" AsignacionAbonos : pasajero
@@ -104,7 +105,7 @@ classDiagram
   Usuario "1" <-- "0..*" CambioAdministrativo : actor
 ```
 
-Las asociaciones del diagrama expresan intención conceptual, no un esquema físico aprobado: un servicio puede aparecer en múltiples selecciones de itinerario; cada selección contiene uno o más servicios ordenados. Cada ticket emitido pertenece a exactamente una compra confirmada; la generación de todos los tickets ocurre junto con ella. El intento durable de compra agrupa y conserva los intentos de pago, aunque no llegue a existir compra confirmada. El acuerdo conceptual del usuario admite a lo sumo una compra confirmada por intento durable; no define su representación física ni la retención temporal de los registros. Cada validación resuelta refiere **exactamente un** ticket o abono si el QR existe; un QR desconocido no refiere ninguno. Un ticket admite muchos intentos, pero a lo sumo uno exitoso.
+Las asociaciones del diagrama expresan intención conceptual, no un esquema físico aprobado: un servicio puede aparecer en múltiples selecciones de itinerario; cada selección contiene uno o más servicios ordenados. Compra enlaza la selección comprada mediante el concepto existente Itinerario; el camino Compra → Ticket → Servicio identifica los servicios adquiridos, pero no expresa por sí solo su orden. La asociación con Itinerario expresa ese orden conceptual, no una tabla permanente ni una nueva entidad. Cada ticket emitido pertenece a exactamente una compra confirmada; la generación de todos los tickets ocurre junto con ella. El intento durable de compra agrupa y conserva los intentos de pago, aunque no llegue a existir compra confirmada. El acuerdo conceptual del usuario admite a lo sumo una compra confirmada por intento durable; no define su representación física ni la retención temporal de los registros. Cada validación resuelta refiere **exactamente un** ticket o abono si el QR existe; un QR desconocido no refiere ninguno. Un ticket admite muchos intentos, pero a lo sumo uno exitoso.
 
 ## 2. Persistencia candidata (ER MySQL)
 
@@ -160,7 +161,7 @@ erDiagram
 
 ### Acuerdo conceptual de compra, hold y reintentos
 
-**Decidido por acuerdo del usuario; no implementado y con revisión humana de Enzo pendiente.** Un intento durable de compra agrupa intentos de pago conservados; es distinto del hold temporal y de una compra confirmada. El hold protege un asiento de una salida para un intervalo de viaje; dura **5 minutos configurables desde su creación en la API**. Recargar o reintentar tras rechazo definitivo no reinicia el plazo.
+**Acuerdo conceptual incluido en la base evolutiva aprobada por Diego y Enzo, según lo informado por el usuario; no implementado.** Un intento durable de compra agrupa intentos de pago conservados; es distinto del hold temporal y de una compra confirmada. El hold protege un asiento de una salida para un intervalo de viaje; dura **5 minutos configurables desde su creación en la API**. Recargar o reintentar tras rechazo definitivo no reinicia el plazo.
 
 | Situación | Regla acordada |
 | --- | --- |
@@ -176,7 +177,7 @@ erDiagram
 
 ### Escenarios esperados para revisión de Enzo
 
-Checklist de diseño, **no pruebas ejecutadas ni revisión completada**:
+Checklist de diseño para implementación y revisiones futuras, **no pruebas ejecutadas**. La aprobación conceptual conjunta reportada por el usuario no acredita ejecución individual de estos escenarios; por eso permanecen sin marcar:
 
 - [ ] Aprobación activa: API verifica aprobación, disponibilidad y hold vigente; una sola compra y sus tickets.
 - [ ] Rechazo definitivo: reintenta durante el tiempo restante, conserva pagos y no reinicia el vencimiento.
@@ -190,12 +191,12 @@ Checklist de diseño, **no pruebas ejecutadas ni revisión completada**:
 
 ## 3. Límites y trazabilidad
 
-| Contrato | Cobertura del borrador | Fuente |
+| Contrato | Cobertura del modelo | Fuente |
 | --- | --- | --- |
-| Identidad y configuración | Usuario/rol, paradas, tramos, servicio, tarifa, auditoría | RF-001/002/007; RN-12 |
-| Itinerario y compra | Orden, precio congelado, pago aprobado/rechazado, ticket por servicio | RF-003/004; RN-01/02/05/06/07; CA-01/02/03 |
-| Validación | QR opaco, intento desconocido o rechazado, ticket único, abono con saldo independiente | RF-005/006; RN-03/04/08/09/10/11/13; CA-04 a CA-09; RNF-002/003 |
-| Ubicación | Posiciones recibidas aceptadas y parámetros para última posición/estimación | RF-008/009; RN-14/15; CA-11 a CA-14 |
+| Identidad y configuración | Usuario/rol, paradas, tramos, servicio, tarifa, auditoría | RF-001/002/007; US-001/002/009; RN-12 |
+| Itinerario y compra | Orden, precio congelado, pago aprobado/rechazado, ticket por servicio | RF-003/004; US-003/004; RN-01/02/05/06/07; CA-01/02/03 |
+| Validación | QR opaco, intento desconocido o rechazado, ticket único, abono con saldo independiente | RF-005/006; US-005 a US-008; RN-03/04/08/09/10/11/13; CA-04 a CA-09; RNF-002/003 |
+| Ubicación | Posiciones recibidas aceptadas y parámetros para última posición/estimación | RF-008/009; US-010 a US-012; RN-14/15; CA-11 a CA-14 |
 
 El **dominio** expresa reglas y comportamiento; las tablas son una alternativa de almacenamiento y no contratos públicos. Los **DTO de API**, aún no definidos, deberán separar datos de compra, consulta y validación de las entidades persistidas: nunca exponer credenciales, precio mutable como precio pagado ni el estado completo dentro del QR. Para código inexistente, el DTO responde rechazo aunque `validacion` no tenga FK de recurso; una llamada sin autorización puede rechazarse antes de registrar un intento. Posiciones inválidas nunca reemplazan la última válida.
 
@@ -208,7 +209,7 @@ El **dominio** expresa reglas y comportamiento; las tablas son una alternativa d
 5. ¿Se conservan todos los intentos de validación, incluido QR desconocido, y con qué política de retención del código presentado? La referencia exclusiva a ticket/abono y las respuestas de API deben acordarse juntas.
 6. ¿Qué garantiza la unicidad de asiento por servicio y qué ocurre ante concurrencia/cupo lleno? La asignación automática de la demo ya está decidida, no su algoritmo ni el mecanismo concurrente del hold por asiento/salida/intervalo acordado en §2.
 
-Hasta resolver estas preguntas y obtener revisión cruzada, no derivar de este borrador migraciones ni contratos definitivos.
+**Puertas de dominio para implementación:** la aplicabilidad y vigencia de tarifas (1) y la correspondencia bidireccional abono–servicio (4) requieren decisiones futuras explícitas antes de implementar esas funciones; no son elecciones aprobadas por omisión ni por el FK provisional. La aprobación reportada acepta esta base conceptual evolutiva con esas puertas abiertas. Las restantes preguntas físicas y operativas también deben resolverse y revisarse en su ámbito antes de derivar migraciones o contratos definitivos; no se aprueba aquí el esquema físico.
 
 ## 5. Modelo conceptual complementario de la entrega final
 
@@ -227,6 +228,6 @@ Hasta resolver estas preguntas y obtener revisión cruzada, no derivar de este b
 
 Relaciones propuestas: una ruta dirigida contiene una secuencia de ocurrencias de parada y puede generar múltiples salidas según calendario; una salida usa un vehículo y su configuración, que define los asientos ofrecidos. Un asiento de salida admite múltiples ocupaciones solamente en intervalos no superpuestos. Un itinerario con transbordo refiere varias salidas y requiere selección/asignación independiente en cada una.
 
-La regla formal `[a,b)` contra `[c,d)` y sus ejemplos se mantienen en [disponibilidad por intervalo](../final-scope.md#4-disponibilidad-por-intervalo), junto con [estados de compra y discusiones históricas](../final-scope.md#5-compra-y-estados-de-experiencia). El acuerdo actual de §2 sustituye allí las menciones de política de hold/reintentos/aprobación tardía aún indecisa; no sustituye sus requisitos ni los estados y criterios de finalización del [backlog vigente](../tasks.json). La confirmación atómica/idempotente del servidor es un acuerdo conceptual todavía sin implementación: PK/FK o un UNIQUE por asiento/salida no bastan para permitir reutilización y excluir superposición. Estrategia transaccional, representación física e índices requieren diseño y pruebas; no se proponen migraciones aquí.
+La regla formal `[a,b)` contra `[c,d)` y sus ejemplos se mantienen en [disponibilidad por intervalo](../final-scope.md#4-disponibilidad-por-intervalo), junto con [estados de compra y discusiones históricas](../final-scope.md#5-compra-y-estados-de-experiencia). El acuerdo actual de §2 rige la política de hold/reintentos/aprobación tardía reflejada allí; no sustituye sus requisitos ni los estados y criterios de finalización del [backlog vigente](../tasks.json). La confirmación atómica/idempotente del servidor es un acuerdo conceptual todavía sin implementación: PK/FK o un UNIQUE por asiento/salida no bastan para permitir reutilización y excluir superposición. Estrategia transaccional, representación física e índices requieren diseño y pruebas; no se proponen migraciones aquí.
 
-**Puertas pendientes:** acordar relación ruta/salida con el modelo MVP, configuración ante cambio de vehículo y mecanismos de hold/pago/devolución TEST. La política del hold y de aprobación posterior al vencimiento está acordada en §2; una entidad física de reserva temporal y sus estados no se dan por aprobados. No cambia la limitación TEST/sin producción ni se resuelven tarifa, checkout, implementación de reintentos, abonos o retención de validaciones. Las reglas conceptuales de §2 sí están acordadas; las menciones históricas de política pendiente en alcance y backlog quedan superadas por este acuerdo, sin cambiar sus requisitos, estados de tareas ni autoridad para acreditar finalización. La evidencia de horarios y sus límites está en [catálogo y fuente](../final-scope.md#2-catálogo-y-evidencia-de-horarios); capacidades y planos no prueban asignaciones reales. La revisión cruzada debe preceder contratos definitivos.
+**Puertas pendientes:** acordar relación ruta/salida con el modelo MVP, configuración ante cambio de vehículo y mecanismos de hold/pago/devolución TEST. La política del hold y de aprobación posterior al vencimiento está acordada en §2; una entidad física de reserva temporal y sus estados no se dan por aprobados. No cambia la limitación TEST/sin producción ni se resuelven tarifa, checkout, implementación de reintentos, abonos o retención de validaciones. Las reglas conceptuales de §2 sí están acordadas; alcance y backlog remiten a este acuerdo sin cambiar sus requisitos, estados de tareas ni autoridad para acreditar finalización. La evidencia de horarios y sus límites está en [catálogo y fuente](../final-scope.md#2-catálogo-y-evidencia-de-horarios); capacidades y planos no prueban asignaciones reales. La revisión cruzada debe preceder contratos definitivos.
