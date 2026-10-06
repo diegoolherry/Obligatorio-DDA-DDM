@@ -8,29 +8,26 @@ description: Aplicar las convenciones de clase para Blazor, C#, API, React Nativ
 ## Contrato de activación
 
 1. Leé `references/shared-workflow.md`.
-2. Leé `references/dda-blazor.md` para trabajo de Blazor/C# o `references/dam-react-native.md` para trabajo móvil.
+2. Cargá `../../.agents/skills/ctc-dda-blazor/SKILL.md` para Blazor/C#/API o `../../.agents/skills/ctc-ddm-mobile/SKILL.md` para móvil/Expo/NativeWind. Cargá ambas si el trabajo cruza capas; no recargues una skill ya leída. Las especializadas no reactivan esta skill.
 3. Leé `references/mobile-ux.md` antes de crear o cambiar un flujo de usuario o una pantalla.
 4. Si la consigna o la configuración vigente contradice esta skill, informá el conflicto y seguí la fuente vigente. Actualizá la skill solo con aprobación del equipo.
 
 ## Reglas obligatorias
 
 - Mantené límites claros de responsabilidad: la UI renderiza y despacha eventos; los servicios o acciones poseen las operaciones de negocio o datos; los modelos y tipos definen contratos.
-- Registrá los servicios de Blazor mediante inyección de dependencias e inyectalos; nunca construyas un servicio dentro de un componente Razor.
 - Usá contratos tipados. No introduzcas `any` en TypeScript para ocultar errores.
 - No mutés directamente el estado de React ni edites accidentalmente un modelo compartido de Blazor; creá o copiá un valor.
 - Modelá carga, vacío, error, éxito y reintento cuando intervengan datos remotos.
-- Usá elementos nativos de React Native, no elementos HTML, y mantené el texto visible dentro de `Text`.
 - No agregues una dependencia solamente para evitar comprender o implementar un concepto pequeño de clase.
 - Mantené cada cambio pequeño, compilable y explicable por ambos estudiantes.
 
 ## Puertas de decisión
 
-- **Blazor:** decidí página versus componente reutilizable y luego responsabilidad de UI versus servicio antes de escribir código.
-- **React Native:** decidí props versus estado local; usá Context solo para estado realmente global y efectos solo para sistemas externos.
-- **Colecciones:** usá LINQ en C#; usá claves estables y `FlatList` para colecciones móviles que puedan crecer.
+- **Capa:** aplicá la skill especializada canónica; no uses las referencias legadas como un segundo conjunto de reglas.
+- **Evidencia:** distinguí enseñado/aplicado, solo mencionado, exigido por proyecto sin evidencia docente y no verificado. Antes de implementar algo dependiente de conceptos no demostrados, explicá la solución mínima y pedí aprobación del equipo; no omitas DTO, auth, QR ni pagos exigidos.
 - **Formularios:** definí el modelo tipado y las reglas de validación antes de los campos de UI.
 - **UX:** definí objetivo del usuario, camino feliz, fallos, permisos y conectividad antes del pulido visual.
-- **API:** mantené a los clientes dependientes de contratos explícitos de solicitud/respuesta, no de entidades del servidor. Hasta que la consigna o el material de API definan más, no inventes políticas del proyecto.
+- **API:** mantené a los clientes dependientes de contratos explícitos de solicitud/respuesta, no de entidades del servidor. Los requisitos vigentes prevalecen sobre ejemplos docentes; no inventes políticas ni infieras aprobación por ausencia de ejemplos.
 
 ## Pasos de ejecución
 
@@ -47,8 +44,8 @@ En una implementación o revisión, indicá la capa afectada, los archivos modif
 ## Referencias
 
 - `references/shared-workflow.md`
-- `references/dda-blazor.md`
-- `references/dam-react-native.md`
+- `../../.agents/skills/ctc-dda-blazor/SKILL.md`
+- `../../.agents/skills/ctc-ddm-mobile/SKILL.md`
 - `references/mobile-ux.md`
-- `assets/blazor-form-pattern.razor`
-- `assets/react-native-async-list-pattern.tsx`
+
+Los assets compartidos son ejemplos de forma, no evidencia de cobertura docente de HTTP ni aprobación de mecanismos adicionales.
