@@ -22,12 +22,12 @@ Reconcile model documentation and record the team's approval of the current conc
 - This feature document is parent-owned progress tracking.
 
 ## Work unit
-- [ ] MODEL-1: Reconcile documentation, verify all MVP-010 criteria and record approval/closure if supported.
-  - Status: in_progress (checks verified; authorized work-unit commit and publication in progress).
+- [x] MODEL-1: Reconcile documentation, verify all MVP-010 criteria and record approval/closure if supported.
+  - Status: done (documentary reconciliation, independent verification and work-unit commit observed).
   - Acceptance: documentary contradictions removed; all three original MVP-010 criteria supported; approval attributed to the user's report of both reviewers; unresolved tariff/pass rules and technical decisions explicit and gated; no implementation claimed.
   - Checks: local Markdown links/fragments; 17 UML concepts; ordered selection explicit; JSON validity; original backlog invariants and unchanged unrelated states/criteria; whitespace; independent content and criterion review.
   - Test-first exception: passive documentation/backlog bookkeeping has no meaningful behavior RED/GREEN; use structural and documentary verification, no application/provider tests claimed.
-  - Commit: authorized and pending execution; task closes after work-unit commit evidence is recorded.
+  - Commit: `e82e4db8a5fa8d086f814e5925b8c1e43e4e10cf` — `docs(design): record evolvable model approval and close MVP-010`; eight intended files committed, .codegraph excluded.
 
 ## Evidence and next step
 - Read-only audit: traceability and domain/persistence/DTO plus rejection/concurrency criteria supported; reported human approval not yet reflected in files.
@@ -43,4 +43,5 @@ Reconcile model documentation and record the team's approval of the current conc
 - Final independent delta validation PASS: single MVP-010 completion transition, original invariants preserved for all 19 records, reconciled parent/child evidence and gates, consistent report counts, 83 local links / 46 fragments valid. No blockers found; no Mermaid parser/rendering or application/provider tests performed.
 - Native review: medium, consolidated review-reliability approved for snapshot sha256:65257af3e1eb2366f64edd9bd64bfab4d1c91e70e16d352eac947ed5f33231bb. Exact acknowledgement for lineage review-eadacceea18b2930 succeeded and burned authority at revision sha256:44547013b859c28a95a3d598c45524513aafa5861d38c1afed8936003bdef48d. This subsequent tracker evidence-only update is not part of that frozen snapshot; reviewed domain/backlog/report files are unchanged.
 - Publication authorization confirmed: commit/push/new approved issue and Closes-linked PR, all GitHub prose in Spanish; ADMIN permission and main base freshly confirmed, origin/main remains ad8e529. Commit records only the seven reviewed documents plus this tracker; .codegraph stays excluded.
-- Next: commit the verified work unit, record its hash, then publish issue and PR and inspect CI. MVP-010 is done in the local backlog. Future implementation starts with MVP-001-01 only under fresh authorization. No claim of zero open domain decisions.
+- Work-unit commit completed: e82e4db8a5fa8d086f814e5925b8c1e43e4e10cf, +101/-52 including tracker; staged whitespace check PASS. This evidence-only closure update is a separate passive tracking commit.
+- Next: publish the authorized Spanish issue and PR, then inspect CI. MVP-010 is done in the local backlog. Future implementation starts with MVP-001-01 only under fresh authorization. No claim of zero open domain decisions.
