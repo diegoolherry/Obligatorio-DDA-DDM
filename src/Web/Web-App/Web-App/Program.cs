@@ -3,6 +3,9 @@ using Web_App.Components;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+// Cuando exista un cliente HTTP de la API, deberá deserializar RolIngreso con
+// JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false), igual que la API.
+// Este portal todavía no consume la API; el comentario no configura un cliente.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
