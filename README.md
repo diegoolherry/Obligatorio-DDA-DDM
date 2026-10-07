@@ -8,7 +8,7 @@ Proyecto académico de pasajes y abonos por tramo, inspirado en una operativa ob
 | --- | --- |
 | Aprender con una primera ejecución | [Tutorial: primer arranque local](docs/tutorials/first-local-run.md) |
 | Resolver una tarea concreta | [Direcciones cliente/API](docs/how-to/client-api-configuration.md) · [Resolución de problemas](docs/how-to/troubleshooting.md) |
-| Consultar especificaciones | [Requisitos](docs/reference/requirements.md) · [Historias de usuario](docs/reference/user-stories.md) · [Alcance final](docs/reference/final-scope.md) · [API implementada](docs/reference/api.md) |
+| Consultar especificaciones | [Requisitos](docs/reference/requirements.md) · [Historias de usuario](docs/reference/user-stories.md) · [Alcance final](docs/reference/final-scope.md) · [API implementada](docs/reference/api.md) · [Contratos iniciales de autenticación](docs/reference/auth-contracts.md) |
 | Entender el contexto y las decisiones | [MVP](docs/explanation/mvp.md) · [Modelo de datos](docs/explanation/data-model.md) · [Entidades explicadas](docs/explanation/entities-explained.md) · [Diseño UX](docs/explanation/ux-design.md) |
 
 ## Fuentes canónicas

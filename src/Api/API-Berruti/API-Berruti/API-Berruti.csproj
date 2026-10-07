@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../../../Shared/Berruti.Contracts/Berruti.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
   </ItemGroup>
 
