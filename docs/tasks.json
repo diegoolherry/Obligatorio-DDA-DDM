@@ -405,11 +405,11 @@
         "Web",
         "Mobile"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "assignee": "Diego",
       "reviewer": "Enzo",
       "createdAt": "2026-10-05T19:43:34.283590-03:00",
-      "startedAt": null,
+      "startedAt": "2026-10-06T10:10:41.491439-03:00",
       "completedAt": null,
       "completedBy": null,
       "dependencies": [
@@ -420,7 +420,7 @@
         "La evidencia registra comandos y resultados observables de compilación y arranque de las tres partes en el entorno de desarrollo.",
         "La configuración documenta cómo conectar los clientes con la API sin incluir secretos ni credenciales reales en el repositorio o la evidencia."
       ],
-      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. MVP-010 está done tras validación documental independiente; aprobación conjunta de la base conceptual evolutiva según lo informado por el usuario. Su dependencia MVP-010 se conserva y está cumplida; este hijo permanece pending, sin inicio automático. Puede preparar infraestructura sin resolver todas las preguntas del modelo: las decisiones abiertas deben resolverse y revisarse antes de implementar la función correspondiente. No acredita esquema físico, DTO definitivos, implementación ni pruebas."
+      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. MVP-010 está done tras validación documental independiente; aprobación conjunta de la base conceptual evolutiva según lo informado por el usuario. Su dependencia MVP-010 se conserva y está cumplida. Inicio explícitamente autorizado del corte MF-01: src/Api y src/Web literalmente vacíos, sin placeholders, con creación de proyectos diferida a Diego en Visual Studio; src/Mobile contiene únicamente starter Expo/React Native/TypeScript con StyleSheet y áreas seguras, sin negocio ni red. Metadata npm verificada antes de instalar: create-expo-app 5.0.0, expo-template-blank-typescript 57.0.29, Expo 57.0.27, React 19.2.3 y RN 0.86.3. El implementador reportó npm install y npm ci exitosos; npm ci independiente no se ejecutó por diseño. expo install --check falló inicialmente por @types/react 19.2.2 de la plantilla y pasó tras verificar/fijar 19.2.4 y repetir install/ci. Verificación independiente final parcial: pasaron typecheck, expo install --check, exportación JS Android (589 módulos, Hermes 1.4 MB), convenciones y controles Python de preservación del backlog y API/Web literalmente vacíos. El implementador había reportado Metro HTTP 200 packager-status:running; ambos intentos independientes autorizados agotaron el tiempo pese a los logs, sin HTTP 200 ni packager-status exitoso independiente. Ambos procesos propios se limpiaron y el puerto 8081 quedó cerrado. Causa desconocida, sin defecto de fuente identificado por inspección; no se ejecutaron ni autorizaron más reintentos. Insets implementados, no verificados visualmente. npm audit y npm audit --omit=dev independientes: exit 1, 22 paquetes afectados (15 altos, 7 moderados), exactamente tres avisos: braces 3.0.3 GHSA-vfj7-8cjw-p6xm alta vía micromatch/metro-file-map/@expo/metro; node-forge 1.4.0 GHSA-86w9-cpqp-85rv alta vía Expo CLI y code-signing-certificates; uuid 7.0.3 GHSA-w5hq-g745-h8pq moderada vía xcode/config-plugins. Rutas de herramientas clasificadas como producción por npm no prueban inclusión en runtime ni explotabilidad; ninguna evaluada. Sin audit fix/force/downgrade mayor. Evidencia, comandos y enlaces a avisos en README.md e informe §7; exportación JS no es compilación nativa Android ni lanzamiento en dispositivo. Permanece in_progress: pendientes proyectos/compilación/arranque API y Web, configuración cliente/API, dispositivo, revisión cruzada de Enzo y todos los criterios originales; completedAt/completedBy permanecen null. Sin commits autorizados. No acredita esquema físico, DTO definitivos, auth ni pruebas de negocio."
     },
     {
       "id": "MVP-001-02",
