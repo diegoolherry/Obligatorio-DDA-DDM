@@ -1,77 +1,24 @@
 # Obligatorio Berruti
 
-MVP académico de pasajes y abonos por tramo.
+Proyecto académico de pasajes y abonos por tramo, inspirado en una operativa observada: **no es un sistema oficial ni afiliado a la empresa**. API .NET, Web Blazor y Mobile Expo tienen scaffolds; eso no acredita los flujos de producto propuestos.
 
-Estamos definiendo un prototipo académico de transporte: permitir que un pasajero busque y compre un itinerario, presente un ticket QR por tramo y consulte sus abonos; que un cobrador valide esos comprobantes; y que un administrador prepare los datos de demostración. Es un proyecto inspirado en una operativa observada, **no un sistema oficial ni afiliado a la empresa**. La propuesta es preliminar y debe contrastarse con la consigna del curso.
+## Elegí tu recorrido
 
-## Por dónde empezar
+| Quiero… | Documento |
+| --- | --- |
+| Aprender con una primera ejecución | [Tutorial: primer arranque local](docs/tutorials/first-local-run.md) |
+| Resolver una tarea concreta | [Direcciones cliente/API](docs/how-to/client-api-configuration.md) · [Resolución de problemas](docs/how-to/troubleshooting.md) |
+| Consultar especificaciones | [Requisitos](docs/reference/requirements.md) · [Historias de usuario](docs/reference/user-stories.md) · [Alcance final](docs/reference/final-scope.md) · [API implementada](docs/reference/api.md) |
+| Entender el contexto y las decisiones | [MVP](docs/explanation/mvp.md) · [Modelo de datos](docs/explanation/data-model.md) · [Entidades explicadas](docs/explanation/entities-explained.md) · [Diseño UX](docs/explanation/ux-design.md) |
 
-1. Leé el [alcance y los escenarios del MVP](docs/mvp.md) para distinguir reglas observadas, decisiones académicas y dudas abiertas.
-2. Consultá el [backlog del proyecto completo](docs/tasks.json) para estados, responsables, dependencias y criterios de aceptación vigentes. Un único array `tasks` reúne 19 registros: 14 originales (diez MVP y cuatro FIN) y cinco hijos ejecutables de MVP-001 (`MVP-001-01` a `MVP-001-05`, vinculados por `parentId`). En total, 18 están `pending` y solo MVP-010 está `in_progress` (modelado); ninguno está `done`. Los cinco hijos tienen a Diego como responsable confirmado y a Enzo como revisor; todos dependen explícitamente de MVP-010, la estructura precede a los contratos y estos a los tres flujos de sesión independientes. MVP-001 es un hito con criterios originales autoritativos: no se completa automáticamente al completar hijos. Estos conteos no representan funcionalidades independientes ni progreso de implementación. Las áreas `API`, `Web`, `Mobile` y `Docs` permiten varias etiquetas por tarea transversal; los IDs `MVP-*` y `FIN-*` se conservan. Los responsables FIN son propuestos, sin asignación humana confirmada. El diseño espera revisión cruzada de Enzo. Este resumen no reemplaza el JSON.
-3. Para el diseño, mirá el [borrador UML/ER](docs/design/data-model.md) y la [guía de experiencia](DESIGN.md). El [informe académico vivo](docs/project-report.md) reúne decisiones, evidencia y pendientes; su Markdown es la fuente para una eventual versión Word.
+## Fuentes canónicas
 
-Todavía **no hay código rastreado de API, Blazor ni aplicación móvil**. No hay migraciones, integración con proveedor de pagos ni despliegue verificados. MySQL está instalado y se comprobó una conexión administrativa local, pero no está integrado con la API; el modelo de datos sigue siendo una propuesta, no un esquema aprobado.
+- [Backlog del proyecto completo](docs/tasks.json): estados, responsables, dependencias y criterios de aceptación. No se replica su progreso aquí.
+- [Informe académico vivo](docs/project-report.md): decisiones, evidencia histórica y pendientes; fuente Markdown para la futura entrega Word.
+- [AGENTS.md](AGENTS.md): salvaguardas de colaboración y mantenimiento. [Skill compartida](skills/ctc-project-conventions/SKILL.md): flujo y convenciones de clase.
 
-El MVP de las primeras semanas de octubre es el primer corte, no toda la entrega. El [alcance final](docs/final-scope.md) agrega mejoras del equipo (no requisitos académicos explícitos): rutas/calendarios y selección web de asientos por intervalo; todavía no están implementadas.
+<a id="base-web-scaffold-blazor-net-10"></a>
 
-## Recorrido que queremos demostrar
+Los enlaces históricos a la base Web continúan aquí: las [instrucciones actuales](docs/tutorials/first-local-run.md#2-iniciá-web) están en el tutorial y la evidencia permanece en el informe §7.
 
-El caso conductor va de **Ombúes a Colonia**, con transbordo en **Radial de Conchillas**: dos servicios, dos tickets QR diferentes y validación de un solo uso para cada tramo. El primer tramo no asigna asiento; el segundo lo asignaría automáticamente. También se proponen dos abonos relacionados, con igual cupo inicial y saldos independientes: cada validación descuenta una unidad del abono del tramo correspondiente.
-
-Los roles previstos son **pasajero** (web y móvil), **cobrador** (móvil) y **administrador** (web). Un dispositivo o celular embarcado autorizado publicaría posiciones ficticias para consultar última actualización, llegada aproximada y demora básica; esto es geolocalización académica, no seguimiento operativo en tiempo real. La compra propone **Mercado Pago mediante su API en entorno TEST**, decisión revisable y aún no implementada: la API tendría que verificar la aprobación del proveedor antes de emitir tickets. No se prevén cobros reales ni almacenamiento de tarjetas. Los registros operativos de demostración son ficticios; los escenarios de aprobación y rechazo de pago deberán usar el proveedor TEST, no resultados locales inventados.
-
-## Estructura documental actual
-
-El árbol resume los documentos y carpetas del proyecto, incluido el backlog completo en su nueva ruta. No incluye índices locales ni carpetas ignoradas.
-
-```text
-.
-├── .github/
-│   └── workflows/docs-validation.yml
-├── docs/
-│   ├── design/data-model.md
-│   ├── final-scope.md
-│   ├── mvp.md
-│   ├── tasks.json           # backlog del proyecto completo
-│   ├── project-report.md
-│   ├── requerimientos.md
-│   └── user-stories.md
-├── odd/
-│   └── tasks/                 # registros de trabajo documental
-├── skills/
-│   └── ctc-project-conventions/
-│       ├── SKILL.md
-│       ├── references/
-│       ├── assets/
-│       └── scripts/
-├── .gitignore
-├── AGENTS.md
-├── README.md
-└── DESIGN.md
-```
-
-[AGENTS.md](AGENTS.md) establece cómo mantener el backlog y el informe; la [skill del proyecto](skills/ctc-project-conventions/SKILL.md) reúne convenciones de clase. El workflow existente valida documentación, no acredita pruebas funcionales del MVP.
-
-## Estructura objetivo ilustrativa
-
-**Propuesta, no carpetas existentes ni nombres definitivos.** Cuando el MVP esté implementado, una organización posible separaría responsabilidades así:
-
-```text
-.
-├── src/
-│   ├── Api/
-│   │   ├── Controllers/       # límite HTTP y autorización
-│   │   ├── Services/          # reglas de negocio y validaciones
-│   │   ├── Repositories/      # acceso a datos
-│   │   ├── Data/              # EF Core DbContext y persistencia MySQL
-│   │   └── Contracts/         # DTO explícitos de solicitud/respuesta
-│   ├── Web/                   # Blazor: pasajero y administrador
-│   └── Mobile/                # React Native/TypeScript/Expo: pasajero y cobrador
-├── tests/                     # pruebas por definir para API y recorridos
-├── docs/                      # requisitos, diseño, backlog e informe
-└── skills/                    # convenciones del proyecto
-```
-
-En la API, el flujo previsto es **Controllers → Services → Repositories → EF Core DbContext**. Web y móvil consumirían contratos DTO explícitos, sin depender de entidades de persistencia ni decidir por sí solos autorización, aprobación de pago o consumo de QR. La forma exacta de proyectos, carpetas y pruebas se acordará durante la implementación; este dibujo no es una instrucción de instalación ni una promesa de herramientas ya configuradas.
-
-Para seguir el trabajo, revisá los [requisitos](docs/requerimientos.md), las [historias de usuario](docs/user-stories.md) y las decisiones abiertas del [modelado](docs/design/data-model.md) antes de iniciar código o migraciones.
+Para preparar el entorno, seguí el tutorial: contiene las rutas de las soluciones existentes y los comandos del scaffold, sin recrear proyectos. Para reglas de producto, consultá las referencias y explicaciones antes de implementar.

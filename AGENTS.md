@@ -39,3 +39,18 @@ La consigna vigente y la configuración del repositorio prevalecen sobre la skil
 ## Informe académico vivo
 
 `docs/project-report.md` es la fuente Markdown del informe académico; la versión Word se genera después, no se mantiene como fuente paralela. Después de cambios importantes en arquitectura, requisitos o alcance, decisiones tecnológicas, cortes MVP terminados, evidencia de pruebas/calidad, despliegue/infraestructura, riesgos, cronograma o proceso del equipo, revisá el informe y actualizá las secciones afectadas. Enlazá evidencia verificable, distinguí decisiones y planes de resultados comprobados, marcá lo pendiente explícitamente y nunca inventes implementación, pruebas o despliegue completados. Conservá `docs/tasks.json` como autoridad para estados y finalización de tareas.
+
+## Navegación documental y uso por agentes
+
+La [entrada del repositorio](README.md) organiza la lectura por propósito:
+
+- **Tutoriales:** [primer arranque local](docs/tutorials/first-local-run.md), para aprender ejecutando el scaffold.
+- **Guías prácticas:** [cliente/API](docs/how-to/client-api-configuration.md) y [problemas conocidos](docs/how-to/troubleshooting.md), para resolver una tarea concreta.
+- **Referencia:** [requisitos](docs/reference/requirements.md), [historias](docs/reference/user-stories.md), [alcance final](docs/reference/final-scope.md) y [API implementada](docs/reference/api.md), para consultar contratos y límites.
+- **Explicaciones:** [MVP](docs/explanation/mvp.md), [modelo](docs/explanation/data-model.md), [entidades](docs/explanation/entities-explained.md) y [UX](docs/explanation/ux-design.md), para entender contexto y decisiones.
+
+Excepciones canónicas: [backlog](docs/tasks.json) e [informe académico](docs/project-report.md) conservan sus rutas y autoridad definidas arriba; no crees copias de estados ni una documentación paralela solo para agentes.
+
+Antes de editar arranque/configuración, leé el tutorial, la guía pertinente y la configuración real. Antes de modificar contratos o dominio, leé las referencias, las explicaciones afectadas y los criterios/dependencias del backlog. Antes de actualizar evidencia o decisiones, leé el informe y su fuente verificable; mantené las skills obligatorias de arriba.
+
+Conservá las restricciones no inferibles y las salvaguardas existentes. Registrá decisiones y justificaciones solo con respaldo humano o evidencia identificable; no inventes aprobación, alternativas descartadas ni razones para rellenar documentos. Distinguí comportamiento establecido por fuente, comprobación observada, reporte del usuario y plan pendiente. La documentación no sustituye las pruebas que protegen invariantes de autorización, pagos, QR, abonos o concurrencia; un texto o criterio de aceptación no acredita ejecución exitosa.

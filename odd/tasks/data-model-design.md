@@ -1,6 +1,6 @@
 # Modelado de datos del MVP — unidad documental
 
-**Autorización:** borrador de documentación en español; sin código, migraciones, SQL ejecutable, artefactos visuales, instalaciones ni entrega Git. Fuente canónica: [diseño](../../docs/design/data-model.md). Estado: redactado para revisión humana, no aprobado.
+**Autorización:** borrador de documentación en español; sin código, migraciones, SQL ejecutable, artefactos visuales, instalaciones ni entrega Git. Fuente canónica: [diseño](../../docs/explanation/data-model.md). Estado: redactado para revisión humana, no aprobado.
 
 ## Trabajo y ruta
 
