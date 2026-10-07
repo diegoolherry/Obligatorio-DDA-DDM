@@ -12,7 +12,7 @@
 
 Antes de planificar, implementar, depurar o revisar trabajo de Blazor, C#, API, React Native, TypeScript, Expo o UX móvil, cargá y seguí:
 
-- `skills/ctc-project-conventions/SKILL.md` para el flujo compartido y UX móvil.
+- `.agents/skills/ctc-project-conventions/SKILL.md` para el flujo compartido y UX móvil.
 - `.agents/skills/ctc-dda-blazor/SKILL.md` para Blazor, C# y API.
 - `.agents/skills/ctc-ddm-mobile/SKILL.md` para React Native, TypeScript, Expo y NativeWind/Tailwind.
 

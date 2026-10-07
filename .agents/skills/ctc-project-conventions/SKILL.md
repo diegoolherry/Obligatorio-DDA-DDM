@@ -8,7 +8,7 @@ description: Aplicar las convenciones de clase para Blazor, C#, API, React Nativ
 ## Contrato de activación
 
 1. Leé `references/shared-workflow.md`.
-2. Cargá `../../.agents/skills/ctc-dda-blazor/SKILL.md` para Blazor/C#/API o `../../.agents/skills/ctc-ddm-mobile/SKILL.md` para móvil/Expo/NativeWind. Cargá ambas si el trabajo cruza capas; no recargues una skill ya leída. Las especializadas no reactivan esta skill.
+2. Cargá `../ctc-dda-blazor/SKILL.md` para Blazor/C#/API o `../ctc-ddm-mobile/SKILL.md` para móvil/Expo/NativeWind. Cargá ambas si el trabajo cruza capas; no recargues una skill ya leída. Las especializadas no reactivan esta skill.
 3. Leé `references/mobile-ux.md` antes de crear o cambiar un flujo de usuario o una pantalla.
 4. Si la consigna o la configuración vigente contradice esta skill, informá el conflicto y seguí la fuente vigente. Actualizá la skill solo con aprobación del equipo.
 
@@ -44,8 +44,8 @@ En una implementación o revisión, indicá la capa afectada, los archivos modif
 ## Referencias
 
 - `references/shared-workflow.md`
-- `../../.agents/skills/ctc-dda-blazor/SKILL.md`
-- `../../.agents/skills/ctc-ddm-mobile/SKILL.md`
+- `../ctc-dda-blazor/SKILL.md`
+- `../ctc-ddm-mobile/SKILL.md`
 - `references/mobile-ux.md`
 
 Los assets compartidos son ejemplos de forma, no evidencia de cobertura docente de HTTP ni aprobación de mecanismos adicionales.

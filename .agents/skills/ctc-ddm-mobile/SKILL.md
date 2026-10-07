@@ -9,7 +9,7 @@ metadata:
 
 ## Contrato de activación
 
-Aplica al planificar, implementar, depurar o revisar móvil, Expo y estilos NativeWind/Tailwind. Lee `references/curso.md`. El flujo y UX de `../../../skills/ctc-project-conventions/SKILL.md` siguen siendo autoritativos; no vuelvas a activar esa skill desde aquí.
+Aplica al planificar, implementar, depurar o revisar móvil, Expo y estilos NativeWind/Tailwind. Lee `references/curso.md`. El flujo y UX de `../ctc-project-conventions/SKILL.md` siguen siendo autoritativos; no vuelvas a activar esa skill desde aquí.
 
 ## Reglas obligatorias
 

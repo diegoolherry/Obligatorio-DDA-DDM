@@ -15,7 +15,7 @@ Proyecto académico de pasajes y abonos por tramo, inspirado en una operativa ob
 
 - [Backlog del proyecto completo](docs/tasks.json): estados, responsables, dependencias y criterios de aceptación. No se replica su progreso aquí.
 - [Informe académico vivo](docs/project-report.md): decisiones, evidencia histórica y pendientes; fuente Markdown para la futura entrega Word.
-- [AGENTS.md](AGENTS.md): salvaguardas de colaboración y mantenimiento. [Skill compartida](skills/ctc-project-conventions/SKILL.md): flujo y convenciones de clase.
+- [AGENTS.md](AGENTS.md): salvaguardas de colaboración y mantenimiento. [Skill compartida](.agents/skills/ctc-project-conventions/SKILL.md): flujo y convenciones de clase.
 
 <a id="base-web-scaffold-blazor-net-10"></a>
 
