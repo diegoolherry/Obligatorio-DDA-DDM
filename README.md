@@ -10,7 +10,7 @@ Estamos definiendo un prototipo académico de transporte: permitir que un pasaje
 2. Consultá el [backlog del proyecto completo](docs/tasks.json) para estados, responsables, dependencias y criterios de aceptación vigentes. Un único array `tasks` reúne 19 registros: 14 originales (diez MVP y cuatro FIN) y cinco hijos ejecutables de MVP-001 (`MVP-001-01` a `MVP-001-05`, vinculados por `parentId`). En total, 17 están `pending`, MVP-010 está `done` (modelado conceptual) y MVP-001-01 está `in_progress` (fundación parcial Mobile). Los cinco hijos tienen a Diego como responsable confirmado y a Enzo como revisor; todos dependen explícitamente de MVP-010, la estructura precede a los contratos y estos a los tres flujos de sesión independientes. MVP-001 es un hito con criterios originales autoritativos: no se completa automáticamente al completar hijos. Estos conteos no representan funcionalidades independientes ni progreso de implementación. Las áreas `API`, `Web`, `Mobile` y `Docs` permiten varias etiquetas por tarea transversal; los IDs `MVP-*` y `FIN-*` se conservan. Los responsables FIN son propuestos, sin asignación humana confirmada. La aprobación conceptual de Diego y Enzo fue reportada por el usuario; la revisión cruzada de la fundación sigue pendiente. Este resumen no reemplaza el JSON.
 3. Para el diseño, mirá el [borrador UML/ER](docs/design/data-model.md) y la [guía de experiencia](DESIGN.md). El [informe académico vivo](docs/project-report.md) reúne decisiones, evidencia y pendientes; su Markdown es la fuente para una eventual versión Word.
 
-Este corte añade el **scaffold API existente** y las exclusiones .NET a la base Mobile anterior, que permanece intacta. Blazor sigue planificado: su fuente no está presente hasta el próximo corte. No hay autenticación, integración cliente/API ni funcionalidades de producto. No hay migraciones, integración con proveedor de pagos ni despliegue verificados. MySQL está instalado y se comprobó una conexión administrativa local, pero no está integrado con la API; el modelo de datos sigue siendo una propuesta, no un esquema aprobado.
+Este corte añade el **scaffold Web Blazor existente** a las bases API y Mobile anteriores, que permanecen intactas. Las tres fundaciones están presentes, no integradas funcionalmente. Web usa únicamente Bootstrap CSS y su LICENSE heredados del [PR #20](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/20); no incorpora las 43 variantes, scripts y mapas no usados del candidato completo anterior. No hay autenticación, integración cliente/API ni funcionalidades de producto. No hay migraciones, integración con proveedor de pagos ni despliegue verificados. MySQL está instalado y se comprobó una conexión administrativa local, pero no está integrado con la API; el modelo de datos sigue siendo una propuesta, no un esquema aprobado.
 
 El MVP de las primeras semanas de octubre es el primer corte, no toda la entrega. El [alcance final](docs/final-scope.md) agrega mejoras del equipo (no requisitos académicos explícitos): rutas/calendarios y selección web de asientos por intervalo; todavía no están implementadas.
 
@@ -46,6 +46,26 @@ Los [perfiles existentes](src/Api/API-Berruti/API-Berruti/Properties/launchSetti
 
 El verificador de la sesión original observó SDK `10.0.401`, build API sin errores ni advertencias, `/weatherforecast` HTTP 200 con cinco registros JSON y `/openapi/v1.json` HTTP 200 con OpenAPI `3.1.1`. También observó `Failed to determine the https port for redirect`. Son **resultados históricos, no comprobaciones del candidato actual**; TLS, integración cliente/API y auth siguen sin verificar. [Informe §7](docs/project-report.md#7-calidad-pruebas-y-gestión-de-configuración) y [registro de este corte](odd/tasks/api-foundation-delivery.md) separan procedencia, checks locales y pendientes. `.gitignore` excluye artefactos .NET/Visual Studio, no soluciones, proyectos ni fuentes.
 
+## Base Web: scaffold Blazor .NET 10
+
+La [solución Web-App.slnx](src/Web/Web-App/Web-App.slnx) contiene el [proyecto net10.0](src/Web/Web-App/Web-App/Web-App.csproj). [Program.cs](src/Web/Web-App/Web-App/Program.cs) registra componentes y renderizado InteractiveServer; [App.razor](src/Web/Web-App/Web-App/Components/App.razor) carga Routes y Blazor, sin imponer interactividad global. [Counter](src/Web/Web-App/Web-App/Components/Pages/Counter.razor) declara `@rendermode InteractiveServer`. Las páginas de plantilla son Home (`/`), Counter (`/counter`), Weather (`/weather`, datos aleatorios locales, no API), Error (`/Error`) y NotFound (`/not-found`). No son pantallas de negocio, auth ni integración cliente/API; se conservan los nombres originales `Web-App` y `Web_App`.
+
+Desde la **raíz del repositorio**, en un entorno preparado:
+
+```bash
+dotnet build src/Web/Web-App/Web-App.slnx --nologo
+```
+
+En **otra terminal**, también desde la raíz, para mantener Web en ejecución:
+
+```bash
+dotnet run --project src/Web/Web-App/Web-App/Web-App.csproj --launch-profile http
+```
+
+El [perfil http](src/Web/Web-App/Web-App/Properties/launchSettings.json) usa Development y `http://localhost:5025` (`https` usa `https://localhost:7054;http://localhost:5025`). Son instrucciones de ejecución local; el verificador independiente comprobó **este corte reducido** con SDK `10.0.401`: build exit 0, sin advertencias/errores; Development con `--no-build --no-launch-profile --urls http://127.0.0.1:5025`, Home/Counter/Weather y cuatro assets fingerprinted HTTP 200. Playwright ya instalado con Chrome verificó Home visible, Counter 0→1 por clic, cinco filas Weather y Bootstrap aplicado; sin errores de consola, página ni red. Servidor/navegador propios cerrados y puerto liberado. El override no ejecutó el perfil; el warning de redirección HTTPS no fue fatal. Las pruebas del candidato completo anterior se conservan como historia separada, no como sustituto de esta verificación. TLS, auth e integración cliente/API siguen sin verificar; HTTP HTML solo no acredita interactividad. Ver [informe §7](docs/project-report.md#7-calidad-pruebas-y-gestión-de-configuración) y [registro Web](odd/tasks/web-foundation-delivery.md).
+
+Bootstrap `5.3.3` conserva CSS y licencia MIT completa; el comentario `sourceMappingURL` original permanece, pero el mapa no se distribuye y no se promete depuración con sourcemaps en DevTools.
+
 ## Recorrido que queremos demostrar
 
 El caso conductor va de **Ombúes a Colonia**, con transbordo en **Radial de Conchillas**: dos servicios, dos tickets QR diferentes y validación de un solo uso para cada tramo. El primer tramo no asigna asiento; el segundo lo asignaría automáticamente. También se proponen dos abonos relacionados, con igual cupo inicial y saldos independientes: cada validación descuenta una unidad del abono del tramo correspondiente.
@@ -70,6 +90,7 @@ El árbol resume los documentos y carpetas del proyecto, incluido el backlog com
 │   └── user-stories.md
 ├── src/
 │   ├── Api/API-Berruti/        # solución y scaffold net10.0, sin negocio
+│   ├── Web/Web-App/            # plantilla Blazor net10.0, CSS mínimo, sin negocio
 │   └── Mobile/                # base Expo/TypeScript anterior, sin negocio
 ├── odd/
 │   └── tasks/                 # registros de trabajo y evidencia
