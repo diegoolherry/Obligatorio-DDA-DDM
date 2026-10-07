@@ -54,7 +54,7 @@ Este documento convierte el alcance preliminar en requisitos verificables para e
 
 ### Límites funcionales deliberados
 
-- La integración de Mercado Pago TEST es una decisión actual revisable y no está implementada. La política conceptual de intento durable con pagos conservados, hold y reintentos ya está acordada en [el modelo canónico](design/data-model.md#acuerdo-conceptual-de-compra-hold-y-reintentos). Siguen pendientes representación física, checkout, referencia externa, mapeo/verificación de estados, concurrencia, comparación temporal y mecanismos de reintento/devolución; soporte de devolución TEST no verificado, sin reemplazo simulado ni pruebas del proveedor ejecutadas. Producción/cobros reales requieren nueva decisión de alcance.
+- La integración de Mercado Pago TEST es una decisión actual revisable y no está implementada. La política conceptual de intento durable con pagos conservados, hold y reintentos ya está acordada en [el modelo canónico](../explanation/data-model.md#acuerdo-conceptual-de-compra-hold-y-reintentos). Siguen pendientes representación física, checkout, referencia externa, mapeo/verificación de estados, concurrencia, comparación temporal y mecanismos de reintento/devolución; soporte de devolución TEST no verificado, sin reemplazo simulado ni pruebas del proveedor ejecutadas. Producción/cobros reales requieren nueva decisión de alcance.
 - `RF-005` y `RF-006` remiten a los comportamientos ya aprobados en `MVP-005` y `MVP-006`; no agregan políticas nuevas de QR, consumo ni validación.
 - La ubicación puede mostrarse como dato aproximado de demostración; no habilita decisiones automáticas de cobro, validación, recorrido ni asignación de asientos.
 - Los clientes deben comunicar carga, vacío, error, éxito y reintento en los flujos remotos aplicables, incluida la consulta de ubicación.
@@ -93,7 +93,7 @@ Todos los valores siguientes son **objetivos académicos del MVP** o **parámetr
 | RN-14 | Una posición publicada debe provenir de un dispositivo o celular transportado en el ómnibus, autorizado y asociado al servicio de demostración, y conservar su fecha/hora de recepción. | RF-008, RF-009 |
 | RN-15 | La estimación y el estado de demora usan solo referencias y umbrales configurados para el MVP académico. | RF-009 |
 
-Las reglas `RN-01` a `RN-13` son las reglas mínimas ya definidas en `docs/mvp.md`. `RN-14` y `RN-15` delimitan exclusivamente la ampliación académica de geolocalización.
+Las reglas `RN-01` a `RN-13` son las reglas mínimas ya definidas en `docs/explanation/mvp.md`. `RN-14` y `RN-15` delimitan exclusivamente la ampliación académica de geolocalización.
 
 ## Trazabilidad para revisión
 

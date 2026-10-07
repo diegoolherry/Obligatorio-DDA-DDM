@@ -4,7 +4,7 @@
 
 ## 1. Propósito y límites
 
-Esta guía define decisiones **propuestas** de interfaz para el portal Blazor y la aplicación React Native del MVP descrito en [docs/mvp.md](docs/mvp.md), [docs/requerimientos.md](docs/requerimientos.md) (RF-001 a RF-009) y [docs/user-stories.md](docs/user-stories.md). Orienta pantallas, prioridades y estados; no define arquitectura, endpoints ni implementación. Ante diferencias prevalecen la consigna oficial y los requisitos vigentes.
+Esta guía define decisiones **propuestas** de interfaz para el portal Blazor y la aplicación React Native del MVP descrito en [docs/explanation/mvp.md](mvp.md), [docs/reference/requirements.md](../reference/requirements.md) (RF-001 a RF-009) y [docs/reference/user-stories.md](../reference/user-stories.md). Orienta pantallas, prioridades y estados; no define arquitectura, endpoints ni implementación. Ante diferencias prevalecen la consigna oficial y los requisitos vigentes.
 
 **Objetivo de UX:** que el pasajero encuentre y presente el comprobante correcto por tramo; que el cobrador distinga una validación confirmada de cualquier rechazo o pérdida de conexión; y que el administrador configure y compruebe datos de demostración sin confundirlos con datos reales. Una pantalla debe hacer evidente su acción principal y qué ocurrió después de realizarla.
 

@@ -1,15 +1,15 @@
 # Obligatorio Berruti — Alcance de la entrega final
 
-La entrega completa conserva el [MVP](mvp.md) y agrega mejoras elegidas por el equipo: catálogo de rutas/calendarios, configuraciones de vehículos y selección web de asientos con disponibilidad por intervalo. **No son requisitos académicos explícitos ni funcionalidad implementada.** La consigna oficial sigue pendiente. El usuario informa aprobación de Diego y Enzo de la base conceptual evolutiva del [modelo](design/data-model.md), no del esquema físico ni de la implementación de estas ampliaciones.
+La entrega completa conserva el [MVP](../explanation/mvp.md) y agrega mejoras elegidas por el equipo: catálogo de rutas/calendarios, configuraciones de vehículos y selección web de asientos con disponibilidad por intervalo. **No son requisitos académicos explícitos ni funcionalidad implementada.** La consigna oficial sigue pendiente. El usuario informa aprobación de Diego y Enzo de la base conceptual evolutiva del [modelo](../explanation/data-model.md), no del esquema físico ni de la implementación de estas ampliaciones.
 
 ## 1. Dos cortes, sin reescribir el MVP
 
 | Corte | Objetivo planificado | Fuente |
 | --- | --- | --- |
-| Primeras semanas de octubre: MVP | Demo Ombúes–Radial–Colonia, asiento automático en el segundo servicio, tickets/abonos y pagos TEST | [MVP vigente](mvp.md) |
-| Entrega final completa | MVP más las ampliaciones de este documento; sin fecha final confirmada aquí | [Backlog del proyecto completo](tasks.json), tareas FIN |
+| Primeras semanas de octubre: MVP | Demo Ombúes–Radial–Colonia, asiento automático en el segundo servicio, tickets/abonos y pagos TEST | [MVP vigente](../explanation/mvp.md) |
+| Entrega final completa | MVP más las ampliaciones de este documento; sin fecha final confirmada aquí | [Backlog del proyecto completo](../tasks.json), tareas FIN |
 
-El [modelo complementario](design/data-model.md#5-modelo-conceptual-complementario-de-la-entrega-final) no reemplaza el UML/ER MVP ni resuelve sus preguntas abiertas. No se amplían pagos a producción, reglas comerciales, tarifas, telemetría ni otros canales de selección de asiento por esta planificación.
+El [modelo complementario](../explanation/data-model.md#5-modelo-conceptual-complementario-de-la-entrega-final) no reemplaza el UML/ER MVP ni resuelve sus preguntas abiertas. No se amplían pagos a producción, reglas comerciales, tarifas, telemetría ni otros canales de selección de asiento por esta planificación.
 
 ## 2. Catálogo y evidencia de horarios
 
@@ -51,7 +51,7 @@ Estas son **reglas y aceptación de diseño**, no garantías implementadas:
 
 ## 5. Compra y estados de experiencia
 
-Camino previsto: buscar salida y paradas → consultar plano/disponibilidad para el intervalo → seleccionar asiento por salida → revisar itinerario → pago TEST → confirmación del servidor → tickets. Una selección visual no es una reserva ni una venta confirmada. Se mantienen verificación del proveedor por la API, ausencia de cobros reales y prohibición de guardar tarjetas/CVV del [MVP](mvp.md#56-pago-de-prueba-con-mercado-pago).
+Camino previsto: buscar salida y paradas → consultar plano/disponibilidad para el intervalo → seleccionar asiento por salida → revisar itinerario → pago TEST → confirmación del servidor → tickets. Una selección visual no es una reserva ni una venta confirmada. Se mantienen verificación del proveedor por la API, ausencia de cobros reales y prohibición de guardar tarjetas/CVV del [MVP](../explanation/mvp.md#56-pago-de-prueba-con-mercado-pago).
 
 | Estado o fallo | Respuesta prevista / límite |
 | --- | --- |
@@ -70,10 +70,10 @@ Los estados deben usar texto además de color y distinguir seleccionado, disponi
 
 ### Puerta abierta: reserva temporal y pago
 
-**Política conceptual acordada; mecanismos pendientes:** rige el [acuerdo del modelo](design/data-model.md#acuerdo-conceptual-de-compra-hold-y-reintentos), incluido en la base evolutiva aprobada por Diego y Enzo según el usuario. El hold protege asiento/salida/intervalo durante **5 minutos configurables desde su creación en la API**; recargar o reintentar no reinicia el plazo. Vencer libera el asiento, sin declarar rechazo ni resolver pagos pendientes. No asumir que abrir un plano, seleccionar un asiento o iniciar pago crea el hold.
+**Política conceptual acordada; mecanismos pendientes:** rige el [acuerdo del modelo](../explanation/data-model.md#acuerdo-conceptual-de-compra-hold-y-reintentos), incluido en la base evolutiva aprobada por Diego y Enzo según el usuario. El hold protege asiento/salida/intervalo durante **5 minutos configurables desde su creación en la API**; recargar o reintentar no reinicia el plazo. Vencer libera el asiento, sin declarar rechazo ni resolver pagos pendientes. No asumir que abrir un plano, seleccionar un asiento o iniciar pago crea el hold.
 
 Antes de implementar siguen pendientes persistencia, concurrencia, liberación e idempotencia, checkout y verificación/mapeo del proveedor, timestamp y comparación temporal autoritativos y carreras aprobación/notificación/vencimiento. El soporte de devolución en TEST no está verificado: solicitarla no acredita devolución y no se autoriza reemplazo simulado. FIN-003 conserva la puerta técnica y sus dependencias; no hay integración ni pruebas del proveedor ejecutadas. Transbordos todo-o-nada, límites por usuario, corte antes de salida, cancelación/renovación y reintento después del vencimiento siguen abiertos. Aplicabilidad/vigencia de tarifas y correspondencia bidireccional abono–servicio requieren decisiones futuras antes de implementar esas funciones.
 
 ## 6. Implementación posterior
 
-[FIN-001 a FIN-004](tasks.json) ordenan catálogo/calendarios → configuraciones → disponibilidad/compra → selección web y pruebas de punta a punta. Todos siguen `pending`, con responsables **propuestos**, no asignación humana confirmada. La aprobación conceptual reportada no completa implementación ni acredita revisión técnica de sus mecanismos. El [informe](project-report.md) resume ambos cortes sin sustituir este alcance ni los estados del JSON.
+[FIN-001 a FIN-004](../tasks.json) ordenan catálogo/calendarios → configuraciones → disponibilidad/compra → selección web y pruebas de punta a punta. Todos siguen `pending`, con responsables **propuestos**, no asignación humana confirmada. La aprobación conceptual reportada no completa implementación ni acredita revisión técnica de sus mecanismos. El [informe](../project-report.md) resume ambos cortes sin sustituir este alcance ni los estados del JSON.

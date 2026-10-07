@@ -133,7 +133,7 @@ La aplicación móvil será una sola. Después de iniciar sesión, la navegació
 ### 5.6 Pago de prueba con Mercado Pago
 
 - Integrar la API de Mercado Pago con credenciales TEST como decisión vigente revisable; probar aprobación y rechazo con escenarios del proveedor, sin inventar mecánica determinista local.
-- Registrar importe, fecha, usuario, referencia del intento y estado de dominio. La política conceptual de intento durable, pagos conservados, hold y reintentos ya está acordada en [el modelo canónico](design/data-model.md#acuerdo-conceptual-de-compra-hold-y-reintentos); representación física, checkout, mapeo/verificación de estados, concurrencia, comparación temporal y mecanismos de devolución TEST siguen pendientes, sin integración ni pruebas ejecutadas.
+- Registrar importe, fecha, usuario, referencia del intento y estado de dominio. La política conceptual de intento durable, pagos conservados, hold y reintentos ya está acordada en [el modelo canónico](data-model.md#acuerdo-conceptual-de-compra-hold-y-reintentos); representación física, checkout, mapeo/verificación de estados, concurrencia, comparación temporal y mecanismos de devolución TEST siguen pendientes, sin integración ni pruebas ejecutadas.
 - La API debe verificar el resultado con el proveedor antes de emitir tickets; nunca confiar únicamente en un éxito informado por el cliente.
 - La aplicación no debe solicitar ni guardar número de tarjeta, CVV o datos financieros equivalentes. El producto de checkout está pendiente de selección; producción y cobros reales requieren decisión de alcance explícita.
 
@@ -193,7 +193,7 @@ La aplicación móvil será una sola. Después de iniciar sesión, la navegació
 
 ## 8. Modelo de dominio preliminar
 
-El [borrador canónico de modelado UML y ER MySQL](design/data-model.md) desarrolla esta lista como propuesta para revisión cruzada; no autoriza migraciones ni resuelve decisiones comerciales pendientes. Primero revisar el dominio, después la representación relacional y finalmente los contratos DTO independientes.
+El [borrador canónico de modelado UML y ER MySQL](data-model.md) desarrolla esta lista como propuesta para revisión cruzada; no autoriza migraciones ni resuelve decisiones comerciales pendientes. Primero revisar el dominio, después la representación relacional y finalmente los contratos DTO independientes.
 
 | Entidad | Responsabilidad y datos esenciales |
 | --- | --- |
@@ -203,7 +203,7 @@ El [borrador canónico de modelado UML y ER MySQL](design/data-model.md) desarro
 | Servicio | Tramo, fecha, horario, capacidad y política de asiento. |
 | Tarifa | Precio vigente para un tramo o servicio. |
 | Itinerario | Combinación ordenada de servicios que conecta origen y destino. |
-| Compra | Pasajero, selección ordenada del itinerario, importe total congelado y fecha; el intento durable agrupa pagos conservados y genera a lo sumo una compra confirmada según [el acuerdo conceptual](design/data-model.md#acuerdo-conceptual-de-compra-hold-y-reintentos). La persistencia de ese vínculo y sus mecanismos operativos siguen pendientes. |
+| Compra | Pasajero, selección ordenada del itinerario, importe total congelado y fecha; el intento durable agrupa pagos conservados y genera a lo sumo una compra confirmada según [el acuerdo conceptual](data-model.md#acuerdo-conceptual-de-compra-hold-y-reintentos). La persistencia de ese vínculo y sus mecanismos operativos siguen pendientes. |
 | Pago | Importe, estado del dominio y referencia externa del proveedor cuando exista; un rechazo puede no tener compra emitida. |
 | Ticket | Servicio, pasajero, QR opaco, estado y asiento opcional. |
 | Asignación de abonos | Agrupa los abonos entregados juntos para un itinerario y período. |
@@ -335,7 +335,7 @@ Ambos deben trabajar en Blazor, API y React Native durante el proyecto para pode
 
 ## 17. Orden recomendado de construcción
 
-1. Revisar y acordar el borrador de modelado UML y ER MySQL ([MVP-010](tasks.json)); es dependencia de MVP-001 y no habilita implementación mientras esté en revisión.
+1. Revisar y acordar el borrador de modelado UML y ER MySQL ([MVP-010](../tasks.json)); es dependencia de MVP-001 y no habilita implementación mientras esté en revisión.
 2. Crear solución, clientes y API con autenticación mínima por roles.
 3. Configurar paradas, tramos, servicios y tarifas ficticias.
 4. Implementar búsqueda e itinerario de dos tramos.

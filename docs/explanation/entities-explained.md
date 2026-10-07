@@ -1,6 +1,6 @@
 # Entidades del modelo: para qué sirven y cómo se conectan
 
-**Respuesta corta:** el [modelo de datos](data-model.md) describe 17 conceptos de dominio para viajes, compras, abonos, validaciones y ubicación; su ER agrega cuatro tablas puente o técnicas. El usuario informa que Diego y Enzo aprobaron el modelo conceptual actual como base evolutiva, conservando cambios futuros. Este texto registra esa aprobación reportada y explica sus vínculos; **no** aprueba el esquema físico ni acredita implementación, DTO definitivos o pruebas del proveedor. Las multiplicidades del dibujo son tentativas salvo reglas expresas del [MVP](../mvp.md) y los [requisitos](../requerimientos.md). Los motivos señalados como *rationale* explican la propuesta, no crean reglas nuevas.
+**Respuesta corta:** el [modelo de datos](data-model.md) describe 17 conceptos de dominio para viajes, compras, abonos, validaciones y ubicación; su ER agrega cuatro tablas puente o técnicas. El usuario informa que Diego y Enzo aprobaron el modelo conceptual actual como base evolutiva, conservando cambios futuros. Este texto registra esa aprobación reportada y explica sus vínculos; **no** aprueba el esquema físico ni acredita implementación, DTO definitivos o pruebas del proveedor. Las multiplicidades del dibujo son tentativas salvo reglas expresas del [MVP](mvp.md) y los [requisitos](../reference/requirements.md). Los motivos señalados como *rationale* explican la propuesta, no crean reglas nuevas.
 
 ## Índice por recorrido
 
@@ -158,7 +158,7 @@ El [modelo complementario de la entrega final](data-model.md#5-modelo-conceptual
 | Ocupación confirmada | Asocia asiento e intervalo de embarque/desembarque de la misma ruta/salida; admite reutilización solo sin superposición. |
 | Selección / intento de compra | La selección del cliente no es ocupación confirmada; el intento durable conserva pagos y confirma como máximo una compra según el acuerdo vigente. |
 
-El hold temporal protege ese asiento/intervalo sin convertirse en ocupación confirmada. La regla de superposición de intervalos `[a,b)` y sus ejemplos están en [disponibilidad por intervalo](../final-scope.md#4-disponibilidad-por-intervalo). Una restricción UNIQUE por asiento/salida no basta para permitir reutilización y evitar superposición; los mecanismos transaccionales e índices requieren diseño y pruebas. No se definen migraciones aquí.
+El hold temporal protege ese asiento/intervalo sin convertirse en ocupación confirmada. La regla de superposición de intervalos `[a,b)` y sus ejemplos están en [disponibilidad por intervalo](../reference/final-scope.md#4-disponibilidad-por-intervalo). Una restricción UNIQUE por asiento/salida no basta para permitir reutilización y evitar superposición; los mecanismos transaccionales e índices requieren diseño y pruebas. No se definen migraciones aquí.
 
 ## Antes de convertir el modelo en esquema
 

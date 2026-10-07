@@ -1,8 +1,8 @@
 {
   "metadata": {
     "nombre": "Obligatorio Berruti — Backlog compartido del proyecto académico completo",
-    "descripcion": "Plan de cortes verticales del MVP y ampliaciones finales del equipo en docs/final-scope.md; responsables FIN propuestos, pendientes de aprobación humana.",
-    "fuente": "docs/mvp.md",
+    "descripcion": "Plan de cortes verticales del MVP y ampliaciones finales del equipo en docs/reference/final-scope.md; responsables FIN propuestos, pendientes de aprobación humana.",
+    "fuente": "docs/explanation/mvp.md",
     "ordenRecomendado": "Las tareas se ejecutan en el orden de construcción indicado, completando una integración ejecutable por etapa.",
     "mantenidoEn": "AGENTS.md",
     "createdAt": "2026-09-21T17:45:04-03:00"

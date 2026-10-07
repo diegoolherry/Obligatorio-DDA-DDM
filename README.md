@@ -6,13 +6,13 @@ Estamos definiendo un prototipo académico de transporte: permitir que un pasaje
 
 ## Por dónde empezar
 
-1. Leé el [alcance y los escenarios del MVP](docs/mvp.md) para distinguir reglas observadas, decisiones académicas y dudas abiertas.
+1. Leé el [alcance y los escenarios del MVP](docs/explanation/mvp.md) para distinguir reglas observadas, decisiones académicas y dudas abiertas.
 2. Consultá el [backlog del proyecto completo](docs/tasks.json) para estados, responsables, dependencias y criterios de aceptación vigentes. Un único array `tasks` reúne 19 registros: 14 originales (diez MVP y cuatro FIN) y cinco hijos ejecutables de MVP-001 (`MVP-001-01` a `MVP-001-05`, vinculados por `parentId`). En total, 17 están `pending`, MVP-010 está `done` (modelado conceptual) y MVP-001-01 está `in_progress` (fundación parcial Mobile). Los cinco hijos tienen a Diego como responsable confirmado y a Enzo como revisor; todos dependen explícitamente de MVP-010, la estructura precede a los contratos y estos a los tres flujos de sesión independientes. MVP-001 es un hito con criterios originales autoritativos: no se completa automáticamente al completar hijos. Estos conteos no representan funcionalidades independientes ni progreso de implementación. Las áreas `API`, `Web`, `Mobile` y `Docs` permiten varias etiquetas por tarea transversal; los IDs `MVP-*` y `FIN-*` se conservan. Los responsables FIN son propuestos, sin asignación humana confirmada. La aprobación conceptual de Diego y Enzo fue reportada por el usuario; la revisión cruzada de la fundación sigue pendiente. Este resumen no reemplaza el JSON.
-3. Para el diseño, mirá el [borrador UML/ER](docs/design/data-model.md) y la [guía de experiencia](DESIGN.md). El [informe académico vivo](docs/project-report.md) reúne decisiones, evidencia y pendientes; su Markdown es la fuente para una eventual versión Word.
+3. Para el diseño, mirá el [borrador UML/ER](docs/explanation/data-model.md) y la [guía de experiencia](docs/explanation/ux-design.md). El [informe académico vivo](docs/project-report.md) reúne decisiones, evidencia y pendientes; su Markdown es la fuente para una eventual versión Word.
 
 Este corte añade el **scaffold Web Blazor existente** a las bases API y Mobile anteriores, que permanecen intactas. Las tres fundaciones están presentes, no integradas funcionalmente. Web usa únicamente Bootstrap CSS y su LICENSE heredados del [PR #20](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/20); no incorpora las 43 variantes, scripts y mapas no usados del candidato completo anterior. No hay autenticación, integración cliente/API ni funcionalidades de producto. No hay migraciones, integración con proveedor de pagos ni despliegue verificados. MySQL está instalado y se comprobó una conexión administrativa local, pero no está integrado con la API; el modelo de datos sigue siendo una propuesta, no un esquema aprobado.
 
-El MVP de las primeras semanas de octubre es el primer corte, no toda la entrega. El [alcance final](docs/final-scope.md) agrega mejoras del equipo (no requisitos académicos explícitos): rutas/calendarios y selección web de asientos por intervalo; todavía no están implementadas.
+El MVP de las primeras semanas de octubre es el primer corte, no toda la entrega. El [alcance final](docs/reference/final-scope.md) agrega mejoras del equipo (no requisitos académicos explícitos): rutas/calendarios y selección web de asientos por intervalo; todavía no están implementadas.
 
 ## Base Mobile: ejecución local
 
@@ -81,13 +81,17 @@ El árbol resume los documentos y carpetas del proyecto, incluido el backlog com
 ├── .github/
 │   └── workflows/docs-validation.yml
 ├── docs/
-│   ├── design/data-model.md
-│   ├── final-scope.md
-│   ├── mvp.md
+│   ├── explanation/
+│   │   ├── data-model.md
+│   │   ├── entities-explained.md
+│   │   ├── mvp.md
+│   │   └── ux-design.md
+│   ├── reference/
+│   │   ├── final-scope.md
+│   │   ├── requirements.md
+│   │   └── user-stories.md
 │   ├── tasks.json           # backlog del proyecto completo
-│   ├── project-report.md
-│   ├── requerimientos.md
-│   └── user-stories.md
+│   └── project-report.md
 ├── src/
 │   ├── Api/API-Berruti/        # solución y scaffold net10.0, sin negocio
 │   ├── Web/Web-App/            # plantilla Blazor net10.0, CSS mínimo, sin negocio
@@ -102,8 +106,7 @@ El árbol resume los documentos y carpetas del proyecto, incluido el backlog com
 │       └── scripts/
 ├── .gitignore
 ├── AGENTS.md
-├── README.md
-└── DESIGN.md
+└── README.md
 ```
 
 [AGENTS.md](AGENTS.md) establece cómo mantener el backlog y el informe; la [skill del proyecto](skills/ctc-project-conventions/SKILL.md) reúne convenciones de clase. El workflow existente valida documentación, no acredita pruebas funcionales del MVP.
@@ -130,4 +133,4 @@ El árbol resume los documentos y carpetas del proyecto, incluido el backlog com
 
 En la API, el flujo previsto es **Controllers → Services → Repositories → EF Core DbContext**. Web y móvil consumirían contratos DTO explícitos, sin depender de entidades de persistencia ni decidir por sí solos autorización, aprobación de pago o consumo de QR. La forma exacta de proyectos, carpetas y pruebas se acordará durante la implementación; este dibujo no es una instrucción de instalación ni una promesa de herramientas ya configuradas.
 
-Para seguir el trabajo, revisá los [requisitos](docs/requerimientos.md), las [historias de usuario](docs/user-stories.md) y las decisiones abiertas del [modelado](docs/design/data-model.md) antes de iniciar código o migraciones.
+Para seguir el trabajo, revisá los [requisitos](docs/reference/requirements.md), las [historias de usuario](docs/reference/user-stories.md) y las decisiones abiertas del [modelado](docs/explanation/data-model.md) antes de iniciar código o migraciones.
