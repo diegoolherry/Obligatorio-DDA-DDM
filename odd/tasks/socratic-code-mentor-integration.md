@@ -19,7 +19,7 @@ Add a local, explicitly requested learning mode inspired by the user-provided so
   Acceptance: structural checks and activation scenarios pass; prior work preserved; host smoke tests explicitly pending; no application behavior/test claims.
   Checks: native read-only assessment after writer, follow returned verification plan; scoped diff whitespace and link/frontmatter/registration checks.
 
-- [ ] SCM-03 — Commit and push only the integration. Status: in_progress.
+- [x] SCM-03 — Commit and push only the integration. Status: done.
   Acceptance: isolated feature branch, staged report contains only mentorship paragraph, no prior work included or lost; Conventional Commit and confirmed remote branch identity.
   Checks: exact staged path allowlist, staged diff whitespace, unchanged worktree hashes for prior work, remote SHA equality. No force push.
 
@@ -37,5 +37,8 @@ Add a local, explicitly requested learning mode inspired by the user-provided so
 - SCM-02 independent verifier: scoped git diff --check exit 0; read-only Python assertions passed required metadata, 137-character quoted description, section order and all local links. Manual activation scenarios passed; no significant inconsistency.
 - Verification limitations: Pi/Codex discovery smoke tests not executed; upstream license unverified; preservation of preexisting work supported by writer hashes, not independently reproduced. Native assessment unavailable as recorded above. Product builds/tests skipped as inapplicable to passive instructions. RDD off; no native review started.
 
+- SCM-03 parent delivery: commit `3ef55e14ebf8199aff270686a385e00fdb36a32b` (`docs(skills): add opt-in socratic mentoring`) on `chore/socratic-code-mentor`; `git push -u origin chore/socratic-code-mentor` succeeded. `git ls-remote --heads origin refs/heads/chore/socratic-code-mentor` returned the same SHA.
+- Pre-commit selective index assertions passed: exactly five allowed paths; report contains only two added lines, no auth changes; scoped staged whitespace check passed. SHA-256 comparison confirmed all five previously dirty tracked documents unchanged in worktree during staging. No staging of unrelated files, no force push, PR or merge.
+
 ## Next step
-Deliver only this integration on a dedicated branch; preserve unrelated dirty work. Runtime discovery smoke remains pending. User authorized commit and push, not PR or merge.
+Integration pushed on its dedicated branch; main is unchanged. Runtime discovery smoke remains pending. PR and merge require separate user instruction.
