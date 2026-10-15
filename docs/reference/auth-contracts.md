@@ -1,10 +1,28 @@
-# Contratos iniciales de ingreso
+# Autenticación básica local y contratos iniciales de ingreso
 
-**Implementado:** DTOs simples, DataAnnotations y roles enum con serialización textual de MVP-001-02. **Verificación técnica independiente:** PASS del candidato enum. **Pendiente:** revisión cruzada de Enzo y autenticación ejecutable. No hay endpoints nuevos. El [backlog](../tasks.json) conserva la autoridad del cierre; el [scaffold API](api.md) sigue sin ingreso implementado.
+## Dirección vigente, todavía no implementada
+
+Decisión del usuario: el proyecto se limita a una demostración local y aislada con cuentas totalmente ficticias. **No está autorizado desplegarlo en ninguna plataforma ni usar credenciales o usuarios reales.** Las contraseñas ficticias podrán almacenarse temporalmente en texto plano hasta revisar en clase el mecanismo esperado; esto no constituye almacenamiento seguro. No devolverlas en respuestas ni registrarlas en logs.
+
+La implementación actual prevista no usará Identity. OpenIddict y las mejoras del login se aplazan a `FIN-005` del [backlog](../tasks.json); no se promete incorporar Identity en el futuro. Esta decisión reemplaza la dirección previa Identity/OpenIddict para este corte, sin eliminar los requisitos de autenticación y autorización del MVP.
+
+- Mantener Controller → Service → Repository → DbContext para las operaciones de cuentas y negocio.
+- Comprobar correo y contraseña en la API y crear una sesión de servidor vinculada al usuario. La credencial de sesión será opaca, aleatoria e impredecible, no un ID correlativo como `US-1` ni una contraseña; no se ha seleccionado JWT.
+- Validar la sesión en cada operación protegida y obtener el rol desde datos autoritativos del servidor, nunca desde un rol declarado por el cliente. Sin sesión válida, responder `401`; con sesión válida pero sin permiso, `403`, sin modificar datos protegidos. Los servicios conservan las comprobaciones específicas de negocio, como pertenencia de una compra.
+- Invalidar la sesión correspondiente al cerrar sesión; las peticiones posteriores con esa credencial deben rechazarse. Mantener el rechazo genérico de credenciales incorrectas y distinguir errores de disponibilidad.
+- API y Web tendrán sus propias clases de contrato, compatibles en JSON, sin biblioteca Shared. La retirada de Shared y la adaptación de los contratos de sesión siguen pendientes; la sección inferior describe el código existente, no la arquitectura final.
+
+**Detalles pendientes antes de implementar:** esquema y almacenamiento de sesiones, generación y transporte de la credencial, custodia por cliente, caducidad, comportamiento ante reinicios y fallos, y pruebas aisladas. La dirección anterior contemplaba un límite absoluto de siete días desde el login; simplificar la implementación no autoriza por sí solo cambiar ese requisito. Hay que confirmar su aplicación al nuevo mecanismo antes de escribirlo. Los IDs string prefijados de entidades no convierten credenciales, QR ni referencias externas en correlativos.
+
+No hay login, sesión, logout ni permisos ejecutables acreditados. `MVP-001-03`, `MVP-001-04` y `MVP-001-05` conservan sus criterios, estados y dependencias; `FIN-005` es trabajo futuro y no bloquea su cierre cuando se demuestre el corte básico local.
+
+## Estado del código existente
+
+**Implementado:** DTOs simples, DataAnnotations y roles enum con serialización textual de MVP-001-02. **Verificación técnica independiente:** PASS del candidato enum. El backlog registra el cierre de MVP-001-02 con aprobación de Enzo reportada por el usuario; las menciones inferiores a revisión pendiente son evidencia histórica de ese candidato. **Pendiente:** autenticación ejecutable y separación de clases API/Web. No hay endpoints nuevos. El [backlog](../tasks.json) conserva la autoridad del cierre; el [scaffold API](api.md) sigue sin ingreso implementado.
 
 ## Aprobación y límites
 
-El usuario detuvo el candidato inglés por sintaxis no discutida y aprobó explícitamente en el chat clases públicas españolas con `get; set;`, cadenas `string.Empty` y DataAnnotations con los mensajes de abajo. Confirmó bibliotecas de clases y referencias como enseñadas, por lo que Shared permanece. Los extractos docentes reportan DataAnnotations aplicadas; DTO es un requisito autorizado, no cobertura docente demostrada.
+El usuario detuvo el candidato inglés por sintaxis no discutida y aprobó explícitamente en el chat clases públicas españolas con `get; set;`, cadenas `string.Empty` y DataAnnotations con los mensajes de abajo. En ese corte confirmó bibliotecas de clases y referencias como enseñadas, por lo que Shared permaneció. La decisión posterior es retirarlo y mantener clases propias en API y Web; ese cambio todavía no se implementó. Los extractos docentes reportan DataAnnotations aplicadas; DTO es un requisito autorizado, no cobertura docente demostrada.
 
 Tras explicar enum y conversor, el usuario autorizó explícitamente `RolIngreso`, `RolIngreso[]` y `JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false)` en las opciones MVC de la API. Para Web pidió solo un comentario sobre un futuro consumidor HTTP; no se agrega configuración dormida, DI, factory ni cliente ficticio. La aprobación se atribuye al chat, no a Enzo ni a evidencia docente del conversor. Los nombres físicos C# permanecen; no se reintroducen `sealed`, modificador `required`, `init` ni `JsonPropertyName`.
 
