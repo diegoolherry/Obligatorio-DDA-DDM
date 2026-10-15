@@ -20,6 +20,10 @@ Cargá siempre la compartida y la especializada pertinente; cargá ambas especia
 
 La consigna vigente y la configuración del repositorio prevalecen sobre la skill si hay conflicto. Informalo en lugar de asumir una solución, y actualizá la skill solo cuando el equipo apruebe la nueva convención.
 
+## Skill opcional de aprendizaje
+
+Solo ante un pedido explícito de mentoría socrática o aprendizaje guiado, cargá [socratic-code-mentor](.agents/skills/socratic-code-mentor/SKILL.md). No la actives por contexto académico, pedidos ordinarios de funcionalidades ni «solo arreglalo». El modo no autoriza ediciones ni reemplaza las skills obligatorias, el backlog completo, las pruebas de invariantes o la revisión cruzada; un pedido explícito de solución permite ayuda directa.
+
 ## Backlog compartido del proyecto completo
 
 `docs/tasks.json` es la fuente de verdad del backlog del proyecto académico completo, incluidos el MVP y la entrega final. Mantiene un único array `tasks`; cada tarea usa un array `area` con etiquetas `API`, `Web`, `Mobile` y/o `Docs`. Las tareas transversales incluyen varias áreas, sin dividirse por capa. Los IDs legados `MVP-*` y `FIN-*` se conservan estables: no se renumeran al cambiar el alcance o la clasificación. Debe mantenerse como JSON válido y sus tareas deben conservar un `id` y `createdAt` inmutables.
