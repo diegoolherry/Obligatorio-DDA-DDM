@@ -139,6 +139,40 @@ erDiagram
 
 `configuracion_ubicacion` es una configuración académica versionable por vigencia, no una fuente de posiciones; no se dibuja relación obligatoria con cada servicio hasta decidir el alcance de parámetros. Una publicación aceptada siempre conserva su asociación dispositivo/servicio y recepción; intentos rechazados no crean `posicion_recibida`.
 
+### Identificadores de las entidades
+
+**Formato acordado por el usuario, todavía no implementado:** los IDs propios son valores reales de tipo `string`, no códigos decorativos sobre otra PK. Se usan abreviaturas de dos letras seguidas de un guion y un correlativo, como `PA-1`. Las tres posiciones iniciales son el prefijo completo (`PA-`), por lo que `Substring(3)` extrae el sufijo (`1`).
+
+**Abreviaturas aprobadas explícitamente por el usuario en el chat, incluida `US-` para Usuario; todavía no implementadas:** esta tabla organiza el modelo existente; no aprueba nuevas tablas, migraciones ni contratos. Los ejemplos con `1` ilustran el formato, no deciden el inicio, rango o política del correlativo.
+
+| Entidad o tabla candidata con identidad propia | Prefijo aprobado | Ejemplo |
+| --- | --- | --- |
+| Usuario | `US-` | `US-1` |
+| Parada | `PA-` | `PA-1` |
+| Tramo | `TR-` | `TR-1` |
+| Servicio | `SE-` | `SE-1` |
+| Tarifa | `TA-` | `TA-1` |
+| IntentoCompra | `IC-` | `IC-1` |
+| Compra | `CO-` | `CO-1` |
+| Pago | `PG-` | `PG-1` |
+| Ticket | `TI-` | `TI-1` |
+| AsignacionAbonos | `AA-` | `AA-1` |
+| Abono | `AB-` | `AB-1` |
+| Validacion | `VA-` | `VA-1` |
+| Dispositivo | `DI-` | `DI-1` |
+| PosicionRecibida | `PR-` | `PR-1` |
+| ConfiguracionUbicacion | `CU-` | `CU-1` |
+| CambioAdministrativo | `CA-` | `CA-1` |
+| `rol` | `RO-` | `RO-1` |
+| `compra_servicio` | `CS-` | `CS-1` |
+| `dispositivo_servicio` | `DS-` | `DS-1` |
+
+**No se asigna un ID nuevo a cada concepto:** Itinerario no exige tabla propia; `usuario_rol` conserva la PK compuesta propuesta (`usuario_id`, `rol_id`), sin prefijo adicional. Los prefijos técnicos anteriores solo aplicarían si se mantienen las identidades propias del ER candidato. IntentoCompra y Pago tienen identidad conceptual, pero su representación física continúa pendiente. Usuario queda incluido en la regla con `US-` por confirmación explícita del usuario; esto no implementa autenticación ni incorpora Identity/OpenIddict. La ampliación final no recibe identidades nuevas por esta tabla.
+
+**Referencias y límites:** una FK hacia una identidad prefijada conservaría su valor `string` completo; no se reemplaza por el sufijo numérico. Los IDs no reemplazan QR opacos, credenciales de sesión ni referencias externas de pago y no conceden autorización. `Substring(3)` no valida el prefijo ni el número: antes de convertir el sufijo deben comprobarse formato y rango. La [referencia del ejemplo docente](../../.agents/skills/ctc-dda-blazor/references/prefixed-string-ids.md) explica la extracción y el máximo numérico, distintos del orden alfabético de strings.
+
+**Pendiente antes de implementar:** acordar inicio, rango, ceros iniciales, numeración por entidad y reutilización tras borrados; definir validación y generación en API sin aceptar un ID de alta arbitrario del cliente. El ejemplo `Max + 1` no garantiza altas concurrentes seguras ni evita reutilización histórica. El mecanismo de asignación y sus pruebas deben acordarse en el corte de persistencia; esta decisión documental no acredita ejecución ni modifica el estado del backlog.
+
 ### Diccionario y claves propuestas
 
 | Tabla | Identidad y referencias propuestas | Integridad / nulabilidad propuesta |

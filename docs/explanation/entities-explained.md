@@ -2,6 +2,8 @@
 
 **Respuesta corta:** el [modelo de datos](data-model.md) describe 17 conceptos de dominio para viajes, compras, abonos, validaciones y ubicación; su ER agrega cuatro tablas puente o técnicas. El usuario informa que Diego y Enzo aprobaron el modelo conceptual actual como base evolutiva, conservando cambios futuros. Este texto registra esa aprobación reportada y explica sus vínculos; **no** aprueba el esquema físico ni acredita implementación, DTO definitivos o pruebas del proveedor. Las multiplicidades del dibujo son tentativas salvo reglas expresas del [MVP](mvp.md) y los [requisitos](../reference/requirements.md). Los motivos señalados como *rationale* explican la propuesta, no crean reglas nuevas.
 
+El formato acordado de IDs `string` con abreviaturas de dos letras y guion, los prefijos por entidad aprobados por el usuario (incluido Usuario) y las decisiones de generación pendientes se mantienen únicamente en [Identificadores de las entidades](data-model.md#identificadores-de-las-entidades). No todos los conceptos requieren identidad persistida propia: Itinerario no exige tabla y `usuario_rol` conserva su clave compuesta propuesta.
+
 ## Índice por recorrido
 
 | Recorrido | Conceptos |
