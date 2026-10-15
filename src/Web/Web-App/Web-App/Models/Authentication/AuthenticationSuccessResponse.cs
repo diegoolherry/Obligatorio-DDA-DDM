@@ -1,4 +1,4 @@
-namespace Berruti.Contracts.Authentication
+namespace Web_App.Models.Authentication
 {
     public class RespuestaIngresoDto
     {
