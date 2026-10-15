@@ -80,6 +80,12 @@ Para la entrega final, FIN-001..004 ordenan catálogo/calendarios, configuracion
 
 ## 7. Calidad, pruebas y gestión de configuración
 
+### Consolidación local de los entregables
+
+Se guardaron tres unidades independientes: `cd3ddb6` (referencia docente de IDs), `f58ec82` (plan de autenticación solo local y FIN-005) y `05cf867` (retirada de Shared y MVP-001-06). Se reunieron en `chore/consolidate-project-state`, con merges `cf0f195` y `1248cfc`; sus tres ramas de origen son ancestros de la integración y sus worktrees quedaron limpios. [Seguimiento y evidencia](../odd/tasks/consolidate-project-state.md). Esta consolidación es local: no publica, no modifica `main`, no elimina ramas/worktrees y no implementa login ni IDs. La revisión de Enzo de MVP-001-06 sigue pendiente y FIN-005 sigue pending.
+
+**Comprobación del conjunto por el implementador, no revisión independiente:** `dotnet run --project tests/AuthenticationContracts/AuthenticationContracts.csproj --no-launch-profile` exit 0, 50/50 comprobaciones; builds de las soluciones API y Web con `--no-restore --nologo`, ambos exit 0, cero advertencias y errores. Controles estructurales PASS: 21 tareas (17 pending, una in_progress y tres done), campos originales conservados salvo cuatro evidence ampliados, ambas tareas nuevas idénticas a sus fuentes, dependencias sin ciclos, enlaces locales/fences y ausencia de marcadores de conflicto. Código y pruebas coinciden con `05cf867`; skill con `cd3ddb6`; Mobile no cambia. Convenciones `src --strict` y whitespace PASS. El primer comprobador estructural falló por tratar un evidence nulo como texto; se corrigió el comprobador y la validación completa pasó, sin atribuir PASS al intento fallido. No se ejecutaron UI, login ni typecheck Mobile porque este corte no modifica esas superficies.
+
 ### Separación de contratos MVP-001-06
 
 **Cambio autorizado e implementado, pendiente de revisión cruzada de Enzo:** clases propias de API y Web sin Shared, sin referencia entre aplicaciones y sin modificar Mobile. Se mantienen campos/tipos JSON, valores de roles, inicializadores y DataAnnotations. No cambia el identificador de usuario ni se implementa login. Los IDs prefijados y el login básico pertenecen a otros cortes.
