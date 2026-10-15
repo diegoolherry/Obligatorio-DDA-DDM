@@ -597,6 +597,30 @@
         "El informe y la referencia de autenticación distinguen decisiones de resultados comprobados y conservan la prohibición de despliegue y uso de credenciales reales hasta una autorización humana explícita independiente."
       ],
       "evidence": "Planificado, no iniciado. Mejora futura solicitada por el usuario; dependencias de login básico aún pending. Diego como responsable y Enzo como revisor son propuesta, sin nueva asignación humana confirmada. No se incorpora como hijo de MVP-001: no es condición adicional para completar el corte básico local. OpenIddict queda aplazado; no se seleccionaron paquetes ni se ejecutaron pruebas. El almacenamiento temporal en texto plano solo comprende cuentas totalmente ficticias y un entorno local aislado, sin autorización para desplegar."
+    },
+    {
+      "id": "FIN-006",
+      "name": "Analizar las presentaciones de arquitectura online-first para Mobile",
+      "description": "Analizar las presentaciones que el usuario aportará sobre arquitectura online-first, tema que informa estar cursando actualmente, y evaluar su aplicación a React Native/Expo en este proyecto. El alcance es análisis y propuesta; no autoriza implementación, dependencias ni cambios de arquitectura por anticipado.",
+      "priority": "media",
+      "area": [
+        "Mobile",
+        "Docs"
+      ],
+      "status": "pending",
+      "assignee": null,
+      "reviewer": null,
+      "createdAt": "2026-10-15T20:01:40.910221-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "Las presentaciones aportadas se analizan con referencias a archivos y páginas o diapositivas, distinguiendo contenido demostrado, mencionado y no verificado.",
+        "El análisis explica online-first según el material y contrasta su aplicación con los requisitos y la arquitectura Mobile vigentes; identifica conflictos y decisiones pendientes sin asumir capacidades offline.",
+        "Se documenta una propuesta mínima de aplicación al proyecto y sus límites, separando el análisis de cualquier implementación posterior que requiera aprobación del equipo."
+      ],
+      "evidence": "Tarea futura solicitada por el usuario: informa que está cursando arquitectura online-first y que tiene presentaciones para aportar y analizar. Material todavía no recibido ni analizado; se espera su entrega antes de iniciar. Sin aprobación de una implementación, librerías, caché, sincronización o soporte offline. Responsable y revisor pendientes de asignación; al asignarlos debe conservarse la revisión cruzada Diego/Enzo. Registro independiente de análisis, sin modificar dependencias ni estados de tareas existentes."
     }
   ]
 }
