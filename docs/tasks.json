@@ -33,7 +33,7 @@
         "La API rechaza una operación protegida cuando el rol no está autorizado.",
         "Los contratos expuestos son tipados y no exponen entidades de persistencia."
       ],
-      "evidence": "MVP-010 está done tras validación documental independiente de sus tres criterios; Diego y Enzo aprobaron la base conceptual evolutiva según lo informado por el usuario. La dependencia original MVP-010 se conserva y está cumplida; MVP-001 permanece pending, sin inicio automático ni agregación de estados de hijos. Cada hijo conserva su propia puerta de dependencias. Las decisiones de dominio y mecanismos técnicos abiertos deben resolverse y revisarse antes de implementar la función correspondiente, no todos antes de preparar infraestructura. No acredita esquema físico, DTO definitivos, implementación ni pruebas."
+      "evidence": "MVP-010 está done tras validación documental independiente de sus tres criterios; Diego y Enzo aprobaron la base conceptual evolutiva según lo informado por el usuario. La dependencia original MVP-010 se conserva y está cumplida; MVP-001 permanece pending, sin inicio automático ni agregación de estados de hijos. Cada hijo conserva su propia puerta de dependencias. Las decisiones de dominio y mecanismos técnicos abiertos deben resolverse y revisarse antes de implementar la función correspondiente, no todos antes de preparar infraestructura. No acredita esquema físico, DTO definitivos, implementación ni pruebas. Decisión actual del usuario: demo exclusivamente local con cuentas ficticias, sin credenciales reales ni autorización para desplegar el proyecto en ninguna plataforma. Contraseñas ficticias en texto plano solo de forma temporal hasta revisar en clase; no es almacenamiento seguro. Sin Identity; OpenIddict y mejoras de autenticación aplazados a FIN-005. Se aprueban sesiones de servidor con credenciales opacas impredecibles, invalidación al cerrar sesión y permisos por rol comprobados en API, sin confiar en roles enviados por el cliente. Se mantiene Controller → Service → Repository → DbContext. API y Web tendrán clases propias sin biblioteca Shared; su retirada todavía no está implementada. No acredita login, persistencia, sesiones ni autorización ejecutables. Actualización de integración: la retirada de Shared ya está implementada en MVP-001-06 con pruebas y compilaciones registradas; sigue pendiente la revisión de Enzo. El login básico continúa sin implementar."
     },
     {
       "id": "MVP-002",
@@ -478,7 +478,7 @@
         "La evidencia verifica que la API permite una operación protegida autorizada al pasajero y deniega una no autorizada a ese rol, además del acceso sin sesión; no basta con ocultar controles en los clientes.",
         "Ambos clientes comunican carga, éxito, credenciales rechazadas, fallo de red o servidor y reintento sin mostrar éxito cuando la autenticación falla."
       ],
-      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. MVP-010 está done tras validación documental independiente; aprobación conjunta de la base conceptual evolutiva según lo informado por el usuario. Este hijo permanece pending: conserva dependencias MVP-010 y MVP-001-02 done, esta última aún pendiente. Las decisiones específicas del flujo de pasajero deben definirse y revisarse antes de implementarlo; no se exige resolver preguntas de otras funciones antes de infraestructura. No acredita implementación ni pruebas."
+      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. MVP-010 está done tras validación documental independiente; aprobación conjunta de la base conceptual evolutiva según lo informado por el usuario. Este hijo permanece pending: conserva dependencias MVP-010 y MVP-001-02 done, esta última aún pendiente. Las decisiones específicas del flujo de pasajero deben definirse y revisarse antes de implementarlo; no se exige resolver preguntas de otras funciones antes de infraestructura. No acredita implementación ni pruebas. Decisión actual del usuario: demo exclusivamente local con cuentas ficticias, sin credenciales reales ni autorización para desplegar el proyecto en ninguna plataforma. Contraseñas ficticias en texto plano solo de forma temporal hasta revisar en clase; no es almacenamiento seguro. Sin Identity; OpenIddict y mejoras de autenticación aplazados a FIN-005. Se aprueban sesiones de servidor con credenciales opacas impredecibles, invalidación al cerrar sesión y permisos por rol comprobados en API, sin confiar en roles enviados por el cliente. Se mantiene Controller → Service → Repository → DbContext. API y Web tendrán clases propias sin biblioteca Shared; su retirada todavía no está implementada. No acredita login, persistencia, sesiones ni autorización ejecutables. Actualización de integración: la retirada de Shared ya está implementada en MVP-001-06 con pruebas y compilaciones registradas; sigue pendiente la revisión de Enzo. El login básico continúa sin implementar."
     },
     {
       "id": "MVP-001-04",
@@ -506,7 +506,7 @@
         "La evidencia verifica que la API permite una operación protegida autorizada al cobrador y deniega una no autorizada a ese rol, además del acceso sin sesión; no basta con ocultar controles en Mobile.",
         "Mobile comunica carga, éxito, credenciales rechazadas, fallo de red o servidor y reintento sin mostrar éxito cuando la autenticación falla."
       ],
-      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. MVP-010 está done tras validación documental independiente; aprobación conjunta de la base conceptual evolutiva según lo informado por el usuario. Este hijo permanece pending: conserva dependencias MVP-010 y MVP-001-02 done, esta última aún pendiente. Las decisiones específicas del flujo de cobrador deben definirse y revisarse antes de implementarlo; no se exige resolver preguntas de otras funciones antes de infraestructura. No acredita implementación ni pruebas."
+      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. MVP-010 está done tras validación documental independiente; aprobación conjunta de la base conceptual evolutiva según lo informado por el usuario. Este hijo permanece pending: conserva dependencias MVP-010 y MVP-001-02 done, esta última aún pendiente. Las decisiones específicas del flujo de cobrador deben definirse y revisarse antes de implementarlo; no se exige resolver preguntas de otras funciones antes de infraestructura. No acredita implementación ni pruebas. Decisión actual del usuario: demo exclusivamente local con cuentas ficticias, sin credenciales reales ni autorización para desplegar el proyecto en ninguna plataforma. Contraseñas ficticias en texto plano solo de forma temporal hasta revisar en clase; no es almacenamiento seguro. Sin Identity; OpenIddict y mejoras de autenticación aplazados a FIN-005. Se aprueban sesiones de servidor con credenciales opacas impredecibles, invalidación al cerrar sesión y permisos por rol comprobados en API, sin confiar en roles enviados por el cliente. Se mantiene Controller → Service → Repository → DbContext. API y Web tendrán clases propias sin biblioteca Shared; su retirada todavía no está implementada. No acredita login, persistencia, sesiones ni autorización ejecutables. Actualización de integración: la retirada de Shared ya está implementada en MVP-001-06 con pruebas y compilaciones registradas; sigue pendiente la revisión de Enzo. El login básico continúa sin implementar."
     },
     {
       "id": "MVP-001-05",
@@ -534,7 +534,69 @@
         "La evidencia verifica que la API permite una operación administrativa al administrador y la deniega a un rol no autorizado y sin sesión; no basta con ocultar controles en Web.",
         "Web comunica carga, éxito, credenciales rechazadas, fallo de red o servidor y reintento sin mostrar éxito cuando la autenticación falla."
       ],
-      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. MVP-010 está done tras validación documental independiente; aprobación conjunta de la base conceptual evolutiva según lo informado por el usuario. Este hijo permanece pending: conserva dependencias MVP-010 y MVP-001-02 done, esta última aún pendiente. Las decisiones específicas del flujo de administrador deben definirse y revisarse antes de implementarlo; no se exige resolver preguntas de otras funciones antes de infraestructura. No acredita implementación ni pruebas."
+      "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. MVP-010 está done tras validación documental independiente; aprobación conjunta de la base conceptual evolutiva según lo informado por el usuario. Este hijo permanece pending: conserva dependencias MVP-010 y MVP-001-02 done, esta última aún pendiente. Las decisiones específicas del flujo de administrador deben definirse y revisarse antes de implementarlo; no se exige resolver preguntas de otras funciones antes de infraestructura. No acredita implementación ni pruebas. Decisión actual del usuario: demo exclusivamente local con cuentas ficticias, sin credenciales reales ni autorización para desplegar el proyecto en ninguna plataforma. Contraseñas ficticias en texto plano solo de forma temporal hasta revisar en clase; no es almacenamiento seguro. Sin Identity; OpenIddict y mejoras de autenticación aplazados a FIN-005. Se aprueban sesiones de servidor con credenciales opacas impredecibles, invalidación al cerrar sesión y permisos por rol comprobados en API, sin confiar en roles enviados por el cliente. Se mantiene Controller → Service → Repository → DbContext. API y Web tendrán clases propias sin biblioteca Shared; su retirada todavía no está implementada. No acredita login, persistencia, sesiones ni autorización ejecutables. Actualización de integración: la retirada de Shared ya está implementada en MVP-001-06 con pruebas y compilaciones registradas; sigue pendiente la revisión de Enzo. El login básico continúa sin implementar."
+    },
+    {
+      "id": "MVP-001-06",
+      "parentId": "MVP-001",
+      "name": "Separar los contratos de API y Web y retirar Shared",
+      "description": "Mantener clases propias de solicitud, éxito, rechazo y roles en API y Web, eliminar la biblioteca Shared y sus referencias sin acoplar Web al proyecto API. Preservar el contrato JSON y las validaciones existentes y dejar Mobile intacto. Cambio adicional autorizado después del cierre de MVP-001-02; no reabre esa tarea ni implementa login o IDs.",
+      "priority": "alta",
+      "area": [
+        "API",
+        "Web",
+        "Docs"
+      ],
+      "status": "in_progress",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-10-15T01:19:59.725278-03:00",
+      "startedAt": "2026-10-15T01:19:59.725278-03:00",
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [
+        "MVP-010",
+        "MVP-001-02"
+      ],
+      "acceptanceCriteria": [
+        "API y Web declaran sus propias clases de ingreso y roles, sin src/Shared, referencia a Berruti.Contracts ni referencia entre las aplicaciones.",
+        "Se preservan campos y tipos JSON, roles textuales, inicializadores y validaciones con mensajes exactos de los contratos existentes; Mobile no cambia.",
+        "Las comprobaciones reproducibles de separación y regresión y las compilaciones de API y Web pasan; la documentación refleja las clases propias y conserva la evidencia histórica del corte compartido.",
+        "Enzo confirma los criterios mediante revisión cruzada antes de completar la tarea; MVP-001-02 conserva su cierre y no se acredita login, sesión, autorización ni cambio de IDs."
+      ],
+      "evidence": "Inicio autorizado por el usuario; dependencias MVP-010 y MVP-001-02 comprobadas en done. Registro de createdAt/startedAt obtenido de la hora actual del sistema con offset al registrar este corte, no fecha inventada del comienzo de la conversación. Rama refactor/remove-shared-contracts desde main local a273c1b en .worktrees/remove-shared-contracts. Clases propias API/Web y retirada de Shared implementadas sin cambiar JSON ni Mobile. dotnet run --project tests/AuthenticationContracts/AuthenticationContracts.csproj --no-launch-profile: RED exit 1, cinco fallos esperados de ocho comprobaciones; GREEN exit 0, 50/50 comprobaciones. No se inicia servidor ni se usan cuentas o DB. Compilaciones finales: dotnet build src/Api/API-Berruti/API-Berruti.slnx --no-restore --nologo y dotnet build src/Web/Web-App/Web-App.slnx --no-restore --nologo, ambas exit 0 con cero advertencias y errores. Control estructural Python PASS: 19 registros originales/metadatos intactos, dependencias en done, clases idénticas salvo namespace y enlaces/fences válidos. git diff --exit-code HEAD -- src/Mobile, convenciones src --strict y git diff --check exit 0; Git advierte LF/CRLF sin fallo. No se ejecuta navegador ni typecheck Mobile por no cambiar UI ni Mobile. Revisión cruzada de Enzo pendiente, por eso completedAt/completedBy siguen null y no se marca done."
+    },
+    {
+      "id": "FIN-005",
+      "name": "Revisar y mejorar la seguridad del login después del corte básico local",
+      "description": "Trabajo futuro solicitado por el usuario: revisar el almacenamiento de contraseñas y mejorar la autenticación tras el corte básico de cuentas ficticias exclusivamente locales. Evaluar la incorporación de OpenIddict y explicar sus fundamentos antes de adoptar el mecanismo. Identity queda fuera de la dirección actual; esta tarea no obliga a incorporarlo. Su finalización no autoriza despliegue ni uso con usuarios reales.",
+      "priority": "media",
+      "area": [
+        "API",
+        "Web",
+        "Mobile",
+        "Docs"
+      ],
+      "status": "pending",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-10-15T01:13:00.501820-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [
+        "MVP-001-03",
+        "MVP-001-04",
+        "MVP-001-05"
+      ],
+      "acceptanceCriteria": [
+        "El equipo revisa la indicación docente sobre contraseñas, acuerda un mecanismo estándar de hash con sal y documenta la transición desde las cuentas ficticias locales sin conservar contraseñas legibles en el almacenamiento resultante.",
+        "Se explica y acuerda si se incorpora OpenIddict; se documentan el mecanismo elegido, las responsabilidades y su integración con API, Web y Mobile antes de implementarlo, sin dar por aprobada la adopción de Identity.",
+        "Se verifican inicio y cierre de sesión, rechazo de credenciales inválidas, sesiones inválidas o vencidas y permisos por rol en la API; los rechazos no cambian datos protegidos y conocer un ID o declarar un rol desde el cliente no concede acceso.",
+        "Se documentan y verifican el ciclo de vida y la custodia de las credenciales del mecanismo acordado, incluida la invalidación al cerrar sesión; los contratos y clientes se mantienen coherentes.",
+        "El informe y la referencia de autenticación distinguen decisiones de resultados comprobados y conservan la prohibición de despliegue y uso de credenciales reales hasta una autorización humana explícita independiente."
+      ],
+      "evidence": "Planificado, no iniciado. Mejora futura solicitada por el usuario; dependencias de login básico aún pending. Diego como responsable y Enzo como revisor son propuesta, sin nueva asignación humana confirmada. No se incorpora como hijo de MVP-001: no es condición adicional para completar el corte básico local. OpenIddict queda aplazado; no se seleccionaron paquetes ni se ejecutaron pruebas. El almacenamiento temporal en texto plano solo comprende cuentas totalmente ficticias y un entorno local aislado, sin autorización para desplegar."
     }
   ]
 }

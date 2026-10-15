@@ -9,8 +9,4 @@
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
   </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="../../../Shared/Berruti.Contracts/Berruti.Contracts.csproj" />
-  </ItemGroup>
-
 </Project>

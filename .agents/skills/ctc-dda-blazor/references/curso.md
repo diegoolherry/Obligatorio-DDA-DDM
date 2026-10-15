@@ -2,7 +2,7 @@
 
 ## Cómo usar esta evidencia
 
-Todas las fuentes y localizaciones siguientes proceden de extractos NotebookLM aportados por el usuario. No se inspeccionaron independientemente los PPTX ni los videos originales. «Enseñado/aplicado» significa reportado en esos extractos, no corroborado directamente. Un resumen sin localización precisa se identifica como tal.
+Las fuentes de presentaciones y videos siguientes proceden de extractos NotebookLM aportados por el usuario. No se inspeccionaron independientemente los PPTX ni los videos originales. Para esas fuentes, «enseñado/aplicado» significa reportado en esos extractos, no corroborado directamente. Un resumen sin localización precisa se identifica como tal. Como fuente adicional, se inspeccionó directamente el código de Maquinaria-Mobile-API, aportado por el usuario como ejemplo del profesor; su atribución docente es reportada, y su versión queda fijada en la referencia enlazada.
 
 Clasifica cada decisión: **enseñado/aplicado**, **solo mencionado**, **exigido por proyecto sin evidencia docente** o **no verificado**. Antes de implementar algo dependiente de las dos últimas categorías, explica al equipo la opción más simple, su responsabilidad, riesgos y alternativa; solicita aprobación explícita. Para algo solo mencionado, no inventes cobertura práctica: si necesita implementación no demostrada, aplica la misma consulta. No reemplaces DTO, autenticación, QR o pagos reales requeridos por simulaciones para evitar esa puerta.
 
@@ -23,6 +23,7 @@ Clasifica cada decisión: **enseñado/aplicado**, **solo mencionado**, **exigido
 | Mismo video, aprox. 43:20–44:10 | `SaveChangesAsync` persiste cambios rastreados por el contexto; no implica que toda modificación arbitraria quede rastreada. |
 | `GMT20260826-133657_Recording_1920x1200.mp4`, aprox. 12:30–13:40 | `AddScoped` con servicio/repositorio concreto. No deduzcas interfaces o repositorios genéricos obligatorios. |
 | Resumen de API aportado, sin localización precisa | Controller → Service → Repository → DbContext, async, `ActionResult`, estados HTTP y `try/catch` reportados como enseñados. No atribuyas todos estos conceptos a un minuto específico. |
+| [Maquinaria-Mobile-API, commit y fragmentos](prefixed-string-ids.md): `EquipmentController.Post`, `Equipment.Id`, `EquipmentInput` | Código inspeccionado directamente; ejemplo docente según el usuario. ID real `string`, prefijo `eq-`, extracción con `Substring(3)`, `int.Parse` y `DefaultIfEmpty(0).Max() + 1` sobre IDs consultados por EF. DTO de entrada con DataAnnotations y sin ID enviado por el cliente. No demuestra asignación concurrente segura, no reutilización histórica ni contratos DTO de respuesta. |
 
 ## Aplicación mínima, no arquitectura adicional
 
@@ -34,6 +35,6 @@ Clasifica cada decisión: **enseñado/aplicado**, **solo mencionado**, **exigido
 
 ## Lo que los extractos no demuestran
 
-DTO, AutoMapper, interfaces de repositorio, autenticación y relaciones EF complejas **no tienen evidencia docente demostrada** en lo aportado. DTO y autorización son requisitos del proyecto, no opcionales; mapping manual y clases concretas pueden ser propuestas mínimas, no decisiones ya aprobadas. QR, pagos y concurrencia también necesitan explicación y aprobación de su mecanismo cuando excedan los ejemplos. No introduzcas abstracciones o paquetes por comodidad.
+Los extractos no demuestran DTO; la fuente adicional [Maquinaria-Mobile-API](prefixed-string-ids.md) sí muestra un DTO de entrada simple con DataAnnotations, pero no DTO de respuesta ni mapping general. AutoMapper, interfaces de repositorio, autenticación y relaciones EF complejas **no tienen evidencia docente demostrada** en lo aportado. DTO y autorización siguen siendo requisitos del proyecto, no opcionales; las extensiones no demostradas requieren la consulta indicada arriba. Mapping manual y clases concretas pueden ser propuestas mínimas, no decisiones ya aprobadas. QR, pagos y concurrencia también necesitan explicación y aprobación de su mecanismo cuando excedan los ejemplos. No introduzcas abstracciones o paquetes por comodidad.
 
 Las advertencias/sugerencias de una fuente no constituyen prohibiciones universales. Ante conflicto con la consigna o configuración vigente, informa ambas fuentes y sigue la autoridad del proyecto, sin modificar estas reglas sin aprobación.
