@@ -1,4 +1,4 @@
-namespace Berruti.Contracts.Authentication
+namespace API_Berruti.DTOs.Authentication
 {
     public class RespuestaErrorIngresoDto
     {

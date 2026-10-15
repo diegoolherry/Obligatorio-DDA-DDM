@@ -535,6 +535,36 @@
         "Web comunica carga, éxito, credenciales rechazadas, fallo de red o servidor y reintento sin mostrar éxito cuando la autenticación falla."
       ],
       "evidence": "Descomposición aprobada; Diego responsable y Enzo revisor confirmados. MVP-010 está done tras validación documental independiente; aprobación conjunta de la base conceptual evolutiva según lo informado por el usuario. Este hijo permanece pending: conserva dependencias MVP-010 y MVP-001-02 done, esta última aún pendiente. Las decisiones específicas del flujo de administrador deben definirse y revisarse antes de implementarlo; no se exige resolver preguntas de otras funciones antes de infraestructura. No acredita implementación ni pruebas."
+    },
+    {
+      "id": "MVP-001-06",
+      "parentId": "MVP-001",
+      "name": "Separar los contratos de API y Web y retirar Shared",
+      "description": "Mantener clases propias de solicitud, éxito, rechazo y roles en API y Web, eliminar la biblioteca Shared y sus referencias sin acoplar Web al proyecto API. Preservar el contrato JSON y las validaciones existentes y dejar Mobile intacto. Cambio adicional autorizado después del cierre de MVP-001-02; no reabre esa tarea ni implementa login o IDs.",
+      "priority": "alta",
+      "area": [
+        "API",
+        "Web",
+        "Docs"
+      ],
+      "status": "in_progress",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-10-15T01:19:59.725278-03:00",
+      "startedAt": "2026-10-15T01:19:59.725278-03:00",
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [
+        "MVP-010",
+        "MVP-001-02"
+      ],
+      "acceptanceCriteria": [
+        "API y Web declaran sus propias clases de ingreso y roles, sin src/Shared, referencia a Berruti.Contracts ni referencia entre las aplicaciones.",
+        "Se preservan campos y tipos JSON, roles textuales, inicializadores y validaciones con mensajes exactos de los contratos existentes; Mobile no cambia.",
+        "Las comprobaciones reproducibles de separación y regresión y las compilaciones de API y Web pasan; la documentación refleja las clases propias y conserva la evidencia histórica del corte compartido.",
+        "Enzo confirma los criterios mediante revisión cruzada antes de completar la tarea; MVP-001-02 conserva su cierre y no se acredita login, sesión, autorización ni cambio de IDs."
+      ],
+      "evidence": "Inicio autorizado por el usuario; dependencias MVP-010 y MVP-001-02 comprobadas en done. Registro de createdAt/startedAt obtenido de la hora actual del sistema con offset al registrar este corte, no fecha inventada del comienzo de la conversación. Rama refactor/remove-shared-contracts desde main local a273c1b en .worktrees/remove-shared-contracts. Clases propias API/Web y retirada de Shared implementadas sin cambiar JSON ni Mobile. dotnet run --project tests/AuthenticationContracts/AuthenticationContracts.csproj --no-launch-profile: RED exit 1, cinco fallos esperados de ocho comprobaciones; GREEN exit 0, 50/50 comprobaciones. No se inicia servidor ni se usan cuentas o DB. Compilaciones finales: dotnet build src/Api/API-Berruti/API-Berruti.slnx --no-restore --nologo y dotnet build src/Web/Web-App/Web-App.slnx --no-restore --nologo, ambas exit 0 con cero advertencias y errores. Control estructural Python PASS: 19 registros originales/metadatos intactos, dependencias en done, clases idénticas salvo namespace y enlaces/fences válidos. git diff --exit-code HEAD -- src/Mobile, convenciones src --strict y git diff --check exit 0; Git advierte LF/CRLF sin fallo. No se ejecuta navegador ni typecheck Mobile por no cambiar UI ni Mobile. Revisión cruzada de Enzo pendiente, por eso completedAt/completedBy siguen null y no se marca done."
     }
   ]
 }

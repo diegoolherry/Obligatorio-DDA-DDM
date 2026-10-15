@@ -1,24 +1,26 @@
 # Contratos iniciales de ingreso
 
-**Implementado:** DTOs simples, DataAnnotations y roles enum con serialización textual de MVP-001-02. **Verificación técnica independiente:** PASS del candidato enum. **Pendiente:** revisión cruzada de Enzo y autenticación ejecutable. No hay endpoints nuevos. El [backlog](../tasks.json) conserva la autoridad del cierre; el [scaffold API](api.md) sigue sin ingreso implementado.
+**Implementado:** clases propias de API y Web, DataAnnotations y roles enum con el mismo contrato JSON de MVP-001-02; ya no existe el proyecto Shared. La verificación independiente y aprobación de Enzo reportada para MVP-001-02 pertenecen al corte anterior. **Pendiente:** revisión cruzada de la separación (`MVP-001-06`) y autenticación ejecutable. No hay endpoints nuevos. El [backlog](../tasks.json) conserva la autoridad del cierre; el [scaffold API](api.md) sigue sin ingreso implementado.
 
 ## Aprobación y límites
 
-El usuario detuvo el candidato inglés por sintaxis no discutida y aprobó explícitamente en el chat clases públicas españolas con `get; set;`, cadenas `string.Empty` y DataAnnotations con los mensajes de abajo. Confirmó bibliotecas de clases y referencias como enseñadas, por lo que Shared permanece. Los extractos docentes reportan DataAnnotations aplicadas; DTO es un requisito autorizado, no cobertura docente demostrada.
+El usuario detuvo el candidato inglés por sintaxis no discutida y aprobó explícitamente en el chat clases públicas españolas con `get; set;`, cadenas `string.Empty` y DataAnnotations con los mensajes de abajo. En ese corte confirmó bibliotecas de clases y referencias como enseñadas, por lo que Shared permaneció. Luego pidió eliminar el proyecto compartido y mantener clases propias en API y Web; esta separación no reabre el cierre histórico de MVP-001-02. Los extractos docentes reportan DataAnnotations aplicadas; DTO es un requisito autorizado, no cobertura docente demostrada.
 
 Tras explicar enum y conversor, el usuario autorizó explícitamente `RolIngreso`, `RolIngreso[]` y `JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false)` en las opciones MVC de la API. Para Web pidió solo un comentario sobre un futuro consumidor HTTP; no se agrega configuración dormida, DI, factory ni cliente ficticio. La aprobación se atribuye al chat, no a Enzo ni a evidencia docente del conversor. Los nombres físicos C# permanecen; no se reintroducen `sealed`, modificador `required`, `init` ni `JsonPropertyName`.
 
 No se agregan endpoints, sesiones, tokens, bibliotecas de autenticación, UI, persistencia ni permisos. Los atributos validan datos cuando se invoca validación; no autentican ni prueban existencia del correo. No se exige fuerza, longitud o composición de contraseña, ni se normalizan credenciales. Los roles describen identidad, no autorizan acciones.
 
-## Definiciones compartidas
+## Clases propias por aplicación
 
-[Berruti.Contracts.csproj](../../src/Shared/Berruti.Contracts/Berruti.Contracts.csproj) sigue siendo `net10.0`, sin paquetes externos ni entidades persistidas. [API](../../src/Api/API-Berruti/API-Berruti/API-Berruti.csproj) y [Web](../../src/Web/Web-App/Web-App/Web-App.csproj) conservan las referencias a la misma biblioteca. Namespace: `Berruti.Contracts.Authentication`.
+[API](../../src/Api/API-Berruti/API-Berruti/API-Berruti.csproj) define DTOs en `API_Berruti.DTOs.Authentication`; [Web](../../src/Web/Web-App/Web-App/Web-App.csproj) define modelos propios en `Web_App.Models.Authentication`. Ambos proyectos siguen siendo `net10.0`, sin referencia entre sí ni a una biblioteca de contratos compartida. No se comparten entidades de persistencia ni se agregan paquetes. La compatibilidad se mantiene mediante el contrato JSON y sus pruebas, no mediante identidad de clases o assemblies.
 
-| Clase pública C# | Fuente | Tipo equivalente Mobile |
-| --- | --- | --- |
-| `SolicitudIngresoDto` | [AuthenticationRequest.cs](../../src/Shared/Berruti.Contracts/Authentication/AuthenticationRequest.cs) | `SolicitudIngresoDto` |
-| `RespuestaIngresoDto` | [AuthenticationSuccessResponse.cs](../../src/Shared/Berruti.Contracts/Authentication/AuthenticationSuccessResponse.cs) | `RespuestaIngresoDto` |
-| `RespuestaErrorIngresoDto` | [AuthenticationRejectionResponse.cs](../../src/Shared/Berruti.Contracts/Authentication/AuthenticationRejectionResponse.cs) | `RespuestaErrorIngresoDto` |
+| Clase pública C# | DTO de API | Modelo de Web | Tipo equivalente Mobile |
+| --- | --- | --- | --- |
+| `SolicitudIngresoDto` | [AuthenticationRequest.cs](../../src/Api/API-Berruti/API-Berruti/DTOs/Authentication/AuthenticationRequest.cs) | [AuthenticationRequest.cs](../../src/Web/Web-App/Web-App/Models/Authentication/AuthenticationRequest.cs) | `SolicitudIngresoDto` |
+| `RespuestaIngresoDto` | [AuthenticationSuccessResponse.cs](../../src/Api/API-Berruti/API-Berruti/DTOs/Authentication/AuthenticationSuccessResponse.cs) | [AuthenticationSuccessResponse.cs](../../src/Web/Web-App/Web-App/Models/Authentication/AuthenticationSuccessResponse.cs) | `RespuestaIngresoDto` |
+| `RespuestaErrorIngresoDto` | [AuthenticationRejectionResponse.cs](../../src/Api/API-Berruti/API-Berruti/DTOs/Authentication/AuthenticationRejectionResponse.cs) | [AuthenticationRejectionResponse.cs](../../src/Web/Web-App/Web-App/Models/Authentication/AuthenticationRejectionResponse.cs) | `RespuestaErrorIngresoDto` |
+
+Cada aplicación mantiene también su propio `RolIngreso`. Cambiar un lado requiere ejecutar las comprobaciones de compatibilidad; no se agrega un cliente HTTP ni se configura JSON en Web antes de tener un consumidor.
 
 [authentication.ts](../../src/Mobile/src/contracts/authentication.ts) conserva exactamente las interfaces y la unión `RolIngreso = 'pasajero' | 'cobrador' | 'administrador'`; sus bytes no cambian. No existe un consumidor de ingreso.
 
@@ -39,7 +41,7 @@ Las cadenas comienzan vacías, no validadas por el inicializador. `Required` rec
 
 ## Roles y serialización
 
-[RolIngreso](../../src/Shared/Berruti.Contracts/Authentication/AuthenticationRoles.cs) reemplaza las constantes string del candidato anterior:
+`RolIngreso` se define independientemente en [API](../../src/Api/API-Berruti/API-Berruti/DTOs/Authentication/AuthenticationRoles.cs) y [Web](../../src/Web/Web-App/Web-App/Models/Authentication/AuthenticationRoles.cs); conserva los valores del enum que reemplazó las constantes string del candidato anterior:
 
 | Miembro enum C# | Texto JSON de salida / unión Mobile | Dominio / significado anterior |
 | --- | --- | --- |
@@ -59,7 +61,19 @@ Un DTO no produce este wire por sí solo. `JsonSerializer.Serialize(dto)` indepe
 - **Candidato enum actual, observación del escritor:** antes del conversor, RED JSON exit 1, cinco fallos de veinte aserciones: salida numérica, roundtrip de textos, aceptación de números definidos/no definidos y serialización de enum no definido. Después del conversor: GREEN exit 0, veinte PASS. Validación sin cambios: nueve PASS. Builds API/Web, typecheck Mobile, convenciones y `git diff --check` pasan. Comprobación Python antes/después: JSON válido y huella idéntica del backlog excluyendo solo evidence de MVP-001-02, preservando otros 18 registros y todos los campos de estado/metadatos; huella de Mobile idéntica. Comandos de ejecución en [informe §7](../project-report.md#contratos-pasivos-mvp-001-02).
 - **Verificación independiente:** JSON20 y validación9 PASS; builds API/Web, typecheck, convenciones, whitespace y backlog exit 0. RED5 permanece como evidencia del escritor. Revisión de Enzo pendiente. No se comprobó login, HTTP, UI, sesión o autorización.
 
-## Receta reproducible del harness aislado
+## Comprobación vigente de separación y regresión
+
+Desde la raíz del worktree:
+
+```sh
+dotnet run --project tests/AuthenticationContracts/AuthenticationContracts.csproj --no-launch-profile
+```
+
+El proyecto consola usa los proyectos reales API/Web y no agrega paquetes de pruebas. Comprueba clases públicas propias, ausencia de Shared y de dependencias entre aplicaciones, nombres de roles, campos y tipos JSON exactos, roundtrip, defaults, rechazos de enums y validaciones con sus mensajes originales en ambas aplicaciones. Compara con las opciones web y el conversor cuyo registro coteja en el código de API; no ejecuta su entrypoint, HTTP, UI ni autenticación. Devuelve exit 1 y mensajes `FAIL` por stderr si falla alguna comprobación; exit 0 si pasan todas. No requiere cuentas, base de datos ni servidores.
+
+## Receta histórica del harness aislado
+
+Esta receta documenta las pruebas del corte anterior con Shared. No es un comando vigente para el árbol actual: el harness externo fue eliminado y su referencia al proyecto compartido ya no existe. Usar la comprobación anterior para este corte, sin recrear recursos externos.
 
 Se recreó `D:/CTC/Semestre-4/mvp-001-02-contracts-harness/` solo tras comprobar que no existía. Inventario propio: `Harness.csproj`, `Program.cs`, outputs `bin/` y `obj/`; el coordinador eliminó únicamente esos archivos generados tras verificar el inventario y la ausencia de enlaces simbólicos; confirmó que la carpeta ya no existe. La receta requiere recrearla para repetir las pruebas. Es consola `net10.0` sin paquetes, con `FrameworkReference` a `Microsoft.AspNetCore.App` y `ProjectReference` a Shared. No inicia un servidor.
 
