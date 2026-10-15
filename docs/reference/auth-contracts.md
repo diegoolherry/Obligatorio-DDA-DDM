@@ -10,7 +10,7 @@ La implementación actual prevista no usará Identity. OpenIddict y las mejoras 
 - Comprobar correo y contraseña en la API y crear una sesión de servidor vinculada al usuario. La credencial de sesión será opaca, aleatoria e impredecible, no un ID correlativo como `US-1` ni una contraseña; no se ha seleccionado JWT.
 - Validar la sesión en cada operación protegida y obtener el rol desde datos autoritativos del servidor, nunca desde un rol declarado por el cliente. Sin sesión válida, responder `401`; con sesión válida pero sin permiso, `403`, sin modificar datos protegidos. Los servicios conservan las comprobaciones específicas de negocio, como pertenencia de una compra.
 - Invalidar la sesión correspondiente al cerrar sesión; las peticiones posteriores con esa credencial deben rechazarse. Mantener el rechazo genérico de credenciales incorrectas y distinguir errores de disponibilidad.
-- API y Web ya tienen sus propias clases de contrato, compatibles en JSON, sin biblioteca Shared. La separación está implementada y espera revisión cruzada de Enzo en `MVP-001-06`; la adaptación de los contratos al futuro mecanismo de sesión sigue pendiente.
+- API y Web ya tienen sus propias clases de contrato, compatibles en JSON, sin biblioteca Shared. La separación está implementada y `MVP-001-06` está cerrada con aprobación de Enzo reportada por el usuario; la adaptación de los contratos al futuro mecanismo de sesión sigue pendiente.
 
 **Detalles pendientes antes de implementar:** esquema y almacenamiento de sesiones, generación y transporte de la credencial, custodia por cliente, caducidad, comportamiento ante reinicios y fallos, y pruebas aisladas. La dirección anterior contemplaba un límite absoluto de siete días desde el login; simplificar la implementación no autoriza por sí solo cambiar ese requisito. Hay que confirmar su aplicación al nuevo mecanismo antes de escribirlo. Los IDs string prefijados de entidades no convierten credenciales, QR ni referencias externas en correlativos.
 
@@ -20,7 +20,7 @@ No hay login, sesión, logout ni permisos ejecutables acreditados. `MVP-001-03`,
 
  Contratos iniciales de ingreso
 
-**Implementado:** clases propias de API y Web, DataAnnotations y roles enum con el mismo contrato JSON de MVP-001-02; ya no existe el proyecto Shared. La verificación independiente y aprobación de Enzo reportada para MVP-001-02 pertenecen al corte anterior. **Pendiente:** revisión cruzada de la separación (`MVP-001-06`) y autenticación ejecutable. No hay endpoints nuevos. El [backlog](../tasks.json) conserva la autoridad del cierre; el [scaffold API](api.md) sigue sin ingreso implementado.
+**Implementado:** clases propias de API y Web, DataAnnotations y roles enum con el mismo contrato JSON de MVP-001-02; ya no existe el proyecto Shared. La verificación independiente y aprobación de Enzo reportada para MVP-001-02 pertenecen al corte anterior. **Separación cerrada:** el usuario confirmó que Enzo aprobó todos los criterios de `MVP-001-06`. **Pendiente:** autenticación ejecutable. No hay endpoints nuevos. El [backlog](../tasks.json) conserva la autoridad del cierre; el [scaffold API](api.md) sigue sin ingreso implementado.
 
 ## Aprobación y límites
 
