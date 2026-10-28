@@ -1,6 +1,6 @@
 # Primer arranque local de los scaffolds
 
-Objetivo: iniciar las bases existentes de API, Web y Mobile y reconocer sus pantallas/respuestas de plantilla. No es un tutorial de autenticación, compras ni integración entre las tres partes.
+Objetivo: iniciar las bases existentes, sus respuestas de plantilla y el formulario Mobile. No acredita autenticación integrada, compras ni conexión entre las tres partes. Para configurar el ingreso real, seguí las guías [API](../how-to/api-session-checks.md), [Web](../how-to/web-passenger-login.md) y [Mobile](../how-to/mobile-passenger-login.md).
 
 ## Antes de empezar
 
@@ -8,7 +8,7 @@ Objetivo: iniciar las bases existentes de API, Web y Mobile y reconocer sus pant
 - API y Web declaran `net10.0` en [API-Berruti.csproj](../../src/Api/API-Berruti/API-Berruti/API-Berruti.csproj) y [Web-App.csproj](../../src/Web/Web-App/Web-App/Web-App.csproj). Usá SDK .NET 10; la verificación previa usó `10.0.401`. Si preferís Visual Studio, necesitás compatibilidad con ese SDK y `.slnx`; el IDE no se verificó.
 - Mobile usa Expo `57.0.27`, React `19.2.3`, RN `0.86.3` y TypeScript `6.0.3`, fijados en [package.json](../../src/Mobile/package.json) y [package-lock.json](../../src/Mobile/package-lock.json). Node `24.11.1` y npm `11.19.0` son el entorno observado, no un mandato de actualización. Usá Node compatible con esas dependencias.
 - Para ver Mobile, necesitás un celular con un cliente Expo compatible y conectividad con Metro. La compatibilidad del dispositivo debe comprobarse; no presupongas que cualquier versión de Expo Go acepta el SDK.
-- La instalación/restauración necesita acceso a los registros de paquetes. No se requieren MySQL, credenciales, archivos de secretos ni URL API para estas plantillas.
+- La instalación/restauración necesita acceso a los registros de paquetes. El arranque básico y las páginas de plantilla no requieren MySQL ni credenciales. El ingreso real sí necesita esquema/cuenta ficticia preparados, conexión privada de API, URL HTTPS y certificados válidos; sin eso no se declara funcional.
 
 ## 1. Iniciá API
 
@@ -32,7 +32,43 @@ dotnet build Web-App.slnx --nologo
 dotnet run --project Web-App/Web-App.csproj --no-build --launch-profile http
 ```
 
-Esperá escucha en `http://localhost:5025`. El perfil puede abrir el navegador; si no lo hace, abrí esa dirección. Las rutas `/`, `/counter` y `/weather` son páginas de plantilla: Counter declara InteractiveServer por página, no global; Weather genera datos aleatorios locales, no consume la API. Recibir HTML no prueba la interactividad de Blazor ni consumo de la API.
+Esperá escucha en `http://localhost:5025`. El perfil puede abrir el navegador; si no lo hace, abrí esa dirección. Las rutas `/`, `/counter` y `/weather` son páginas de plantilla: Counter declara InteractiveServer por página, no global; Weather genera datos aleatorios locales, no consume la API. `/ingreso` también declara interactividad por página, pero exige HTTPS: por HTTP devuelve `400`, sin renderizar el formulario. Recibir HTML no prueba la interactividad de Blazor ni consumo de la API.
+
+### Para el ingreso: HTTPS en ambos servicios
+
+Los perfiles `http` anteriores sirven al recorrido del scaffold, no al ingreso. Para esa función, estos comandos **reemplazan**, no duplican, el proceso HTTP respectivo. Cada bloque empieza desde la raíz en una terminal separada:
+
+```sh
+cd src/Api/API-Berruti
+dotnet run --project API-Berruti/API-Berruti.csproj --no-build --launch-profile https
+```
+
+```sh
+cd src/Web/Web-App
+dotnet run --project Web-App/Web-App.csproj --no-build --launch-profile https
+```
+
+Los perfiles declaran API `https://localhost:7053` y Web `https://localhost:7054/ingreso`. Son direcciones configuradas, **no TLS comprobado**: verificar certificados sin omitir su validación. Además hacen falta los datos/configuración privados indicados en las guías; cambiar de perfil no crea tablas/cuentas ni conecta automáticamente los clientes.
+
+### Alternativa opcional: archivo privado solo para API
+
+Los comandos nativos anteriores no cargan `.env`. Si elegís el launcher local
+PowerShell 5.1, reemplazá solo el arranque API por este bloque desde la raíz:
+
+```powershell
+Copy-Item src/Api/API-Berruti/API-Berruti/api-local-config.example.txt src/Api/API-Berruti/API-Berruti/.env
+# Completar privadamente la unica clave; nunca pegar su valor en chat/logs.
+.\scripts\start-api-local.ps1
+```
+
+La ruta privada fija es `src/Api/API-Berruti/API-Berruti/.env`; el launcher no
+depende del directorio actual y usa el perfil HTTPS existente. No ejecutés la
+copia nuevamente sobre configuración ya completada. La copia vacía no configura
+una DB sin contraseña, no cambia cuentas ni demuestra login/TLS. El archivo es
+texto plano, no una bóveda; es solo API, nunca Mobile ni `EXPO_PUBLIC`. La
+[sintaxis limitada y las garantías de entorno](../how-to/api-session-checks.md#arranque-opcional-con-env-solo-api-powershell-51)
+aceptan comentarios/líneas vacías y una clave exacta con valor literal, sin
+comillas exteriores, `export` ni interpolación. El guard API sigue vigente.
 
 ## 3. Iniciá Mobile
 
@@ -45,7 +81,7 @@ npm run typecheck
 npm start
 ```
 
-`npm ci` usa el lockfile existente; no ejecutes `npm audit fix` para resolver este arranque. Esperá el mensaje de Metro y el QR/dirección de conexión. Conectá el cliente compatible del celular en la misma red. El código de [App.tsx](../../src/Mobile/App.tsx) muestra «Base móvil» y «Expo · React Native · TypeScript», con componentes nativos y StyleSheet; no contiene llamadas API.
+`npm ci` usa el lockfile existente; no ejecutes `npm audit fix` para resolver este arranque. Esperá el mensaje de Metro y el QR/dirección de conexión. Conectá el cliente compatible del celular en la misma red. [App.tsx](../../src/Mobile/App.tsx) muestra el formulario de ingreso con componentes nativos, StyleSheet y áreas seguras. Consume la URL pública `EXPO_PUBLIC_API_URL` para su servicio HTTP; sin una raíz HTTPS válida, al intentar ingresar muestra un error local y no envía credenciales. Configurar la URL no demuestra red, TLS ni autenticación: consultá la [guía Mobile](../how-to/mobile-passenger-login.md).
 
 Si necesitás túnel o aparece el error de ngrok de Windows, seguí [resolución de problemas](../how-to/troubleshooting.md); el túnel de Metro no publica la API. Para direcciones de servicios consultá [cliente/API](../how-to/client-api-configuration.md).
 
