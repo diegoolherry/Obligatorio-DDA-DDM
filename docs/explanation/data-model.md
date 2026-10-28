@@ -143,7 +143,7 @@ erDiagram
 
 **Formato acordado por el usuario, todavía no implementado:** los IDs propios son valores reales de tipo `string`, no códigos decorativos sobre otra PK. Se usan abreviaturas de dos letras seguidas de un guion y un correlativo, como `PA-1`. Las tres posiciones iniciales son el prefijo completo (`PA-`), por lo que `Substring(3)` extrae el sufijo (`1`).
 
-**Abreviaturas aprobadas explícitamente por el usuario en el chat, incluida `US-` para Usuario; todavía no implementadas:** esta tabla organiza el modelo existente; no aprueba nuevas tablas, migraciones ni contratos. Los ejemplos con `1` ilustran el formato, no deciden el inicio, rango o política del correlativo.
+**Abreviaturas aprobadas explícitamente por el usuario en el chat, incluida `US-` para Usuario; todavía no implementadas:** esta tabla organiza el modelo existente; no aprueba nuevas tablas, migraciones ni contratos. Los ejemplos con `1` ilustran el formato y coinciden con el inicio aprobado abajo; no definen el mecanismo de generación; el rango aprobado se detalla abajo.
 
 | Entidad o tabla candidata con identidad propia | Prefijo aprobado | Ejemplo |
 | --- | --- | --- |
@@ -171,7 +171,22 @@ erDiagram
 
 **Referencias y límites:** una FK hacia una identidad prefijada conservaría su valor `string` completo; no se reemplaza por el sufijo numérico. Los IDs no reemplazan QR opacos, credenciales de sesión ni referencias externas de pago y no conceden autorización. `Substring(3)` no valida el prefijo ni el número: antes de convertir el sufijo deben comprobarse formato y rango. La [referencia del ejemplo docente](../../.agents/skills/ctc-dda-blazor/references/prefixed-string-ids.md) explica la extracción y el máximo numérico, distintos del orden alfabético de strings.
 
-**Pendiente antes de implementar:** acordar inicio, rango, ceros iniciales, numeración por entidad y reutilización tras borrados; definir validación y generación en API sin aceptar un ID de alta arbitrario del cliente. El ejemplo `Max + 1` no garantiza altas concurrentes seguras ni evita reutilización histórica. El mecanismo de asignación y sus pruebas deben acordarse en el corte de persistencia; esta decisión documental no acredita ejecución ni modifica el estado del backlog.
+**Política del correlativo aprobada explícitamente por el usuario en el chat, todavía no implementada:**
+
+- Inicio en **1**, sin ceros de relleno: `PA-1`, `PA-9`, `PA-10`.
+- Contador **independiente por entidad**: pueden coexistir `PA-1` y `US-1`.
+- Los IDs **no se reutilizan tras borrados**; se aceptan huecos en la numeración.
+- La **API asigna el ID**; el cliente no elige el identificador de un alta.
+- Rango **de 1 a 50.000 inclusive por entidad**: por ejemplo, `PA-1` hasta `PA-50000`. Es un límite del proyecto, no del tipo numérico de C#.
+- El límite corresponde a números asignados históricamente, no a la cantidad de registros existentes; borrar registros no libera sus números.
+- Al agotarse el rango, la API debe **rechazar el alta con un error claro**, sin reiniciar en 1 ni guardar parcialmente. El texto y contrato concreto del error quedan para el diseño del alta.
+- La validación exige el prefijo correspondiente y un sufijo entero entre 1 y 50.000 inclusive, sin ceros de relleno.
+
+**Justificación de la no reutilización, aceptada explícitamente por el usuario en el chat:** un ID identifica un registro concreto, no un lugar libre. Si `PA-3` identificaba «Terminal», se borra y luego se asigna a «Plaza», una referencia antigua en un cliente, enlace o historial podría apuntar a otra parada. Es un escenario ilustrativo, no un incidente observado. Las claves foráneas ayudan a proteger las relaciones dentro de la base de datos, pero no todas las referencias externas. Conservar la identidad histórica evita esa ambigüedad; los huecos son válidos. No es una obligación técnica universal, sino una política elegida para este proyecto. Alcanzar el límite no autoriza reciclar números: una eventual ampliación del rango requeriría otra decisión.
+
+**Mecanismo aprobado por el usuario, todavía no implementado:** contador durable por entidad, separado de los registros, con incremento transaccional y protección concurrente; formar el ID prefijado a partir del número asignado y conservar el contador tras borrados. El ejemplo `Max + 1` sobre registros existentes por sí solo no garantiza estas propiedades.
+
+**Pendiente antes de implementar:** definir y probar el SQL y el aislamiento concretos en MySQL, la asignación segura ante altas simultáneas, el límite de 50.000 y la no reutilización tras borrados. La aprobación del mecanismo no acredita ejecución, integración ni finalización del backlog.
 
 ### Diccionario y claves propuestas
 
