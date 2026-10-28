@@ -56,10 +56,17 @@ if (args.SequenceEqual(new[] { "--unit" }))
     Console.WriteLine("Unit no abre MySQL ni demuestra persistencia/atomicidad.");
     return fallos == 0 ? 0 : 1;
 }
-var frontera = args.SequenceEqual(new[] { "--mysql-boundary" });
-if (!frontera && !args.SequenceEqual(new[] { "--mysql" }))
+const string uso = "Uso: --unit | --mysql | --mysql-boundary | --inspect | --help. --inspect es solo lectura; no acredita pruebas normal/frontera ni compatibilidad completa del DDL. Los modos --mysql/--mysql-boundary requieren configuración humana y fixture fresca normal (0) o frontera (49998); no ejecutan DDL ni reinician datos.";
+if (args.SequenceEqual(new[] { "--help" }))
 {
-    Console.Error.WriteLine("Uso: --unit | --mysql | --mysql-boundary. Los modos MySQL requieren configuración humana y fixture fresca normal (0) o frontera (49998); no ejecutan DDL ni reinician datos.");
+    Console.WriteLine(uso);
+    return 0;
+}
+var inspeccion = args.SequenceEqual(new[] { "--inspect" });
+var frontera = args.SequenceEqual(new[] { "--mysql-boundary" });
+if (!inspeccion && !frontera && !args.SequenceEqual(new[] { "--mysql" }))
+{
+    Console.Error.WriteLine(uso);
     return 1;
 }
 
@@ -86,6 +93,8 @@ try
         Database = configuracion.Database, UserID = configuracion.User, Password = configuracion.Password,
         ConnectionTimeout = 3, DefaultCommandTimeout = 5, PersistSecurityInfo = false
     }.ConnectionString;
+    if (inspeccion)
+        return await InspeccionMySql.EjecutarAsync(new MySqlConnection(cadena), Console.Out, Console.Error);
     BerrutiDbContext Contexto() => new(new DbContextOptionsBuilder<BerrutiDbContext>().UseMySQL(cadena).Options);
     await using var contexto = Contexto();
     await contexto.Database.OpenConnectionAsync();

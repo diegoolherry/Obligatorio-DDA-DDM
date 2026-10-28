@@ -56,6 +56,73 @@ las cuatro tablas. Rechaza demo, root, hosts remotos, campos desconocidos y JSON
 mal formado sin mostrar contenido, cadena de conexión ni excepciones privadas.
 No demuestra aislamiento de permisos contra la demo; no intenta acceder a ella.
 
+## Inspección automática de solo lectura (T15)
+
+Antes de elegir o cargar una fixture, una persona prepara **privadamente** el
+archivo de cinco claves anterior. No compartirlo con agentes ni copiar secretos
+al chat. La inspección reutiliza el proveedor instalado; no necesita Workbench,
+CLI MySQL, paquetes nuevos ni la configuración de la API.
+
+```sh
+dotnet run --project tests/MySqlPersistence/MySqlPersistence.csproj --no-launch-profile -- --help
+dotnet run --project tests/MySqlPersistence/MySqlPersistence.csproj --no-launch-profile -- --inspect
+```
+
+`--inspect` conserva el mismo parser JSON y destino restringido. Conecta con una
+conexión dedicada, comprueba **CURRENT_USER() y DATABASE() reales**, exige
+`berruti_test@localhost` y `berrutiauthtests`, y luego usa
+`START TRANSACTION READ ONLY`. Siempre intenta `ROLLBACK` al salir de ese bloque
+y libera comandos, lectores y conexión, también ante errores. Timeout por comando:
+5 segundos (conexión: 3); mantener además el límite externo de 30 segundos.
+
+No exige cuatro tablas ni semilla: informa objetos ausentes, extras y tablas
+vacías sin crearlos ni repararlos. La rama termina antes de las puertas de fixture
+y de todo repositorio/DML de los otros modos. No permite SQL por argumentos.
+Devuelve únicamente:
+
+- Inventario de nombres/tipos/motores de tablas y vistas; columnas con nombre,
+  tipo básico `DATA_TYPE`, nulabilidad y collation. No muestra literales de tipos
+  ENUM/SET, defaults, comentarios ni expresiones SQL.
+- Nombres/tipos de restricciones, columnas de claves y referencias FK; nombres,
+  tabla, momento y evento de triggers, **nunca cuerpos ni expresiones CHECK**.
+- Conteos solo de `BASE TABLE` conocidas: `usuario`, `rol`, `usuario_rol`,
+  `contador_entidad`, `sesion`. No cuenta vistas (incluso con esos nombres) ni
+  tablas desconocidas. No consulta filas de cuentas/sesiones, correos, contraseñas,
+  huellas ni tokens.
+- `Contadores: [inválidas,cantidadUS,mínimoUS,máximoUS,cantidadRO,mínimoRO,máximoRO]`.
+  Los mínimos/máximos solo consideran valores entre 0 y 50000; sin filas válidas
+  son `null`. Prefijos desconocidos/nulos y valores nulos/fuera de rango se cuentan
+  como inválidos sin mostrarlos. Los prefijos se comparan de forma binaria. Antes
+  del agregado se exige metadato `prefijo` CHAR/VARCHAR y `ultimo` entero; tipos
+  incompatibles o resultados textuales producen un fallo genérico, no un eco.
+
+Salida acotada: hasta 128 tablas/vistas, 1024 columnas, 512 restricciones,
+1024 componentes de claves y 128 triggers, con campos de hasta 256 caracteres.
+Superar un límite falla sin informe parcial. Los metadatos se serializan como
+arrays JSON para escapar controles. La visibilidad depende de los permisos de
+la cuenta: un inventario vacío no certifica ausencia absoluta ni compatibilidad.
+No se ejecuta SHOW CREATE, SHOW GRANTS, DDL, DML, cambios de permisos ni resets.
+
+Exit 0 y «Inspección ejecutada» significan solo que se terminó la inspección y su
+limpieza; **no son PASS normal/frontera, validación completa del DDL, aislamiento
+de privilegios ni autorización para sembrar o ejecutar DML**. El coordinador debe
+revisar los metadatos antes de cualquier siguiente paso. Ausencia de configuración,
+rechazos o errores devuelven 1 sin detalles del proveedor ni secretos. La preparación
+y las pruebas sintéticas no acreditan una inspección real de MySQL.
+
+Pruebas públicas sin MySQL (conexiones falsas y raíces CLI con configuración
+exclusivamente sintética bajo `tests/MySqlInspection/fixtures/cli-<GUID>/`):
+
+```sh
+dotnet run --project tests/MySqlInspection/MySqlInspection.csproj --no-launch-profile
+node --test tests/MySqlInspection/*.test.mjs
+```
+
+Los probes copian solo DLLs/deps/runtimeconfig públicos a esas raíces; nunca leen
+el archivo privado del worktree ni la configuración API. Sus fixtures generadas
+están ignoradas de forma precisa y no se usan para conectar. No demuestran
+comportamiento del servidor/proveedor real.
+
 ## Ejecutar desde la raíz
 
 SDK .NET 10. Proveedor Oracle fijado: `MySql.EntityFrameworkCore` **10.0.9**;
@@ -108,7 +175,7 @@ su fixture y la puerta rechaza repetirla. Se requiere otra preparación fresca
 **expresamente autorizada por una decisión humana** para obtener la otra evidencia.
 Este documento no autoriza borrar/recrear tablas, reseedear historia ni agregar
 otra base. Solicitar esa decisión al coordinador; no improvisar limpieza o resets.
-El archivo privado mantiene exactamente las mismas cinco claves en ambos modos.
+El archivo privado mantiene exactamente las mismas cinco claves en los tres modos de conexión.
 - Errores operativos producen exit 1 sin detalles sensibles. No hay reparación,
   migración ni cleanup automáticos. Conservar evidencia sin secretos y consultar
   al administrador; nunca ampliar permisos para sortear errores.

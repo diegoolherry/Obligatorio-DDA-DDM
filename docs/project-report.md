@@ -378,6 +378,16 @@ académico declarado completo; excepción local ficticia de contraseña en texto
 plano y prohibición de usuarios reales/despliegue intactas. Esta actualización
 solo reconcilia documentos: sin pruebas/builds/browser/red/SQL/procesos nuevos.
 
+### Inspección automática MySQL preparada, sin conexión real
+
+El usuario autorizó un modo `--inspect` en el runner existente para evitar copiar consultas de Workbench. La [guía de pruebas MySQL](how-to/mysql-persistence-checks.md#inspección-automática-de-solo-lectura-t15) documenta la conexión restringida a `berruti_test`/`berrutiauthtests`, identidad/base reales, consultas fijas, transacción de solo lectura, rollback y cierre. Solo informa metadatos acotados y conteos/agregados conocidos; omite filas de cuentas/sesiones, secretos, defaults, comentarios y cuerpos SQL. No crea tablas, carga semillas, cambia permisos ni valida por sí solo compatibilidad completa del DDL o invariantes.
+
+Verificación sintética recibida del escritor: RED conductual del helper (13 fallos) y CLI (5 fallos/1 PASS), luego GREEN **15/15 helper**, **6/6 grupos CLI** y **17 PASS legados**, todos exit 0. La revisión independiente `mvslr285-g-ta02` confirmó 15/15 y 6/6 (incluida regresión de los 17 PASS), siete fuentes SHA-256 intactas y ningún bloqueador concreto en S9/S10/S17/S18. Streams externos combinados, no stderr externo independientemente vacío. El padre observó 15/15 ejecutando el probe compilado y una comparación diferencial aislada contra `90b772f`: códigos/stdout/stderr de modos anteriores conservados; para combinaciones inválidas con `--inspect`, solo cambia la ayuda solicitada. No se conectó a MySQL en esas pruebas.
+
+Se conservan los fallos anteriores: compilación MSB3027/MSB3021 por el ejecutable API PID400 en uso y corrección `UseAppHost=false` ineficaz (retirada); el usuario autorizó una parada adicional y restauración de esa API. Tras liberar el bloqueo se observó el RED/GREEN real. Hubo un 4/6 intermedio de CLI por decodificación OEM850, corregido únicamente en el consumidor sintético. La verificación inicial de identidad del scratch diferencial falló por LF/CRLF; su contenido normalizado coincidió y solo se retiró ese scratch generado. No se borraron datos de usuario ni se ocultaron fallos funcionales.
+
+La configuración privada de pruebas todavía no existe según la comprobación de presencia del padre; su contenido no se leyó. La inspección real, el escenario normal y la frontera siguen pendientes de esa preparación y de revisar la fixture. La API permanece detenida durante este snapshot, con restauración obligatoria inmediatamente después de las verificaciones; no se autoriza desplegar ni cerrar el MVP. iPhone, demás pruebas SQL/integración y revisión de Enzo siguen pendientes.
+
 ## 8. Riesgos, puesta en marcha y cierre
 
 | Tema | Estado | Seguimiento |

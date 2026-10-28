@@ -8,6 +8,9 @@
 # Generated synthetic API launcher probes
 /tests/ApiLocalEnv/fixtures/template-*/
 
+# Copias públicas y configuración exclusivamente sintética de probes CLI MySQL
+/tests/MySqlInspection/fixtures/cli-*/
+
 # Local Pi runtime state
 .atl/
 
