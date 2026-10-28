@@ -1,0 +1,51 @@
+# Diataxis documentation reorganization
+
+## Objective and user authorization
+User approved reorganizing existing documentation into four reader-purpose categories and adding useful missing documentation, including AI-agent guidance. Deliver two coherent documentation cuts with checks. Preserve current feature branch `feat/mvp-001-01-mobile-foundation` and all pre-existing source work.
+Canonical exceptions: `docs/tasks.json` and `docs/project-report.md` remain at their current paths. No application changes, package changes, invented ADRs/approval dates, new product requirements, task completion, staging, commits, push or PR. English filenames; existing Spanish documentation language remains.
+
+## Migration map
+- docs/mvp.md -> docs/explanation/mvp.md
+- docs/requerimientos.md -> docs/reference/requirements.md
+- docs/user-stories.md -> docs/reference/user-stories.md
+- docs/final-scope.md -> docs/reference/final-scope.md
+- docs/design/data-model.md -> docs/explanation/data-model.md
+- docs/design/entities-explained.md -> docs/explanation/entities-explained.md
+- DESIGN.md -> docs/explanation/ux-design.md
+- README.md stays at root, becomes short navigation in second cut.
+- New docs/tutorials/first-local-run.md teaches first successful scaffold startup, not unimplemented purchase.
+- New docs/how-to/client-api-configuration.md explains client/API addressing, current integration limits and illustrative local configuration without secrets or claims of implemented API client.
+- New docs/how-to/troubleshooting.md covers actual Windows global ngrok resolution problem and temporary PowerShell NODE_PATH workaround.
+- New docs/reference/api.md points to Development OpenAPI for actual WeatherForecast endpoint only, no hand-copied schema or future auth claims.
+
+## Tasks and acceptance
+- [x] DD-01 — Move seven documents and repair live relative links/path metadata. Status: done. Preserve domain text/IDs/decisions and critical rules; preserve entire backlog tasks array exactly. Changes to backlog metadata only for canonical moved paths. Preserve historical ODD path prose, do not rewrite historical observations into current results. Verify links/anchors and normalized moved-content preservation.
+- [x] DD-02 — Shorten README; add tutorial/how-to/API reference; update report and targeted AGENTS navigation/AI constraints. Status: done. Single source per fact, no duplicated backlog statuses/counts. Attribute .NET build/HTTP evidence to observed verifier and Mobile device launch to user; preserve earlier Metro timeouts/audit caveats as history. Protect original academic report function and all AGENTS lifecycle/language/skill safeguards. ADRs deferred, no empty folders or speculative tutorials.
+- [x] DD-03 — Independently verify final docs, paths, references, backlog/source preservation and claims. Status: done. Structural/local checks apply; no new build/start/install/Metro/tunnel checks. Record skipped external links/rendering/device and historical limitations explicitly.
+
+## Checks and evidence policy
+Documentation is passive: no meaningful behavioral test RED, use link/anchor checks, JSON and baseline comparisons, git diff --check. Snapshot CURRENT baselines for this migration, not HEAD: pre-existing modifications must be retained. Writer records original protected file hashes and tasks-array hash with exact before/after evidence; moved files compare after applying only intended link/path rewrites. Native read-only ASSESS after each writer return determines independent verification. No executable source mutation; no native review approval claim.
+Previous DH-02 historical preservation limitation is unrelated and not cured by a new baseline. Prior independent Metro timeouts remain historical; no implicit Enzo cross-review or overall MVP completion.
+
+## Progress
+Exploration identified seven relocations, cross-links in existing docs/README/report, backlog metadata path fields and no custom docs validator in existing workflow. Current workflow validates docs/tasks.json and diff whitespace only; leave CI unchanged in this authorized documentation migration and perform local link checks. Keep all existing AGENTS safeguards, add concise reader navigation and evidence rules only.
+Commit evidence: none; user has not requested commits.
+Rollback: reverse only seven moves/link rewrites and remove these new docs, preserving previous docs/source work. Restore touched docs from this slice's CURRENT baseline if needed; no blanket checkout.
+
+## Next step
+All three documentation tasks complete with independent structural and claim verification. Human review of README and first-run guide is next; no stage/commit/push authorized. MVP-001-01 and cross-review remain unchanged.
+
+## DD-03 final independent acceptance
+Verifier muwxdh1r-d-3gs4 returned PASS, no blockers in authorized scope. Two read-only inline Python checks passed:165local links51fragments4inline paths in14Markdown, four categories navigable, seven originals absent, no live old references. Backlog whole/tasksarray, gitignore, sevenDD01docs, original5809byte AGENTS prefix and fullAGENTS hashes match; source historical36file aggregate matches. Solution targets/lock versions checked. git diff --check passed before/after with only CRLF advisories; short status unchanged. Inspected source/controllers/Program/config against tutorial/API/addressing claims; no invented APIconsumer/auth/productcontracts. Report preserves previous timeouts, separates historical builds/HTTP from userdevice report, audit22(15high7moderate) and Enzo review pending. No generated files/source changes/commits. ASSESS unassessable for untracked scope; required independent verification completed, NOT native review approval. Omitted10external links, Markdown/Mermaid rendering, browser/TLS/interactivity/device/clientAPIintegration; no new build/server/install/Metro/tunnel/audit. Functional history contrasted documentary, not reproduced. Preservation limited to defined36sourcefiles, not assets/secrets/excluded paths/full59manifest; historical DH02original96manifest limitation unresolved. DD-01/DD-02/DD-03 closed; repository backlog task completion not changed.
+
+## DD-02 implementation and DD-03 handoff
+Writer muwx5k5i-c-lr60 completed seven authorized surfaces: README, AGENTS, report and four new guides. Spanish docs and English filenames, no sources/packages/CI/backlog/tracking changed. Self-check PASS165local links51fragments4source/config paths, JSON/structural commands/whitespace. Original AGENTS5809byte prefix retained hashd19a37a503639f9bb36190fd6257b8cf3ee8df94300ff289f7db29f69523c7f6, protected36source aggregate unchanged, backlog complete6f56e3edb29a7b210844d72f77ce10fdfa727f9928a37afd7894c93435c8f841 and gitignore6df8297640ec151e4f2f00e59303b75b0c50701be667299db084f3ac9f1f9e82 unchanged; sevenDD01docs unchanged. Parent spot-read tutorial: separate terminals/from root, profiles versus earlier overrides, expected scaffold-only output, human-device attribution and limitations clear. ASSESS again unassessable for undeclared untracked scope, exact plan independentVerifier=true; no native approval. Passive docs need structural checks, not behavioral RED or activation toggle. DD02 implementation closes with self-check evidence, final independent acceptance is DD03; no commits authorized. Skipped10external links/rendering/browser/device/build/start/Metro/install/newaudit. Enzo review, dependency remediation, TLS/interactivity/integration remain pending.
+
+## DD-01 independent verification and DD-02 transition
+Verifier muwx04qu-a-s7aa returned PASS. All seven moved documents, README and report recovered original byte hashes by reversing only authorized path/link rewrites; full backlog recovered original hash after reversing only two metadata paths, tasks array unchanged. 117 local links and49fragments pass; all seven originals absent and destinations present. Historical source inclusion algorithm recovered by muwx1ed8-b-k8uf:36files, exact original aggregate14c4481f3d0ba0e1735288e9e40f4b0b97877935489dd81ad819e874b15b9042 matched independently. git diff --check passed twice and short status unchanged. Initial cp1252 inventory failure corrected with UTF8; Git CRLF advisory only. Skipped10external links, rendering, device; no build/start/install/native review. Source proof covers the historical36file subset only, not assets/secrets/excluded dirs or complete59manifest. Earlier DH-02 limitation remains. DD-01 closed with independent structural evidence; no commits authorized. DD-02 begins now; passive docs have no meaningful RED, use baseline, claim and structural checks.
+
+## DD-01 move handoff
+Writer muwwod9w-8-0ix1 stopped before writes because its role cannot use shell to remove original paths; CURRENT baseline retained. Parent performed the seven explicitly authorized mechanical os.rename moves after checking every source SHA256 against writer's baseline and every destination absent. All seven destination hashes unchanged; no overwrites or staging. Link rewrites are still pending, so DD-01 remains in_progress. Backlog tasks canonical baseline SHA256: bf1ceafc7402d1c809c47695affab95c069dbba543b0b7ff06a5c7a542ea8455; 59 protected files manifest aggregate: 3d35dfa24a5821c80498996f56137e0e75bc4c76dffff2a742cb649d0d80a15e (writer retains exact manifest). Parent move script passed with no filesystem incident; bounded writer resumes content editing at destinations.
+
+## DD-01 writer verification
+Resumed writer muwwrv3f-9-s5xd returned completed: seven moves plus links/live paths only; 117 local links,49 anchors,8 source/solution targets PASS,10 external links/rendering skipped. Reversible link mapping recovered all seven original SHA256 plus READMEbcc44ef974654a5e4a24cc56d66b00ed16801686e8f4e8c7c4452115d4480d58/reportad2abcad82eb79d3c24a530a7ece4aebc9e317420866153b4f755296a6ea6e71. Tasks baseline and protected source manifest preserved; parent spotcheck tasks-array SHA and diffcheck PASS. Parent ODD handoff was the only protected-manifest difference. Native ASSESS unassessable due undeclared untracked files, requires independent verification; DD-01 stays in_progress until read-only verifier outcome, no DD-02 writes yet. Initial link misses and checker CRLF/cp1252 issues corrected and final checks passed.
