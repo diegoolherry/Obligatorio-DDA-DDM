@@ -291,6 +291,8 @@ Por decisión explícita del usuario («usamos 500 por 503»), el `catch` genera
 
 **Observación de publicación del padre: 2026-10-28T10:17:59-03:00**, no fecha histórica de ejecución de pruebas. Se registran siete commits locales encadenados desde `feat/mvp-001-03-passenger-auth`, base `8f1e7e4235bfdc50a7fcc856386c570e9bf4dc44`: persistencia `f4727dc`, contratos `91e8d2c`, sesiones API `6daaf95`, Web `79d8975`, Mobile `f291386`, preparación demo `1527642` y configuración local `44464d4`. Mapa completo de ramas y procedencia en [L62–L64](../odd/tasks/mvp-001-03-passenger-auth.md). Se reutiliza la aprobación `auto-chain`/`feature-branch-chain`; tras una pasada de organización, los cortes cohesivos de 901/824/618/607 líneas conservan pruebas y documentación completas, sin división forzada. Slice08 de evidencia final pendiente, sin auto-hash; todavía sin push. No se autorizaron PR, merge ni despliegue.
 
+**Nota posterior de publicación (reporte del padre, registro documental 2026-10-28T11:18:29-03:00):** la publicación anterior sí se completó, con 14 refs remotas verificadas y slice08 de autenticación `7c7abc9`; supera el «todavía sin push» de la observación histórica anterior. El nuevo diagnóstico `4d35b5898ee4927808fd0ebd59edd8b8a3175e71`, su bookkeeping `318ea56` y la evidencia runtime actual permanecen **locales**. Esta reconciliación no realiza nuevo push, PR, merge ni despliegue, ni verifica remotos de nuevo.
+
 **Verificación independiente recibida:** `mvs4tbx3-2-ybb9`, reporte recuperado `mvs50b0d-5-72o3`; cada comando existente una vez en el worktree:
 
 | Comando | Resultado observado |
@@ -308,13 +310,73 @@ Solo se capturaron streams combinados: no se afirma stderr independientemente va
 
 **MVP-001-03 sigue incompleto y bloqueado:** faltan SQL normal/frontera/concurrencia/rollback con estados frescos independientes, reinicio/revocación durable, vencimiento integrado y fallos/reintento, Mobile/iPhone y revisión cruzada de Enzo. El Web/API real 7/7 previo sigue siendo evidencia histórica válida, no reejecutada ni prueba de esos pendientes. No cambia ningún estado ni criterio del [backlog](tasks.json); finalización null. Solo demo local ficticia, con excepción temporal aprobada de contraseñas en texto plano y su riesgo explícito; sin usuarios reales ni despliegue.
 
-### Diagnóstico de durabilidad preparado, sin ejecución real
+### Diagnóstico de durabilidad: preparación histórica, antes de la ejecución real
 
 El usuario postergó iPhone y autorizó un diagnóstico temporal con dos reinicios **manuales** de la API. La [guía operativa](how-to/api-session-durability-checks.md) conserva el mismo token solo en el cierre de funciones del navegador: ingreso/pasajero 200, pausa, mismo token 200 y salida 204, segunda pausa, mismo token anterior 401. No cambia aplicación, esquema, configuración ni la política de siete días. Pulsar continuar no demuestra el reinicio; hacen falta ambas confirmaciones humanas externas.
 
 El escritor reportó RED conductual 11/22, GREEN inicial 22/22, un timeout de 30 segundos al ampliar el harness y, tras su corrección, 33/33 PASS. Se conserva ese timeout como comprobación histórica fallida. La revisión del padre detectó un correo ficticio mal transcripto; una corrección acotada reprodujo RED 0/1 por el payload y GREEN 33/33, usando `pasajero.demo@example.test`, sin intentar ingreso real ni modificar cuentas. Ambas comprobaciones de sintaxis pasaron. El padre ejecutó una sola comprobación focalizada de token revocado después de la segunda pausa: 1/1 PASS, exit 0. Son DOM/fetch sintéticos, no reinicios ni MySQL reales. La revisión independiente `mvs63jzf-b-7ioc` encontró S5/S6/S9/S15/S16 conformes en ese alcance y ningún bloqueador: suite 33/33 exit 0, cuatro comprobaciones de sintaxis exit 0 y cinco fuentes SHA-256 idénticas antes/después. La matriz histórica permanece sin cambios y los cinco enlaces de la guía resuelven. Su diff-check sobre archivos nuevos no indexados no cubría whitespace; posteriormente el padre comprobó todo el corte indexado con `git diff --cached --check`, exit 0 (avisos de normalización LF/CRLF al indexar). No es aprobación de privacidad del navegador real ni de durabilidad integrada.
 
 La comprobación HTTPS de disponibilidad del padre (`curl` a OpenAPI, sin credenciales, con validación TLS normal) terminó exit 7, estado HTTP 000: conexión rechazada en localhost:7053. No se reintentó ni arrancó un servidor. La ejecución real espera arranque humano de API, contraseña privada y los dos reinicios autorizados. No se completa ningún criterio o estado del backlog; iPhone y revisión de Enzo siguen pendientes. La matriz inmediata histórica permanece intacta.
+
+### Durabilidad local observada tras dos reinicios de API
+
+**Registro documental 2026-10-28T11:18:29-03:00**, no timestamp de cada
+solicitud. Evidencia operativa del padre en [L65–L78](../odd/tasks/mvp-001-03-passenger-auth.md),
+no verificación independiente en vivo ni ejecución de este escritor. Supera solo
+los pendientes históricos de reinicio/supervivencia y revocación de esta sesión;
+la conexión rechazada y los resultados de preparación anteriores se conservan.
+Tras el reporte humano de API disponible, job-8 observó HTTPS OpenAPI200/curl0.
+
+La autorización inicial manual fue reemplazada explícitamente por «Sí,
+automatizá los clics y los dos reinicios», solo para esta API localhost:7053,
+sin MySQL, grants ni certificados. «no para te paso la contraseña y la podes
+usar vos» detuvo toda operación; «listo ahi esta» permitió continuar tras la
+entrada privada, sin comunicar ni leer la contraseña. El padre operó el panel
+ya revisado y solo obtuvo estados/booleanos sanitizados, nunca token, payload,
+respuesta cruda ni valores de configuración privada.
+
+Secuencia real: **POST ingreso200 → GET pasajero200 → reinicio18564→20708 →
+MISMO token GET pasajero200 → POST salida204 → reinicio20708→400 → MISMO token
+anterior GET pasajero401**. Cinco solicitudes auth, un ingreso y una salida;
+JSON/identidad/roles/no-store en los éxitos, salida vacía/no-store y rechazo
+vacío/no-store/Bearer, comprobados dentro del panel. La
+[tabla de resultados y procesos](how-to/api-session-durability-checks.md#resultado-local-observado-dos-reemplazos-reales-de-proceso)
+conserva los detalles: parada1 confirmada a 2026-10-28T11:09:34.0203225-03:00,
+nuevo PID20708 iniciado a 2026-10-28T11:09:42.7753433-03:00; parada2 a
+2026-10-28T11:13:16.7025366-03:00, nuevo PID400 iniciado a
+2026-10-28T11:13:23.8899390-03:00. Se revalidó propietario de 7053,
+API-Berruti/ruta del worktree/hora de inicio antes de cada parada; salida,
+puerto cerrado y procesos nuevos se observaron fuera del panel. No es una
+inferencia por clics ni una afirmación falsa de reinicios humanos.
+
+Misma taskSpace1/p1, sin reinstalación, recarga, nuevo ingreso, refresh, retry o
+limpieza extra. Job-11/14 exit0 llegaron a pausa1/pausa2; job-17 exit0 terminó
+`terminal-conditional-success`, acciones y contraseña deshabilitadas. La prueba
+externa resuelve la condición de reinicio del diagnóstico, aunque sus etiquetas
+originales digan «manual». `task.finish({keep:[]})` fue aguardado exactamente
+una vez y el espacio se cerró sin operaciones Page posteriores. La API quedó
+restaurada/corriendo en job-15/PID400; no se autoriza una tercera parada.
+Fuente de aplicación y diagnóstico sin cambios durante esta prueba.
+
+**Incidencias auxiliares, no fallos de autenticación:** job-13 terminó exit1/curl23
+con HTTP200 por el destino `/dev/null` incorrecto en Python/Windows (nativo:
+`os.devnull` = `nul`), sin repetir esa solicitud. Job-16 tuvo curl0/HTTPS200
+observado a 2026-10-28T11:13:30.798805-03:00, pero helper exit1 y SyntaxWarning
+por escape de ruta Windows (`\\C`); metadatos faltantes obtenidos por PowerShell
+local sin nuevo HTTP/auth, PID400 observado a 11:15:27.9614649-03:00. No se
+presentan esos helpers como aprobados íntegramente. Job-12 exit127 fue la
+consecuencia del apagado intencional de su hijo API en el segundo ciclo.
+
+**Alcance y pendientes actuales:** S5–S6/S9/S15–S16, T13: supervivencia y
+revocación de esta sesión tras dos reinicios reales de API acreditadas por el
+padre. No prueba reinicio de MySQL Server, seguridad de disco, otras sesiones,
+invariancia DB/contadores ni seguridad integral de producción. Siguen pendientes
+SQL fresco normal/frontera/concurrencia/rollback, vencimiento y fallos/reintento
+integrados, Mobile/iPhone (postergado explícitamente por el usuario) y revisión
+cruzada de Enzo. MVP-001-03 sigue `blocked`, finalización null, sin criterio
+académico declarado completo; excepción local ficticia de contraseña en texto
+plano y prohibición de usuarios reales/despliegue intactas. Esta actualización
+solo reconcilia documentos: sin pruebas/builds/browser/red/SQL/procesos nuevos.
 
 ## 8. Riesgos, puesta en marcha y cierre
 
