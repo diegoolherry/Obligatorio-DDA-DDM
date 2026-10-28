@@ -9,15 +9,16 @@ metadata:
 
 ## Contrato de activación
 
-Aplica al planificar, implementar, depurar o revisar Blazor/C#/API. Lee `references/curso.md` antes de decidir. El flujo y UX de `../ctc-project-conventions/SKILL.md` siguen siendo autoritativos; no vuelvas a activar esa skill desde aquí.
+Aplica al planificar, implementar, depurar o revisar Blazor/C#/API. Lee `references/curso.md` antes de decidir. Para IDs string prefijados y generación con `Substring`/`Max + 1`, consulta también `references/prefixed-string-ids.md`. El flujo y UX de `../ctc-project-conventions/SKILL.md` siguen siendo autoritativos; no vuelvas a activar esa skill desde aquí.
 
 ## Reglas obligatorias
 
 - Prioriza consigna, requisitos y configuración real; informa conflictos con los ejemplos del curso.
-- Atribuye las citas a extractos NotebookLM aportados por el usuario, no a inspección propia de originales.
+- Distingue extractos NotebookLM, fragmentos pegados por el usuario y código inspeccionado en repositorios. Atribuye la condición de ejemplo docente al reporte del usuario; conserva enlaces fijados a commit cuando la fuente sea un repositorio y no atribuyas esos commits a fragmentos sin versión.
 - Conserva DTO, autorización, QR y pagos exigidos. No confundas ausencia de evidencia docente con permiso para omitir requisitos.
 - No introduzcas repositorios genéricos, AutoMapper, frameworks de middleware ni dependencias por defecto.
 - Distingue eventos, copias de objetos e IDs locales de persistencia real; aplica los límites de la referencia.
+- Para excepciones de API, aplica «Excepciones: ejemplo Equipment aportado» en `references/curso.md`: Service valida y lanza; Controller traduce los casos esperados según su significado y contrato. No impongas `finally` ni conviertas toda `InvalidOperationException` en conflicto HTTP.
 
 ## Puertas de decisión
 
@@ -43,4 +44,5 @@ Informa archivos, conceptos y categoría de evidencia, decisiones aprobadas, con
 ## Referencias
 
 - [Curso y límites](references/curso.md)
+- [IDs string prefijados: ejemplo docente y límites](references/prefixed-string-ids.md)
 - [Uso en Pi y Codex](references/uso-hosts.md)

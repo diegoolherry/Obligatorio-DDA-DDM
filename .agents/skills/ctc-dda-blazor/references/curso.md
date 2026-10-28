@@ -2,7 +2,7 @@
 
 ## Cómo usar esta evidencia
 
-Todas las fuentes y localizaciones siguientes proceden de extractos NotebookLM aportados por el usuario. No se inspeccionaron independientemente los PPTX ni los videos originales. «Enseñado/aplicado» significa reportado en esos extractos, no corroborado directamente. Un resumen sin localización precisa se identifica como tal.
+Las fuentes de presentaciones y videos siguientes proceden de extractos NotebookLM aportados por el usuario. No se inspeccionaron independientemente los PPTX ni los videos originales. Para esas fuentes, «enseñado/aplicado» significa reportado en esos extractos, no corroborado directamente. Un resumen sin localización precisa se identifica como tal. Como fuente adicional, se inspeccionó directamente el código de Maquinaria-Mobile-API, aportado por el usuario como ejemplo del profesor; su atribución docente es reportada, y su versión queda fijada en la referencia enlazada.
 
 Clasifica cada decisión: **enseñado/aplicado**, **solo mencionado**, **exigido por proyecto sin evidencia docente** o **no verificado**. Antes de implementar algo dependiente de las dos últimas categorías, explica al equipo la opción más simple, su responsabilidad, riesgos y alternativa; solicita aprobación explícita. Para algo solo mencionado, no inventes cobertura práctica: si necesita implementación no demostrada, aplica la misma consulta. No reemplaces DTO, autenticación, QR o pagos reales requeridos por simulaciones para evitar esa puerta.
 
@@ -23,6 +23,36 @@ Clasifica cada decisión: **enseñado/aplicado**, **solo mencionado**, **exigido
 | Mismo video, aprox. 43:20–44:10 | `SaveChangesAsync` persiste cambios rastreados por el contexto; no implica que toda modificación arbitraria quede rastreada. |
 | `GMT20260826-133657_Recording_1920x1200.mp4`, aprox. 12:30–13:40 | `AddScoped` con servicio/repositorio concreto. No deduzcas interfaces o repositorios genéricos obligatorios. |
 | Resumen de API aportado, sin localización precisa | Controller → Service → Repository → DbContext, async, `ActionResult`, estados HTTP y `try/catch` reportados como enseñados. No atribuyas todos estos conceptos a un minuto específico. |
+| [Maquinaria-Mobile-API, commit y fragmentos](prefixed-string-ids.md): `EquipmentController.Post`, `Equipment.Id`, `EquipmentInput` | Código inspeccionado directamente; ejemplo docente según el usuario. ID real `string`, prefijo `eq-`, extracción con `Substring(3)`, `int.Parse` y `DefaultIfEmpty(0).Max() + 1` sobre IDs consultados por EF. DTO de entrada con DataAnnotations y sin ID enviado por el cliente. No demuestra asignación concurrente segura, no reutilización histórica ni contratos DTO de respuesta. |
+
+## Excepciones: ejemplo Equipment aportado
+
+**Fuente:** fragmentos completos de `EquipmentController` y `EquipmentsService` pegados por el usuario en esta conversación y atribuidos por él a la última clase. Se inspeccionó el texto aportado, no un repositorio de esa versión; no hay commit, fecha de clase ni minuto verificables. No confundirlo con la versión enlazada de Maquinaria-Mobile-API. El usuario autorizó incorporar este criterio a la skill; eso no autoriza modificar automáticamente contratos de la API.
+
+### Enseñado/aplicado en el fragmento
+
+- El Controller recibe `IEquipmentService` por constructor. El Service recibe `IEquipmentRepository`; las implementaciones de esa interfaz de repositorio no están incluidas.
+- El Service valida ID, DTO y datos antes de persistir. Usa `throw` para interrumpir la operación cuando no puede cumplirla; no devuelve éxito después del rechazo.
+- El Controller envuelve la llamada asíncrona al Service en `try` y traduce excepciones específicas antes de `catch (Exception)`.
+
+| Caso del ejemplo | Excepción del Service | Respuesta del Controller |
+| --- | --- | --- |
+| ID obligatorio, DTO ausente o campos vacíos | `ArgumentException` | `400 BadRequest(ex.Message)` |
+| Equipamiento no encontrado | `KeyNotFoundException` | `404 NotFound(ex.Message)` |
+| Código de equipamiento repetido al crear/actualizar | `InvalidOperationException` | `409 Conflict(ex.Message)` |
+| Error inesperado | `Exception`, capturada al final | `500`, `"Error interno del servidor"` |
+
+El ejemplo también muestra DTOs de entrada/salida usados por las firmas y mapeo manual `ToReadDto`/`ToEntity`, `Trim` y normalización del código de equipamiento. No muestra logging, `finally`, autenticación, transacciones ni control concurrente del código repetido. Las comprobaciones previas no demuestran ausencia de carreras.
+
+### Aplicación al proyecto: salvaguardas, no contenido docente adicional
+
+- Conserva Controller → Service → Repository: reglas de negocio en Service, acceso a datos en Repository y traducción HTTP en Controller. No añadas capturas que oculten un fallo y permitan continuar como si hubiera éxito.
+- Mapea por significado, no solo por tipo: una `InvalidOperationException` por inconsistencia interna no es el conflicto de código duplicado del ejemplo. No devuelvas `ex.Message` de errores internos, proveedores o credenciales; solo mensajes deliberadamente seguros de errores esperados.
+- Conserva validación MVC/DataAnnotations y contratos existentes. No reemplaces los `401` de credenciales/sesiones inválidas ni los `403` de permisos insuficientes por `400`, `404` o `409`; tampoco normalices credenciales por imitar el `Trim` del equipamiento.
+- Para propuestas nuevas, distingue `500` inesperado de `503` por indisponibilidad reconocida. Si el contrato vigente difiere, documenta el cambio propuesto y solicita decisión antes de alterar respuestas consumidas. Un `catch` general no demuestra que toda excepción sea indisponibilidad.
+- Usa `finally` solo cuando haya limpieza necesaria. Respeta `using`/`await using` y recursos administrados por DI; no cierres el DbContext desde el Controller. El fragmento no exige añadir bloques vacíos ni demuestra ese manejo de recursos.
+- Si hace falta capturar para limpiar y propagar, usa `throw;` para conservar el origen. Esto es una salvaguarda técnica, no una práctica demostrada por el fragmento.
+- Antes de implementar un cambio de errores, prueba por la interfaz pública los casos aplicables: estado HTTP, cuerpo y encabezados contractuales, ausencia de datos sensibles y ausencia de cambios persistidos ante rechazos. No presentes estas pruebas como ejecutadas ni agregues casos CRUD a endpoints que no existen.
 
 ## Aplicación mínima, no arquitectura adicional
 
@@ -34,6 +64,6 @@ Clasifica cada decisión: **enseñado/aplicado**, **solo mencionado**, **exigido
 
 ## Lo que los extractos no demuestran
 
-DTO, AutoMapper, interfaces de repositorio, autenticación y relaciones EF complejas **no tienen evidencia docente demostrada** en lo aportado. DTO y autorización son requisitos del proyecto, no opcionales; mapping manual y clases concretas pueden ser propuestas mínimas, no decisiones ya aprobadas. QR, pagos y concurrencia también necesitan explicación y aprobación de su mecanismo cuando excedan los ejemplos. No introduzcas abstracciones o paquetes por comodidad.
+Los extractos NotebookLM no demuestran DTO; la fuente [Maquinaria-Mobile-API](prefixed-string-ids.md) muestra un DTO de entrada simple con DataAnnotations. El fragmento Equipment aportado después sí muestra uso de DTOs de entrada/salida, mapeo manual e inyección mediante interfaces específicas de Service y Repository; no incluye las definiciones de esas interfaces ni la implementación del Repository. No extiendas esa evidencia a repositorios genéricos, implementaciones de persistencia o mapping automático. AutoMapper, autenticación y relaciones EF complejas **no tienen evidencia docente demostrada** en estas fuentes. DTO y autorización siguen siendo requisitos del proyecto, no opcionales; las extensiones no demostradas requieren la consulta indicada arriba. QR, pagos y concurrencia también necesitan explicación y aprobación de su mecanismo cuando excedan los ejemplos. No introduzcas abstracciones o paquetes por comodidad.
 
 Las advertencias/sugerencias de una fuente no constituyen prohibiciones universales. Ante conflicto con la consigna o configuración vigente, informa ambas fuentes y sigue la autoridad del proyecto, sin modificar estas reglas sin aprobación.
