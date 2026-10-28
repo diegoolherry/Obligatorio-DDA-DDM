@@ -49,7 +49,7 @@ foreach (var surface in surfaces)
     var examples = new[]
     {
         (Type: request, Json: "{\"correo\":\"prueba@example.invalid\",\"contrasena\":\"x\"}"),
-        (Type: success, Json: "{\"identificadorUsuario\":\"opaco-de-prueba\",\"roles\":[\"pasajero\",\"cobrador\",\"administrador\"]}"),
+        (Type: success, Json: "{\"identificadorUsuario\":\"opaco-de-prueba\",\"roles\":[\"pasajero\",\"cobrador\",\"administrador\"],\"token\":\"token-opaco-de-prueba\",\"venceEnUtc\":\"2026-01-08T00:00:00Z\"}"),
         (Type: rejection, Json: "{\"codigo\":\"ingresoRechazado\",\"mensaje\":\"No se pudo ingresar con las credenciales proporcionadas.\"}")
     };
     foreach (var example in examples)
@@ -64,7 +64,7 @@ foreach (var surface in surfaces)
             $"{surface.Assembly}: exact JSON fields, types and roundtrip for {example.Type.Name}");
     }
     Check(JsonSerializer.Serialize(Activator.CreateInstance(success), success, options) ==
-        "{\"identificadorUsuario\":\"\",\"roles\":[]}", $"{surface.Assembly}: default success preserved");
+        "{\"identificadorUsuario\":\"\",\"roles\":[],\"token\":\"\",\"venceEnUtc\":\"\"}", $"{surface.Assembly}: default success preserves old fields and adds empty session fields");
     foreach (var invalid in new[] { "[0]", "[999]", "[\"0\"]", "[\"desconocido\"]" })
     {
         var rejected = false;
@@ -77,7 +77,7 @@ foreach (var surface in surfaces)
     catch (JsonException) { invalidEnumRejected = true; }
     Check(invalidEnumRejected, $"{surface.Assembly}: rejects undefined output role");
     Check(JsonSerializer.Serialize(JsonSerializer.Deserialize("{\"roles\":[]}", success, options), success, options) ==
-        "{\"identificadorUsuario\":\"\",\"roles\":[]}", $"{surface.Assembly}: empty roles roundtrip");
+        "{\"identificadorUsuario\":\"\",\"roles\":[],\"token\":\"\",\"venceEnUtc\":\"\"}", $"{surface.Assembly}: empty roles roundtrip");
 
     var cases = new (string? Email, string? Password, string? Error)[]
     {

@@ -1,0 +1,7 @@
+namespace API_Berruti.DTOs.Authentication;
+
+public class RespuestaSesionDto
+{
+    public string IdentificadorUsuario { get; set; } = string.Empty;
+    public RolIngreso[] Roles { get; set; } = new RolIngreso[0];
+}

@@ -1,26 +1,41 @@
 # Autenticación básica local y contratos iniciales de ingreso
 
-## Dirección vigente, todavía no implementada
+## Dirección vigente (implementación API en fuente; prueba integrada pendiente)
 
 Decisión del usuario: el proyecto se limita a una demostración local y aislada con cuentas totalmente ficticias. **No está autorizado desplegarlo en ninguna plataforma ni usar credenciales o usuarios reales.** Las contraseñas ficticias podrán almacenarse temporalmente en texto plano hasta revisar en clase el mecanismo esperado; esto no constituye almacenamiento seguro. No devolverlas en respuestas ni registrarlas en logs.
 
 La implementación actual prevista no usará Identity. OpenIddict y las mejoras del login se aplazan a `FIN-005` del [backlog](../tasks.json); no se promete incorporar Identity en el futuro. Esta decisión reemplaza la dirección previa Identity/OpenIddict para este corte, sin eliminar los requisitos de autenticación y autorización del MVP.
 
-- Mantener Controller → Service → Repository → DbContext para las operaciones de cuentas y negocio.
+- Mantener Controller → Service → Repository → DbContext para las operaciones de cuentas y negocio. Por exigencia explícita del usuario, **cada Service y Repository de C# tendrá su propia interfaz**, implementada por su clase; los consumidores y el registro de DI dependerán de esa interfaz, no de construcciones directas de repositorios/servicios. Aplica también a los componentes de cuentas y contadores ya escritos y a los futuros servicios Web. No se introduce un repositorio genérico; la API registra interfaces específicas para cuentas, contadores, sesiones, correlativo y autenticación; su prueba integrada sigue pendiente. La aprobación del usuario no se presenta como evidencia docente.
+- Los DTOs ya aprobados siguen siendo contratos separados de las entidades persistidas: clases propias en API y Web y tipos equivalentes en Mobile, sin reintroducir Shared.
 - Comprobar correo y contraseña en la API y crear una sesión de servidor vinculada al usuario. La credencial de sesión será opaca, aleatoria e impredecible, no un ID correlativo como `US-1` ni una contraseña; no se ha seleccionado JWT.
 - Validar la sesión en cada operación protegida y obtener el rol desde datos autoritativos del servidor, nunca desde un rol declarado por el cliente. Sin sesión válida, responder `401`; con sesión válida pero sin permiso, `403`, sin modificar datos protegidos. Los servicios conservan las comprobaciones específicas de negocio, como pertenencia de una compra.
 - Invalidar la sesión correspondiente al cerrar sesión; las peticiones posteriores con esa credencial deben rechazarse. Mantener el rechazo genérico de credenciales incorrectas y distinguir errores de disponibilidad.
-- API y Web ya tienen sus propias clases de contrato, compatibles en JSON, sin biblioteca Shared. La separación está implementada y `MVP-001-06` está cerrada con aprobación de Enzo reportada por el usuario; la adaptación de los contratos al futuro mecanismo de sesión sigue pendiente.
+- API y Web ya tienen sus propias clases de contrato, compatibles en JSON, sin biblioteca Shared. La separación está implementada y `MVP-001-06` está cerrada con aprobación de Enzo reportada por el usuario; el ingreso agrega `token` y `venceEnUtc` en los tres contratos propios; no implementa consumidores Web/Mobile.
 
-**Detalles pendientes antes de implementar:** esquema y almacenamiento de sesiones, generación y transporte de la credencial, custodia por cliente, caducidad, comportamiento ante reinicios y fallos, y pruebas aisladas. La dirección anterior contemplaba un límite absoluto de siete días desde el login; simplificar la implementación no autoriza por sí solo cambiar ese requisito. Hay que confirmar su aplicación al nuevo mecanismo antes de escribirlo. Los IDs string prefijados de entidades no convierten credenciales, QR ni referencias externas en correlativos.
+### Política de sesión aprobada
 
-No hay login, sesión, logout ni permisos ejecutables acreditados. `MVP-001-03`, `MVP-001-04` y `MVP-001-05` conservan sus criterios, estados y dependencias; `FIN-005` es trabajo futuro y no bloquea su cierre cuando se demuestre el corte básico local.
+El usuario aprobó explícitamente en el chat el siguiente comportamiento para el corte básico local:
+
+- Tras comprobar las credenciales, la API entrega una credencial de sesión aleatoria, distinta del ID del usuario.
+- Las sesiones se persisten en **MySQL**, vinculadas al usuario y con vencimiento y estado de invalidación. Reiniciar la API no las elimina; una sesión vencida o invalidada sigue siendo rechazada.
+- Vencimiento **absoluto de siete días desde el ingreso**, sin extenderlo por actividad.
+- El cliente envía el token opaco en el encabezado HTTP `Authorization: Bearer <token>` de las operaciones protegidas; la API consulta la sesión para comprobar su validez y los permisos del usuario. Este transporte fue aprobado explícitamente por el usuario, quien además reportó haberlo visto en clase; ese reporte no acredita la generación ni el almacenamiento del token. No se adopta JWT.
+- El token es una credencial: no debe incluirse en URLs, logs ni compartirse. Se requiere proteger la conexión para evitar su exposición; la configuración concreta del canal sigue pendiente.
+- Cerrar sesión invalida la sesión correspondiente en el servidor.
+- Los clientes conservan la credencial **solo en memoria**, sin almacenamiento persistente ni función «recordarme». Reabrir la app o recargar la Web requiere ingresar nuevamente. La pérdida de la credencial en el cliente no equivale a revocación en el servidor: sin un logout confirmado, la sesión puede seguir vigente hasta su vencimiento, aunque el cliente ya no la recupere.
+
+**Mecanismos técnicos aprobados por el usuario (API implementada en fuente; integración y clientes pendientes):** token generado con aleatoriedad criptográfica y persistencia de su huella SHA-256, no del token recuperable; contador durable por entidad con incremento transaccional protegido ante concurrencia; custodia de credenciales en memoria aislada por circuito InteractiveServer de Web y estado de la aplicación Mobile, sin cookies ni almacenamiento persistente; HTTPS sin desactivar la validación de certificados; si falla el logout por red, informar que no se confirmó la revocación, sin mostrar éxito ficticio. El usuario confirmó que su dispositivo Expo es un **iPhone**.
+
+**Detalles técnicos pendientes de comprobar/integrar:** esquema y SQL concretos, proveedor EF compatible con .NET 10 comprobado mediante restauración y ejecución, configuración de HTTPS y confianza del certificado en iPhone, manejo preciso del ciclo de vida y fallos, y pruebas aisladas. Persistir la sesión en el servidor no autoriza persistir su credencial en el cliente. No se ha aprobado un mecanismo de recuperación de sesión ni renovación automática. Los IDs string prefijados de entidades no convierten credenciales, QR ni referencias externas en correlativos.
+
+Hay código API para ingreso, sesión, salida y pruebas de rol; no hay autenticación HTTPS/MySQL integrada acreditada. Ver [rutas/status](api.md) y [comprobaciones y límites](../how-to/api-session-checks.md). `MVP-001-03`, `MVP-001-04` y `MVP-001-05` conservan sus criterios, estados y dependencias; `FIN-005` es trabajo futuro y no bloquea su cierre cuando se demuestre el corte básico local.
 
 ## Estado del código existente
 
  Contratos iniciales de ingreso
 
-**Implementado:** clases propias de API y Web, DataAnnotations y roles enum con el mismo contrato JSON de MVP-001-02; ya no existe el proyecto Shared. La verificación independiente y aprobación de Enzo reportada para MVP-001-02 pertenecen al corte anterior. **Separación cerrada:** el usuario confirmó que Enzo aprobó todos los criterios de `MVP-001-06`. **Pendiente:** autenticación ejecutable. No hay endpoints nuevos. El [backlog](../tasks.json) conserva la autoridad del cierre; el [scaffold API](api.md) sigue sin ingreso implementado.
+**Implementado:** clases propias de API y Web, DataAnnotations y roles enum con el mismo contrato JSON de MVP-001-02; ya no existe el proyecto Shared. La verificación independiente y aprobación de Enzo reportada para MVP-001-02 pertenecen al corte anterior. **Separación cerrada:** el usuario confirmó que Enzo aprobó todos los criterios de `MVP-001-06`. **En fuente:** endpoints API de sesión y autorización; **pendiente:** prueba pública HTTPS/MySQL y consumidores. El [backlog](../tasks.json) conserva la autoridad del cierre; ver [API](api.md).
 
 ## Aprobación y límites
 
@@ -28,7 +43,7 @@ El usuario detuvo el candidato inglés por sintaxis no discutida y aprobó expl�
 
 Tras explicar enum y conversor, el usuario autorizó explícitamente `RolIngreso`, `RolIngreso[]` y `JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false)` en las opciones MVC de la API. Para Web pidió solo un comentario sobre un futuro consumidor HTTP; no se agrega configuración dormida, DI, factory ni cliente ficticio. La aprobación se atribuye al chat, no a Enzo ni a evidencia docente del conversor. Los nombres físicos C# permanecen; no se reintroducen `sealed`, modificador `required`, `init` ni `JsonPropertyName`.
 
-No se agregan endpoints, sesiones, tokens, bibliotecas de autenticación, UI, persistencia ni permisos. Los atributos validan datos cuando se invoca validación; no autentican ni prueban existencia del correo. No se exige fuerza, longitud o composición de contraseña, ni se normalizan credenciales. Los roles describen identidad, no autorizan acciones.
+El corte histórico de contratos no agregaba endpoints, sesiones, tokens, UI, persistencia ni permisos. T2 agrega solo el comportamiento API descrito arriba, sin UI ni dependencias nuevas. Los atributos validan datos cuando se invoca validación; no autentican ni prueban existencia del correo. No se exige fuerza, longitud o composición de contraseña, ni se normalizan credenciales. Los roles describen identidad, no autorizan acciones.
 
 ## Clases propias por aplicación
 
@@ -42,7 +57,7 @@ No se agregan endpoints, sesiones, tokens, bibliotecas de autenticación, UI, pe
 
 Cada aplicación mantiene también su propio `RolIngreso`. Cambiar un lado requiere ejecutar las comprobaciones de compatibilidad; no se agrega un cliente HTTP ni se configura JSON en Web antes de tener un consumidor.
 
-[authentication.ts](../../src/Mobile/src/contracts/authentication.ts) conserva exactamente las interfaces y la unión `RolIngreso = 'pasajero' | 'cobrador' | 'administrador'`; sus bytes no cambian. No existe un consumidor de ingreso.
+[authentication.ts](../../src/Mobile/src/contracts/authentication.ts) conserva la unión `RolIngreso = 'pasajero' | 'cobrador' | 'administrador'` y agrega únicamente los dos campos pasivos de sesión. No existe un consumidor de ingreso.
 
 ## Campos y validación
 
@@ -50,12 +65,14 @@ Cada aplicación mantiene también su propio `RolIngreso`. Cambiar un lado requi
 | --- | --- | --- | --- |
 | Solicitud | `Correo: string` | `correo: string` | `Required`: `El correo es obligatorio.`; `EmailAddress`: `El correo no es válido.` |
 | Solicitud | `Contrasena: string` | `contrasena: string` | `Required`: `La contraseña es obligatoria.`; no devolver ni registrar la credencial. |
-| Éxito | `IdentificadorUsuario: string` | `identificadorUsuario: string` | Identificador público opaco interno; nunca visible al usuario ni credencial de sesión. No expone PK ni exige UUID/número. Generación/mapeo pendientes. |
+| Éxito | `IdentificadorUsuario: string` | `identificadorUsuario: string` | Identificador público opaco interno; nunca visible al usuario ni credencial de sesión. No expone PK. `Usuario.IdentificadorPublico` se genera aleatoriamente una sola vez al alta (32 bytes Base64url), se persiste con índice único y no autentica solicitudes. |
 | Éxito | `Roles: RolIngreso[]` | `roles: RolIngreso[]` | Array de textos españoles por el conversor MVC. Inicializador `new RolIngreso[0]`; sin cardinalidad mínima, orden obligatorio ni rol principal. |
+| Éxito | `Token: string` | `token: string` | 32 bytes aleatorios en Base64url canónico (43 caracteres sin padding); solo respuesta de ingreso. Default vacío; no guardar/loguear ni enviar por URL. |
+| Éxito | `VenceEnUtc: string` | `venceEnUtc: string` | UTC ISO 8601 `yyyy-MM-ddTHH:mm:ss.ffffffZ`, precisión microsegundos; siete días absolutos, default vacío. |
 | Rechazo | `Codigo: string` | `codigo: string` | Código genérico elegido: `ingresoRechazado`. |
 | Rechazo | `Mensaje: string` | `mensaje: string` | `No se pudo ingresar con las credenciales proporcionadas.` |
 
-Éxito y rechazo son DTOs separados sin envelope, ruta o estado HTTP definido; no incluyen credenciales. Email desconocido y contraseña incorrecta deberán recibir el mismo rechazo, todavía no implementado. Los mensajes de validación de formato/presencia no informan si existe una cuenta. No se modelan causas de red/servidor adicionales.
+Éxito y rechazo siguen separados, sin envelope. Solo el éxito de ingreso contiene la credencial opaca. Email desconocido, contraseña incorrecta y cuenta inactiva reciben el mismo `401` y rechazo genérico. DataAnnotations conserva los `400` y mensajes originales; no normaliza credenciales. Los fallos inesperados capturados por el límite de autenticación, incluidos los de proveedor/configuración, devuelven `500` sanitizado, no rechazo de credenciales: `{"codigo":"autenticacionNoDisponible","mensaje":"La autenticación no está disponible. Intentá nuevamente."}`, con `Cache-Control: no-store`. Identidad y pruebas de rol devuelven `RespuestaSesionDto` (`identificadorUsuario`, `roles`), nunca token, PK ni contraseña.
 
 Las cadenas comienzan vacías, no validadas por el inicializador. `Required` rechaza null/vacío/espacios cuando se invoca validación. Las propiedades siguen siendo mutables; no garantizan nulabilidad runtime. TypeScript no ejecuta DataAnnotations ni valida JSON recibido.
 
@@ -73,9 +90,9 @@ Las cadenas comienzan vacías, no validadas por el inicializador. `Required` rec
 
 Un DTO no produce este wire por sí solo. `JsonSerializer.Serialize(dto)` independiente predeterminado conserva PascalCase y enums numéricos. Para reproducir el contrato fuera de MVC hay que usar `new JsonSerializerOptions(JsonSerializerDefaults.Web)` **y agregar el mismo conversor**, tanto al serializar como al deserializar. Solo opciones Web no convierten enums a texto. El conversor no exige que todo texto de entrada tenga exactamente las mayúsculas de la salida; no se agrega una política de casing estricta.
 
-[Program.cs de Web](../../src/Web/Web-App/Web-App/Program.cs) contiene únicamente el recordatorio en español para un futuro cliente HTTP de API: deberá utilizar ese conversor para leer `RolIngreso`. No registra opciones HTTP JSON, DI ni cliente; no acredita integración. Mobile conserva textos españoles sin conversor runtime ni cambios de código.
+[Program.cs de Web](../../src/Web/Web-App/Web-App/Program.cs) contiene únicamente el recordatorio en español para un futuro cliente HTTP de API: deberá utilizar ese conversor para leer `RolIngreso`. No registra opciones HTTP JSON, DI ni cliente; no acredita integración. Mobile conserva textos españoles sin conversor runtime; solo cambia el contrato pasivo con los dos campos nuevos.
 
-## Evidencia por candidato
+## Evidencia histórica por candidato
 
 - **Candidato español anterior con constantes string:** el escritor observó RED de validación (ocho fallos esperados), GREEN nueve PASS y JSON doce PASS. La verificación independiente recibida del coordinador confirmó GREEN, JSON, builds/typecheck/convenciones/backlog/whitespace; no reprodujo RED. Su harness fue eliminado por el coordinador y se confirmó ausencia. Es evidencia histórica, no verificación del nuevo enum.
 - **Candidato enum actual, observación del escritor:** antes del conversor, RED JSON exit 1, cinco fallos de veinte aserciones: salida numérica, roundtrip de textos, aceptación de números definidos/no definidos y serialización de enum no definido. Después del conversor: GREEN exit 0, veinte PASS. Validación sin cambios: nueve PASS. Builds API/Web, typecheck Mobile, convenciones y `git diff --check` pasan. Comprobación Python antes/después: JSON válido y huella idéntica del backlog excluyendo solo evidence de MVP-001-02, preservando otros 18 registros y todos los campos de estado/metadatos; huella de Mobile idéntica. Comandos de ejecución en [informe §7](../project-report.md#contratos-pasivos-mvp-001-02).
@@ -89,7 +106,7 @@ Desde la raíz del worktree:
 dotnet run --project tests/AuthenticationContracts/AuthenticationContracts.csproj --no-launch-profile
 ```
 
-El proyecto consola usa los proyectos reales API/Web y no agrega paquetes de pruebas. Comprueba clases públicas propias, ausencia de Shared y de dependencias entre aplicaciones, nombres de roles, campos y tipos JSON exactos, roundtrip, defaults, rechazos de enums y validaciones con sus mensajes originales en ambas aplicaciones. Compara con las opciones web y el conversor cuyo registro coteja en el código de API; no ejecuta su entrypoint, HTTP, UI ni autenticación. Devuelve exit 1 y mensajes `FAIL` por stderr si falla alguna comprobación; exit 0 si pasan todas. No requiere cuentas, base de datos ni servidores.
+El proyecto consola usa los proyectos reales API/Web y no agrega paquetes de pruebas. Comprueba la adaptación deliberada a cuatro campos de éxito (los anteriores más dos strings), defaults vacíos de los nuevos campos, clases públicas propias, ausencia de Shared y de dependencias entre aplicaciones, nombres de roles, campos y tipos JSON exactos, roundtrip, defaults, rechazos de enums y validaciones con sus mensajes originales en ambas aplicaciones. Compara con las opciones web y el conversor cuyo registro coteja en el código de API; no ejecuta su entrypoint, HTTP, UI ni autenticación. Devuelve exit 1 y mensajes `FAIL` por stderr si falla alguna comprobación; exit 0 si pasan todas. No requiere cuentas, base de datos ni servidores.
 
 ## Receta histórica del harness aislado
 
