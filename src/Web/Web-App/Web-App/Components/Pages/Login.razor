@@ -1,0 +1,67 @@
+@page "/ingreso"
+@rendermode InteractiveServer
+@using Web_App.Models.Authentication
+@using Web_App.Services.Authentication
+@inject ISesionCliente Sesion
+
+<PageTitle>Ingreso de demostración</PageTitle>
+
+<h1>Ingreso</h1>
+<p>Demostración académica local. Use únicamente cuentas ficticias; no es un servicio oficial.</p>
+<p>La sesión se conserva solo en memoria de este circuito. Recargar requiere ingresar nuevamente y no revoca la sesión remota.</p>
+
+<section aria-label="Acceso de demostración" aria-busy="@Ocupada.ToString().ToLowerInvariant()">
+    @if (Sesion.Estado.Autenticada)
+    {
+        <p>Sesión confirmada. Los permisos se comprueban en la API.</p>
+        <button class="btn btn-primary" disabled="@Ocupada" @onclick="SalirAsync">@(Ocupada ? "Cerrando…" : "Cerrar sesión / reintentar cierre")</button>
+    }
+    else
+    {
+        <EditForm Model="_solicitud" OnValidSubmit="IngresarAsync" FormName="ingreso">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <fieldset disabled="@Ocupada">
+                <div class="mb-3">
+                    <label for="correo" class="form-label">Correo de cuenta ficticia</label>
+                    <InputText id="correo" type="email" class="form-control" autocomplete="off" @bind-Value="_solicitud.Correo" />
+                    <ValidationMessage For="() => _solicitud.Correo" />
+                </div>
+                <div class="mb-3">
+                    <label for="contrasena" class="form-label">Contraseña ficticia</label>
+                    <InputText id="contrasena" type="password" class="form-control" autocomplete="off" @bind-Value="_solicitud.Contrasena" />
+                    <ValidationMessage For="() => _solicitud.Contrasena" />
+                </div>
+                <button type="submit" class="btn btn-primary">@(Ocupada ? "Ingresando…" : "Ingresar / reintentar")</button>
+            </fieldset>
+        </EditForm>
+    }
+    <p role="status" aria-live="polite" class="mt-3">@_mensaje</p>
+</section>
+
+@code {
+    private SolicitudIngresoDto _solicitud = new();
+    private string _mensaje = "Ingrese con su cuenta ficticia.";
+    private bool _enviando;
+    private bool Ocupada => _enviando || Sesion.Estado.Ocupada;
+
+    private async Task IngresarAsync()
+    {
+        if (Ocupada) return;
+        _enviando = true;
+        _mensaje = "Consultando la API…";
+        var envio = new SolicitudIngresoDto { Correo = _solicitud.Correo, Contrasena = _solicitud.Contrasena };
+        _solicitud = new SolicitudIngresoDto { Correo = _solicitud.Correo };
+        try { _mensaje = (await Sesion.IngresarAsync(envio)).Mensaje; }
+        finally { envio.Contrasena = string.Empty; _enviando = false; }
+    }
+
+    private async Task SalirAsync()
+    {
+        if (Ocupada) return;
+        _enviando = true;
+        _mensaje = "Solicitando cierre en el servidor…";
+        try { _mensaje = (await Sesion.SalirAsync()).Mensaje; }
+        finally { _enviando = false; }
+    }
+}
