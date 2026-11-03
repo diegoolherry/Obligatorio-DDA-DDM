@@ -62,6 +62,47 @@ Check(!result.Exito && fake.Calls == calls, "no authorization after logout");
 using (var otherScope = provider.CreateScope())
     Check(!otherScope.ServiceProvider.GetRequiredService<ISesionCliente>().Estado.Autenticada, "isolated DI scopes");
 
+// Administrator reuses the same scoped service; no second login implementation.
+var adminTransport = new FakeHandler();
+using (var adminProvider = Provider(adminTransport))
+using (var adminScope = adminProvider.CreateScope())
+{
+    var admin = adminScope.ServiceProvider.GetRequiredService<ISesionCliente>();
+    adminTransport.Reply = _ => Task.FromResult(Response(200, Success().Replace("pasajero", "administrador")));
+    var login = await admin.IngresarAsync(Input());
+    Check(login == new ResultadoAutenticacion(true, 200, "ingresoConfirmado", "Sesión confirmada por la API.") &&
+        admin.Estado.Autenticada, "administrator existing login commits a valid scoped session");
+    foreach (var (status, body, code, message) in new[] {
+        (403, "", "denegado", "La API denegó el acceso a esta operación."),
+        (503, "", "servidor", "El servicio no está disponible. Reintente más tarde."),
+        (200, identity.Replace("pasajero", "administrador"), "autorizado", "Operación autorizada por la API.") })
+    {
+        adminTransport.Reply = _ => Task.FromResult(Response(status, body));
+        var observed = await admin.ProbarAdministradorAsync();
+        Check(observed == new ResultadoAutenticacion(status == 200, status, code, message) &&
+            admin.Estado.Autenticada && !admin.Estado.Ocupada &&
+            adminTransport.LastMethod == "GET" && adminTransport.LastPath == "/api/autenticacion/prueba-administrador" &&
+            adminTransport.LastBearer == "Bearer " + token && adminTransport.LastBody == null,
+            $"administrator probe exact request/result and session preserved for {status}");
+    }
+    adminTransport.Reply = _ => throw new HttpRequestException("private error");
+    var offline = await admin.ProbarAdministradorAsync();
+    Check(offline == new ResultadoAutenticacion(false, null, "red", "No se pudo contactar con la API. Revise la conexión y reintente.") &&
+        admin.Estado.Autenticada && !admin.Estado.Ocupada, "administrator probe sanitized network failure keeps retry available");
+    using (var isolated = adminProvider.CreateScope())
+        Check(!isolated.ServiceProvider.GetRequiredService<ISesionCliente>().Estado.Autenticada, "administrator session isolated from another circuit");
+    adminTransport.Reply = _ => Task.FromResult(Response(204));
+    var logout = await admin.SalirAsync();
+    Check(logout == new ResultadoAutenticacion(true, 204, "salidaConfirmada", "Sesión cerrada en el servidor.") &&
+        !admin.Estado.Autenticada && adminTransport.LastMethod == "POST" &&
+        adminTransport.LastPath == "/api/autenticacion/salida" && adminTransport.LastBearer == "Bearer " + token,
+        "administrator confirmed logout clears only its circuit");
+    var beforeCalls = adminTransport.Calls;
+    var afterLogout = await admin.ProbarAdministradorAsync();
+    Check(afterLogout == new ResultadoAutenticacion(false, null, "sesionInvalida", "La sesión local no es válida o venció. Ingrese nuevamente.") &&
+        !admin.Estado.Autenticada && adminTransport.Calls == beforeCalls, "administrator operation after logout sends no request");
+}
+
 foreach (var url in new string?[] { null, "", "http://api.example.invalid", "https://user:pass@api.example.invalid", "https://api.example.invalid/?q=1", "https://api.example.invalid/#x", "not a url" })
 {
     var transport = new FakeHandler();
@@ -221,6 +262,12 @@ int redirectIndex = source.IndexOf("app.UseHttpsRedirection();", StringCompariso
 int razorIndex = source.IndexOf("app.MapRazorComponents<App>()", StringComparison.Ordinal);
 Check(guardIndex >= 0 && guardIndex < redirectIndex && redirectIndex < razorIndex,
     "W1 structural Program registration puts guard before redirection and Razor (not network proof)");
+string loginPage = ancestor == null ? "" : File.ReadAllText(Path.Combine(ancestor.FullName, "src/Web/Web-App/Web-App/Components/Pages/Login.razor"));
+Check(loginPage.Contains("@onclick=\"ProbarAdministradorAsync\"") &&
+    loginPage.Contains("Comprobar acceso de administrador") &&
+    loginPage.Contains("Sesion.ProbarAdministradorAsync()") &&
+    loginPage.Contains("Consultando permiso en la API…"),
+    "administrator action wired with progress feedback (structural, not rendered UI)");
 Console.WriteLine($"{checks - failures}/{checks} PASS");
 return failures == 0 ? 0 : 1;
 

@@ -14,7 +14,8 @@
     @if (Sesion.Estado.Autenticada)
     {
         <p>Sesión confirmada. Los permisos se comprueban en la API.</p>
-        <button class="btn btn-primary" disabled="@Ocupada" @onclick="SalirAsync">@(Ocupada ? "Cerrando…" : "Cerrar sesión / reintentar cierre")</button>
+        <button class="btn btn-primary" disabled="@Ocupada" @onclick="SalirAsync">@(Ocupada ? "Procesando…" : "Cerrar sesión / reintentar cierre")</button>
+        <button class="btn btn-outline-secondary" disabled="@Ocupada" @onclick="ProbarAdministradorAsync">Comprobar acceso de administrador</button>
     }
     else
     {
@@ -54,6 +55,15 @@
         _solicitud = new SolicitudIngresoDto { Correo = _solicitud.Correo };
         try { _mensaje = (await Sesion.IngresarAsync(envio)).Mensaje; }
         finally { envio.Contrasena = string.Empty; _enviando = false; }
+    }
+
+    private async Task ProbarAdministradorAsync()
+    {
+        if (Ocupada) return;
+        _enviando = true;
+        _mensaje = "Consultando permiso en la API…";
+        try { _mensaje = (await Sesion.ProbarAdministradorAsync()).Mensaje; }
+        finally { _enviando = false; }
     }
 
     private async Task SalirAsync()
