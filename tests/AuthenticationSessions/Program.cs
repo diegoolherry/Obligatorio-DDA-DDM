@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Builder;
 using System.Security.Claims;
 using System.Globalization;
 using System.Text.Json;
@@ -232,6 +233,68 @@ Prueba("handler y autorización: challenge 401 Bearer, forbid 403 y roles (sin s
         new AuthorizationPolicyBuilder("Bearer").RequireAuthenticatedUser().RequireRole("Administrador").Build()).GetAwaiter().GetResult();
     valido.ForbidAsync("Bearer").GetAwaiter().GetResult();
     return autenticado.Succeeded && permite.Succeeded && !deniega.Succeeded && valido.Response.StatusCode == 403;
+});
+Prueba("collector endpoint: framework authorization and revocation preserve stored sessions", () =>
+{
+    var method = typeof(API_Berruti.Controllers.AuthenticationController).GetMethod("PruebaCobrador");
+    if (method == null) return false;
+    var route = method.GetCustomAttributes(typeof(Microsoft.AspNetCore.Mvc.HttpGetAttribute), true)
+        .Cast<Microsoft.AspNetCore.Mvc.HttpGetAttribute>().Single();
+    if (route.Template != "prueba-cobrador") return false;
+    var metadata = method.GetCustomAttributes(true);
+    var coleccion = new ServiceCollection();
+    coleccion.AddLogging();
+    coleccion.AddRouting();
+    coleccion.AgregarAutenticacionLocal(new ConfigurationBuilder().Build(), new Entorno());
+    coleccion.AddSingleton<IAutenticacionService>(servicio);
+    using var p = coleccion.BuildServiceProvider();
+    var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+    options.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter(JsonNamingPolicy.CamelCase, false));
+    try
+    {
+        foreach (var role in new[] { "Cobrador", "Pasajero", "Administrador", "anonymous", "revoked" })
+        {
+            cuentas.Roles = new[] { role is "anonymous" or "revoked" ? "Cobrador" : role };
+            var token = role == "anonymous" ? null : servicio.IngresarAsync(new SolicitudIngresoDto
+                { Correo = cuentas.Usuario.Correo, Contrasena = "x" }).GetAwaiter().GetResult()!.Token;
+            if (role == "revoked") servicio.SalirAsync(token!).GetAwaiter().GetResult();
+            var before = JsonSerializer.Serialize(sesiones.Filas);
+            using var scope = p.CreateScope();
+            var ctx = new DefaultHttpContext { RequestServices = scope.ServiceProvider };
+            ctx.Request.Scheme = "https";
+            ctx.Request.Path = "/api/autenticacion/prueba-cobrador";
+            ctx.Request.Method = "GET";
+            ctx.Response.Body = new MemoryStream();
+            if (token != null) ctx.Request.Headers.Authorization = "Bearer " + token;
+            var invoked = 0;
+            var endpoint = new Endpoint(async context =>
+            {
+                invoked++;
+                var controller = new API_Berruti.Controllers.AuthenticationController(servicio)
+                    { ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext { HttpContext = context } };
+                var result = (Microsoft.AspNetCore.Mvc.ActionResult<RespuestaSesionDto>)method.Invoke(controller, null)!;
+                var body = ((Microsoft.AspNetCore.Mvc.OkObjectResult)result.Result!).Value;
+                await context.Response.WriteAsync(JsonSerializer.Serialize(body, options));
+            }, new EndpointMetadataCollection(metadata), "collector probe");
+            ctx.SetEndpoint(endpoint);
+            var app = new Microsoft.AspNetCore.Builder.ApplicationBuilder(p);
+            Microsoft.AspNetCore.Builder.UseMiddlewareExtensions.UseMiddleware<LimiteAutenticacion>(app);
+            Microsoft.AspNetCore.Builder.AuthAppBuilderExtensions.UseAuthentication(app);
+            Microsoft.AspNetCore.Builder.AuthorizationAppBuilderExtensions.UseAuthorization(app);
+            app.Run(context => context.GetEndpoint()!.RequestDelegate!(context));
+            app.Build()(ctx).GetAwaiter().GetResult();
+            ctx.Response.Body.Position = 0;
+            var body = new StreamReader(ctx.Response.Body).ReadToEnd();
+            var expected = role == "Cobrador" ? 200 : role is "anonymous" or "revoked" ? 401 : 403;
+            if (ctx.Response.StatusCode != expected || invoked != (expected == 200 ? 1 : 0) ||
+                ctx.Response.Headers.CacheControl != "no-store" ||
+                ctx.Response.Headers.WWWAuthenticate.ToString() != (expected == 401 ? "Bearer" : "") ||
+                body != (expected == 200 ? """{"identificadorUsuario":"publico-opaco","roles":["cobrador"]}""" : "") ||
+                JsonSerializer.Serialize(sesiones.Filas) != before) return false;
+        }
+        return true;
+    }
+    finally { cuentas.Roles = new[] { "Pasajero" }; }
 });
 Prueba("middleware: HTTP sensible rechazado sin redirigir ni ejecutar siguiente", () =>
 {

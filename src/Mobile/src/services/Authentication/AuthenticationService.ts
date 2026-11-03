@@ -2,7 +2,7 @@ import type { IAuthenticationService } from './IAuthenticationService';
 import type { SolicitudIngresoDto } from '../../contracts/authentication';
 import type { AuthenticationResult, SessionState } from '../../contracts/session';
 
-type Operation = 'ingreso' | 'salida' | 'prueba-pasajero';
+type Operation = 'ingreso' | 'salida' | 'prueba-pasajero' | 'prueba-cobrador';
 const requiredEmail = 'El correo es obligatorio.';
 const requiredPassword = 'La contraseña es obligatoria.';
 const knownValidation = [requiredEmail, 'El correo no es válido.', requiredPassword];
@@ -81,6 +81,10 @@ export class AuthenticationService implements IAuthenticationService {
     return this.perform('prueba-pasajero');
   }
 
+  async checkCollector(): Promise<AuthenticationResult> {
+    return this.perform('prueba-cobrador');
+  }
+
   private async perform(operation: Operation, request?: SolicitudIngresoDto): Promise<AuthenticationResult> {
     if (this.active) return { outcome: 'busy', message: 'Hay una solicitud en curso.' };
     if (!this.root) return { outcome: 'configuration', message: 'Configurá EXPO_PUBLIC_API_URL con la raíz HTTPS de la API, sin credenciales, query ni fragmento.' };
@@ -111,7 +115,7 @@ export class AuthenticationService implements IAuthenticationService {
       });
       const exchange = async (): Promise<AuthenticationResult> => {
         const response = await this.transport(`${this.root}/api/autenticacion/${operation}`, {
-          method: operation === 'prueba-pasajero' ? 'GET' : 'POST',
+          method: operation === 'ingreso' || operation === 'salida' ? 'POST' : 'GET',
           headers, ...(operation === 'ingreso' ? { body: JSON.stringify(request) } : {}),
           credentials: 'omit', redirect: 'error', signal: controller.signal,
         });
@@ -155,7 +159,8 @@ export class AuthenticationService implements IAuthenticationService {
           this.token = body.token;
           this.expiresAt = expiresAt;
         }
-        return { outcome: 'success', message: operation === 'ingreso' ? 'Sesión confirmada.' : 'Acceso de pasajero confirmado por la API.', status };
+        return { outcome: 'success', message: operation === 'ingreso' ? 'Sesión confirmada.'
+          : operation === 'prueba-cobrador' ? 'Acceso de cobrador confirmado por la API.' : 'Acceso de pasajero confirmado por la API.', status };
       };
       const result = await Promise.race([exchange(), interrupted]);
       if (generation !== this.generation) return { ...cancelled };
