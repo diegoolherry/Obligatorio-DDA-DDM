@@ -1,3 +1,13 @@
+# Configuración privada creada exclusivamente por una persona
+/.local/mysql-tests.json
+
+# Configuracion privada API; plantilla publica: api-local-config.example.txt
+/src/Api/API-Berruti/API-Berruti/.env
+/src/Api/API-Berruti/API-Berruti/.env.*
+
+# Generated synthetic API launcher probes
+/tests/ApiLocalEnv/fixtures/template-*/
+
 # Local Pi runtime state
 .atl/
 

@@ -1,0 +1,4 @@
+# Plantilla publica solo para API local; completar la copia privadamente.
+# Texto plano, no una boveda. Nunca compartir ni usar en Mobile/EXPO_PUBLIC.
+# Una clave exacta, sin comillas exteriores, export ni interpolacion.
+ConnectionStrings__Berruti=
