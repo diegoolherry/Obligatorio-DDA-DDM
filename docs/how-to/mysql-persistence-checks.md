@@ -208,3 +208,11 @@ pasó. Sin configuración privada provista ni ejecución humana del esquema, las
 pruebas vivas de SQL/proveedor, rollback, concurrencia, primer número, borrado y
 frontera siguen **sin acreditar**. La revisión estática del SQL y compilar no
 sustituyen esos resultados. No aplicar este esquema en `berrutilocal` todavía.
+
+### Hallazgo real y corrección manual acotada (T18/S20)
+
+La inspección real posterior del padre ([L96–L98](../../odd/tasks/mvp-001-03-passenger-auth.md)) terminó exit 0 en 3 segundos: cuatro `BASE TABLE` InnoDB, todas con conteo 0, contadores ausentes y `sesion` ausente (aceptable para T1). Sustituye la falta de conexión del snapshot anterior, no acredita DDL compatible ni PASS normal/frontera. La PK real de `usuario_rol` tiene solo `usuario_id` en posición 1; falta `rol_id` en posición 2. El CREATE canónico y el mapeo EF ya usan la pareja correcta. Los metadatos básicos no prueban longitudes VARCHAR completas ni semántica de CHECK.
+
+El usuario aprobó **preparar**, no ejecutar, [la corrección manual](../../scripts/database/repair-auth-tests-membership-primary-key.sql). Un administrador en Workbench debe revisar consultas frescas: cuatro tablas vacías, columnas esperadas NOT NULL, PK simple exacta, ambas FK conservadas y ninguna referencia entrante desde cualquier esquema, con visibilidad suficiente. Sin otros escritores/administradores, selecciona una sentencia por vez y para al primer error o estado inesperado; si la pareja ya es correcta, no reaplica. Las puertas son humanas, no protección automática de lote. DDL tiene commits implícitos y no garantía de rollback; ante fallo no reintentar ni eliminar FK.
+
+`berruti_test` sigue DML-only, sin ampliar privilegios. No repetir creación canónica, sembrar, borrar datos/tablas ni ejecutar normal/frontera todavía. No se ejecutó el parche. Tras confirmación humana de ejecución y postchecks PK/FK/conteos, el coordinador reutilizará `--inspect` una vez; la API debe permanecer apagada por elección humana. T1 y MVP-001-03 continúan bloqueados por evidencia pendiente.
