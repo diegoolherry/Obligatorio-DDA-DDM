@@ -45,6 +45,10 @@ public class AuthenticationController : ControllerBase
     [HttpGet("prueba-pasajero")]
     public ActionResult<RespuestaSesionDto> PruebaPasajero() => Ok(RespuestaIdentidad());
 
+    [Authorize(Roles = "Cobrador")]
+    [HttpGet("prueba-cobrador")]
+    public ActionResult<RespuestaSesionDto> PruebaCobrador() => Ok(RespuestaIdentidad());
+
     [Authorize(Roles = "Administrador")]
     [HttpGet("prueba-administrador")]
     public ActionResult<RespuestaSesionDto> PruebaAdministrador() => Ok(RespuestaIdentidad());

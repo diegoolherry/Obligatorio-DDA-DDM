@@ -52,7 +52,7 @@ export function PassengerLogin({ service }: { service: IAuthenticationService })
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title} accessibilityRole="header">Acceso de pasajero</Text>
+        <Text style={styles.title} accessibilityRole="header">Acceso de pasajero y cobrador</Text>
         <Text>Demostración académica · cuentas ficticias</Text>
         <Text>La sesión se conserva solo en memoria, sin recordar el ingreso al reabrir.</Text>
         {!session.authenticated && !session.logoutPending ? (
@@ -85,6 +85,10 @@ export function PassengerLogin({ service }: { service: IAuthenticationService })
             {session.authenticated && (
               <Action label="Comprobar acceso de pasajero" secondary disabled={busy}
                 onPress={() => { void run(() => service.checkPassenger(), 'Consultando permiso en la API…'); }} />
+            )}
+            {session.authenticated && (
+              <Action label="Comprobar acceso de cobrador" secondary disabled={busy}
+                onPress={() => { void run(() => service.checkCollector(), 'Consultando permiso en la API…'); }} />
             )}
             {session.logoutPending && (
               <Action label="Descartar solo la sesión local" secondary disabled={busy} onPress={() => {

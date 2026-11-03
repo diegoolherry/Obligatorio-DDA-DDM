@@ -56,6 +56,47 @@ test('public interface: exact requests, confirmed session, logout and instance i
   assert.equal(isolated.calls.length, 0);
 });
 
+test('collector probe: exact GET, denial preserves session, retry and confirmed logout', async () => {
+  const collector = { ...identity, roles: ['cobrador'] };
+  const { service, calls } = fixture([
+    reply(200, { ...success, ...collector }), reply(403),
+    reply(503), new Error('private offline detail'), reply(200, collector), reply(204),
+  ]);
+  assert.deepEqual(await service.login(request), { outcome: 'success', message: 'Sesión confirmada.', status: 200 });
+  const state = { authenticated: true, logoutPending: false };
+  assert.deepEqual(await service.checkCollector(), { outcome: 'denied', message: 'Acceso denegado por la API.', status: 403 });
+  assert.deepEqual(service.getState(), state);
+  assert.deepEqual(await service.checkCollector(), { outcome: 'server', message: 'La API no está disponible. Reintentá.', status: 503 });
+  assert.deepEqual(service.getState(), state);
+  assert.deepEqual(await service.checkCollector(), { outcome: 'network', message: 'No se pudo conectar con la API o se agotó el tiempo. Revisá la conexión y reintentá.' });
+  assert.deepEqual(service.getState(), state);
+  assert.deepEqual(await service.checkCollector(), { outcome: 'success', message: 'Acceso de cobrador confirmado por la API.', status: 200 });
+  for (const [url, options] of calls.slice(1)) {
+    assert.equal(url, 'https://api.example.invalid/api/autenticacion/prueba-cobrador');
+    assert.equal(options.method, 'GET');
+    assert.deepEqual(options.headers, { Authorization: `Bearer ${token}` });
+    assert.equal(options.body, undefined);
+    assert.equal(options.credentials, 'omit');
+    assert.equal(options.redirect, 'error');
+    assert.ok(options.signal instanceof AbortSignal);
+  }
+  assert.deepEqual(await service.logout(), { outcome: 'success', message: 'Cierre de sesión confirmado.', status: 204 });
+  assert.deepEqual(await service.checkCollector(), { outcome: 'unauthenticated', message: 'La sesión no es válida o venció. Ingresá nuevamente.' });
+  assert.deepEqual(service.getState(), { authenticated: false, logoutPending: false });
+  assert.equal(calls.length, 6);
+  const isolated = fixture([]);
+  assert.equal((await isolated.service.checkCollector()).outcome, 'unauthenticated');
+  assert.equal(isolated.calls.length, 0);
+});
+
+test('shared Mobile form exposes both permission checks without a role selector', async () => {
+  const screen = await readFile(new URL('../../src/Mobile/src/components/Authentication/PassengerLogin.tsx', import.meta.url), 'utf8');
+  assert.match(screen, />Acceso de pasajero y cobrador<\/Text>/);
+  assert.match(screen, /service\.checkPassenger\(\)/);
+  assert.match(screen, /service\.checkCollector\(\)/);
+  assert.match(screen, /label="Comprobar acceso de cobrador"/);
+});
+
 test('configuration rejected before transport, and local required validation', async () => {
   for (const url of [undefined, '', 'http://api.invalid', 'https://a:b@api.invalid', 'https://api.invalid?q=x', 'https://api.invalid#x', 'https://@api.invalid', 'https:///api.invalid', 'https://api.\ninvalid', 'https://api.invalid/path', 'not a url']) {
     const { service, calls } = fixture([], url === undefined ? '' : url);

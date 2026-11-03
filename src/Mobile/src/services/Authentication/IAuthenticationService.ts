@@ -6,5 +6,6 @@ export interface IAuthenticationService {
   login(request: SolicitudIngresoDto): Promise<AuthenticationResult>;
   logout(): Promise<AuthenticationResult>;
   checkPassenger(): Promise<AuthenticationResult>;
+  checkCollector(): Promise<AuthenticationResult>;
   discard(): void;
 }
