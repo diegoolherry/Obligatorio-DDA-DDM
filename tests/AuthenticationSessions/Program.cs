@@ -234,13 +234,15 @@ Prueba("handler y autorización: challenge 401 Bearer, forbid 403 y roles (sin s
     valido.ForbidAsync("Bearer").GetAwaiter().GetResult();
     return autenticado.Succeeded && permite.Succeeded && !deniega.Succeeded && valido.Response.StatusCode == 403;
 });
-Prueba("collector endpoint: framework authorization and revocation preserve stored sessions", () =>
+foreach (var probe in new[] { (Method: "PruebaCobrador", Route: "prueba-cobrador", Role: "Cobrador", JsonRole: "cobrador"),
+    (Method: "PruebaAdministrador", Route: "prueba-administrador", Role: "Administrador", JsonRole: "administrador") })
+Prueba($"{probe.Route}: framework authorization and revocation preserve stored sessions", () =>
 {
-    var method = typeof(API_Berruti.Controllers.AuthenticationController).GetMethod("PruebaCobrador");
+    var method = typeof(API_Berruti.Controllers.AuthenticationController).GetMethod(probe.Method);
     if (method == null) return false;
     var route = method.GetCustomAttributes(typeof(Microsoft.AspNetCore.Mvc.HttpGetAttribute), true)
         .Cast<Microsoft.AspNetCore.Mvc.HttpGetAttribute>().Single();
-    if (route.Template != "prueba-cobrador") return false;
+    if (route.Template != probe.Route) return false;
     var metadata = method.GetCustomAttributes(true);
     var coleccion = new ServiceCollection();
     coleccion.AddLogging();
@@ -254,7 +256,7 @@ Prueba("collector endpoint: framework authorization and revocation preserve stor
     {
         foreach (var role in new[] { "Cobrador", "Pasajero", "Administrador", "anonymous", "revoked" })
         {
-            cuentas.Roles = new[] { role is "anonymous" or "revoked" ? "Cobrador" : role };
+            cuentas.Roles = new[] { role is "anonymous" or "revoked" ? probe.Role : role };
             var token = role == "anonymous" ? null : servicio.IngresarAsync(new SolicitudIngresoDto
                 { Correo = cuentas.Usuario.Correo, Contrasena = "x" }).GetAwaiter().GetResult()!.Token;
             if (role == "revoked") servicio.SalirAsync(token!).GetAwaiter().GetResult();
@@ -262,7 +264,7 @@ Prueba("collector endpoint: framework authorization and revocation preserve stor
             using var scope = p.CreateScope();
             var ctx = new DefaultHttpContext { RequestServices = scope.ServiceProvider };
             ctx.Request.Scheme = "https";
-            ctx.Request.Path = "/api/autenticacion/prueba-cobrador";
+            ctx.Request.Path = "/api/autenticacion/" + probe.Route;
             ctx.Request.Method = "GET";
             ctx.Response.Body = new MemoryStream();
             if (token != null) ctx.Request.Headers.Authorization = "Bearer " + token;
@@ -285,11 +287,11 @@ Prueba("collector endpoint: framework authorization and revocation preserve stor
             app.Build()(ctx).GetAwaiter().GetResult();
             ctx.Response.Body.Position = 0;
             var body = new StreamReader(ctx.Response.Body).ReadToEnd();
-            var expected = role == "Cobrador" ? 200 : role is "anonymous" or "revoked" ? 401 : 403;
+            var expected = role == probe.Role ? 200 : role is "anonymous" or "revoked" ? 401 : 403;
             if (ctx.Response.StatusCode != expected || invoked != (expected == 200 ? 1 : 0) ||
                 ctx.Response.Headers.CacheControl != "no-store" ||
                 ctx.Response.Headers.WWWAuthenticate.ToString() != (expected == 401 ? "Bearer" : "") ||
-                body != (expected == 200 ? """{"identificadorUsuario":"publico-opaco","roles":["cobrador"]}""" : "") ||
+                body != (expected == 200 ? """{"identificadorUsuario":"publico-opaco","roles":["ROLE"]}""".Replace("ROLE", probe.JsonRole) : "") ||
                 JsonSerializer.Serialize(sesiones.Filas) != before) return false;
         }
         return true;

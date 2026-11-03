@@ -6,6 +6,8 @@ Anónimo → enviar correo y contraseña ficticios → ocupado (sin envíos dupl
 
 Sesión → cerrar sesión → ocupado → anónimo solo tras `204`; si falla, indicar **revocación no confirmada** y conservar la credencial solo en memoria para reintentar. Un `401` autenticado elimina la sesión local inválida, pero no acredita revocación. Descartar memoria no equivale a cerrar en el servidor. Respuestas tardías no recuperan sesiones descartadas.
 
+Una vez autenticado, **Comprobar acceso de administrador** consulta la prueba de lectura existente `GET /api/autenticacion/prueba-administrador`. No elige ni concede roles y no abre un panel operativo: la API decide `200`, `403` o `401`. El botón comparte el bloqueo de solicitudes y muestra progreso y resultado; tras fallo de red/servidor puede reintentarse. Un `403` no borra la sesión. Ingreso y salida siguen siendo los mismos para pasajero y administrador.
+
 Una acción principal por estado; etiquetas persistentes y estados accesibles. Solo la API autoriza: la visibilidad local no acredita permisos. Sin pantallas de negocio ni nueva identidad visual.
 
 ## Configuración y alcance
@@ -28,5 +30,7 @@ dotnet build src/Web/Web-App/Web-App.slnx --no-restore --nologo
 dotnet run --project tests/AuthenticationContracts/AuthenticationContracts.csproj --no-launch-profile
 git diff --check
 ```
+
+Ampliación administrativa: Web `83/84` en RED estructural (faltaba la acción), luego `84/84` PASS; API `46/46` con matrices de permisos de cobrador/administrador y build Web exit 0, sin advertencias/errores. La nueva cobertura de servicio usa cuenta ficticia administrativa, GET/Bearer, denegación, red/servidor, reintento, logout y aislamiento; la conexión del botón se comprueba **estructuralmente**, no mediante renderizado ni navegador. Verificador independiente `mw16b3cu-3-wtyo`: conforme offline, reprodujo Web84/84, API46/46 y build sin advertencias/errores, exit 0; no encontró bloqueadores concretos. Comprobación real y revisión de Enzo pendientes en el [seguimiento](../../odd/tasks/mvp-001-05-admin-auth.md).
 
 Las pruebas deterministas utilizan HttpMessageHandler ficticio, DTOs propios y DI real sin red ni DB. W1 compone el guard con HttpsRedirectionMiddleware real, configuración vacía y direcciones HTTP-only en memoria: reproduce el paso al siguiente middleware sin puerto HTTPS, comprueba rechazo exacto de ingreso HTTP y preservación de las rutas hermanas. El orden en Program.cs se comprueba estructuralmente, no mediante red. No prueban TLS, MySQL, navegador ni circuito interactivo real. La prueba manual de ingreso, permisos, cierre y reconexión en navegador, y la integración HTTPS/API, siguen pendientes de verificación separada.
