@@ -8,6 +8,8 @@ export interface SolicitudIngresoDto {
 export interface RespuestaIngresoDto {
   identificadorUsuario: string;
   roles: RolIngreso[];
+  token: string;
+  venceEnUtc: string;
 }
 
 export interface RespuestaErrorIngresoDto {
