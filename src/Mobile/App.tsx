@@ -1,15 +1,19 @@
+import { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { PassengerLogin } from './src/components/Authentication/PassengerLogin';
+import { AuthenticationService } from './src/services/Authentication/AuthenticationService';
+import type { IAuthenticationService } from './src/services/Authentication/IAuthenticationService';
 
 export default function App() {
+  const [authentication] = useState<IAuthenticationService>(
+    () => new AuthenticationService(process.env.EXPO_PUBLIC_API_URL),
+  );
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.container}>
-          <Text style={styles.title}>Base móvil</Text>
-          <Text>Expo · React Native · TypeScript</Text>
-        </View>
+        <PassengerLogin service={authentication} />
         <StatusBar style="dark" />
       </SafeAreaView>
     </SafeAreaProvider>
@@ -17,20 +21,5 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  container: {
-    flex: 1,
-    padding: 24,
-    gap: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    color: '#111',
-    fontSize: 24,
-    fontWeight: '600',
-  },
+  safeArea: { flex: 1, backgroundColor: '#fff' },
 });

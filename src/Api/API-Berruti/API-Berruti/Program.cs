@@ -1,3 +1,4 @@
+using API_Berruti.Security.Authentication;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -12,6 +13,9 @@ builder.Services.AddControllers().AddJsonOptions(opciones =>
 });
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AgregarAutenticacionLocal(builder.Configuration, builder.Environment);
+// EF diagnostics can include provider details; keep authentication failures sanitized.
+builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.None);
 
 var app = builder.Build();
 
@@ -21,8 +25,10 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseMiddleware<LimiteAutenticacion>();
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

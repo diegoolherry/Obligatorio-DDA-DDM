@@ -1,11 +1,23 @@
 using Web_App.Components;
+using Web_App.Services.Authentication;
+using Web_App.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Cuando exista un cliente HTTP de la API, deberá deserializar RolIngreso con
-// JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false), igual que la API.
-// Este portal todavía no consume la API; el comentario no configura un cliente.
+// Scoped: memoria aislada por circuito InteractiveServer, nunca cookie ni singleton.
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<ISesionCliente, SesionCliente>();
+builder.Services.AddHttpClient("Autenticacion", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(15);
+    client.MaxResponseContentBufferSize = 64 * 1024;
+})
+.RemoveAllLoggers()
+.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    UseCookies = false,
+    AllowAutoRedirect = false
+});
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
@@ -19,6 +31,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+app.UseMiddleware<LimiteIngresoHttps>();
 app.UseHttpsRedirection();
 
 app.UseAntiforgery();
