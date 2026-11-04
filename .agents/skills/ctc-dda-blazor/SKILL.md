@@ -14,10 +14,11 @@ Aplica al planificar, implementar, depurar o revisar Blazor/C#/API. Lee `referen
 ## Reglas obligatorias
 
 - Prioriza consigna, requisitos y configuración real; informa conflictos con los ejemplos del curso.
-- Distingue extractos NotebookLM aportados por el usuario de código fuente inspeccionado directamente. Atribuye la condición de ejemplo docente al reporte del usuario; conserva enlaces fijados a commit para el código.
+- Distingue extractos NotebookLM, fragmentos pegados por el usuario y código inspeccionado en repositorios. Atribuye la condición de ejemplo docente al reporte del usuario; conserva enlaces fijados a commit cuando la fuente sea un repositorio y no atribuyas esos commits a fragmentos sin versión.
 - Conserva DTO, autorización, QR y pagos exigidos. No confundas ausencia de evidencia docente con permiso para omitir requisitos.
 - No introduzcas repositorios genéricos, AutoMapper, frameworks de middleware ni dependencias por defecto.
 - Distingue eventos, copias de objetos e IDs locales de persistencia real; aplica los límites de la referencia.
+- Para excepciones de API, aplica «Excepciones: ejemplo Equipment aportado» en `references/curso.md`: Service valida y lanza; Controller traduce los casos esperados según su significado y contrato. No impongas `finally` ni conviertas toda `InvalidOperationException` en conflicto HTTP.
 
 ## Puertas de decisión
 

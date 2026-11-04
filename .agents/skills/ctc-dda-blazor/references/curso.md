@@ -25,6 +25,35 @@ Clasifica cada decisión: **enseñado/aplicado**, **solo mencionado**, **exigido
 | Resumen de API aportado, sin localización precisa | Controller → Service → Repository → DbContext, async, `ActionResult`, estados HTTP y `try/catch` reportados como enseñados. No atribuyas todos estos conceptos a un minuto específico. |
 | [Maquinaria-Mobile-API, commit y fragmentos](prefixed-string-ids.md): `EquipmentController.Post`, `Equipment.Id`, `EquipmentInput` | Código inspeccionado directamente; ejemplo docente según el usuario. ID real `string`, prefijo `eq-`, extracción con `Substring(3)`, `int.Parse` y `DefaultIfEmpty(0).Max() + 1` sobre IDs consultados por EF. DTO de entrada con DataAnnotations y sin ID enviado por el cliente. No demuestra asignación concurrente segura, no reutilización histórica ni contratos DTO de respuesta. |
 
+## Excepciones: ejemplo Equipment aportado
+
+**Fuente:** fragmentos completos de `EquipmentController` y `EquipmentsService` pegados por el usuario en esta conversación y atribuidos por él a la última clase. Se inspeccionó el texto aportado, no un repositorio de esa versión; no hay commit, fecha de clase ni minuto verificables. No confundirlo con la versión enlazada de Maquinaria-Mobile-API. El usuario autorizó incorporar este criterio a la skill; eso no autoriza modificar automáticamente contratos de la API.
+
+### Enseñado/aplicado en el fragmento
+
+- El Controller recibe `IEquipmentService` por constructor. El Service recibe `IEquipmentRepository`; las implementaciones de esa interfaz de repositorio no están incluidas.
+- El Service valida ID, DTO y datos antes de persistir. Usa `throw` para interrumpir la operación cuando no puede cumplirla; no devuelve éxito después del rechazo.
+- El Controller envuelve la llamada asíncrona al Service en `try` y traduce excepciones específicas antes de `catch (Exception)`.
+
+| Caso del ejemplo | Excepción del Service | Respuesta del Controller |
+| --- | --- | --- |
+| ID obligatorio, DTO ausente o campos vacíos | `ArgumentException` | `400 BadRequest(ex.Message)` |
+| Equipamiento no encontrado | `KeyNotFoundException` | `404 NotFound(ex.Message)` |
+| Código de equipamiento repetido al crear/actualizar | `InvalidOperationException` | `409 Conflict(ex.Message)` |
+| Error inesperado | `Exception`, capturada al final | `500`, `"Error interno del servidor"` |
+
+El ejemplo también muestra DTOs de entrada/salida usados por las firmas y mapeo manual `ToReadDto`/`ToEntity`, `Trim` y normalización del código de equipamiento. No muestra logging, `finally`, autenticación, transacciones ni control concurrente del código repetido. Las comprobaciones previas no demuestran ausencia de carreras.
+
+### Aplicación al proyecto: salvaguardas, no contenido docente adicional
+
+- Conserva Controller → Service → Repository: reglas de negocio en Service, acceso a datos en Repository y traducción HTTP en Controller. No añadas capturas que oculten un fallo y permitan continuar como si hubiera éxito.
+- Mapea por significado, no solo por tipo: una `InvalidOperationException` por inconsistencia interna no es el conflicto de código duplicado del ejemplo. No devuelvas `ex.Message` de errores internos, proveedores o credenciales; solo mensajes deliberadamente seguros de errores esperados.
+- Conserva validación MVC/DataAnnotations y contratos existentes. No reemplaces los `401` de credenciales/sesiones inválidas ni los `403` de permisos insuficientes por `400`, `404` o `409`; tampoco normalices credenciales por imitar el `Trim` del equipamiento.
+- Para propuestas nuevas, distingue `500` inesperado de `503` por indisponibilidad reconocida. Si el contrato vigente difiere, documenta el cambio propuesto y solicita decisión antes de alterar respuestas consumidas. Un `catch` general no demuestra que toda excepción sea indisponibilidad.
+- Usa `finally` solo cuando haya limpieza necesaria. Respeta `using`/`await using` y recursos administrados por DI; no cierres el DbContext desde el Controller. El fragmento no exige añadir bloques vacíos ni demuestra ese manejo de recursos.
+- Si hace falta capturar para limpiar y propagar, usa `throw;` para conservar el origen. Esto es una salvaguarda técnica, no una práctica demostrada por el fragmento.
+- Antes de implementar un cambio de errores, prueba por la interfaz pública los casos aplicables: estado HTTP, cuerpo y encabezados contractuales, ausencia de datos sensibles y ausencia de cambios persistidos ante rechazos. No presentes estas pruebas como ejecutadas ni agregues casos CRUD a endpoints que no existen.
+
 ## Aplicación mínima, no arquitectura adicional
 
 - Sigue el modo Blazor configurado; separa páginas con ruta, componentes visuales y servicio CRUD. Registra servicios mediante DI; no construyas un servicio en Razor. Justifica un singleton que comparta estado entre usuarios.
@@ -35,6 +64,6 @@ Clasifica cada decisión: **enseñado/aplicado**, **solo mencionado**, **exigido
 
 ## Lo que los extractos no demuestran
 
-Los extractos no demuestran DTO; la fuente adicional [Maquinaria-Mobile-API](prefixed-string-ids.md) sí muestra un DTO de entrada simple con DataAnnotations, pero no DTO de respuesta ni mapping general. AutoMapper, interfaces de repositorio, autenticación y relaciones EF complejas **no tienen evidencia docente demostrada** en lo aportado. DTO y autorización siguen siendo requisitos del proyecto, no opcionales; las extensiones no demostradas requieren la consulta indicada arriba. Mapping manual y clases concretas pueden ser propuestas mínimas, no decisiones ya aprobadas. QR, pagos y concurrencia también necesitan explicación y aprobación de su mecanismo cuando excedan los ejemplos. No introduzcas abstracciones o paquetes por comodidad.
+Los extractos NotebookLM no demuestran DTO; la fuente [Maquinaria-Mobile-API](prefixed-string-ids.md) muestra un DTO de entrada simple con DataAnnotations. El fragmento Equipment aportado después sí muestra uso de DTOs de entrada/salida, mapeo manual e inyección mediante interfaces específicas de Service y Repository; no incluye las definiciones de esas interfaces ni la implementación del Repository. No extiendas esa evidencia a repositorios genéricos, implementaciones de persistencia o mapping automático. AutoMapper, autenticación y relaciones EF complejas **no tienen evidencia docente demostrada** en estas fuentes. DTO y autorización siguen siendo requisitos del proyecto, no opcionales; las extensiones no demostradas requieren la consulta indicada arriba. QR, pagos y concurrencia también necesitan explicación y aprobación de su mecanismo cuando excedan los ejemplos. No introduzcas abstracciones o paquetes por comodidad.
 
 Las advertencias/sugerencias de una fuente no constituyen prohibiciones universales. Ante conflicto con la consigna o configuración vigente, informa ambas fuentes y sigue la autoridad del proyecto, sin modificar estas reglas sin aprobación.
