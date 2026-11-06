@@ -1,0 +1,124 @@
+-- BORRADOR PARA REVISION / NO EJECUTAR. T6 [S7-S8]; preserva S2-S7.
+-- Todo es comentario: abrir/Run All es inerte. NO es un script listo ni para pegar entero.
+-- A. Enzo debe revisar ESTE SQL antes de cualquier uso; el operador será el usuario.
+-- Ruta manual de UNA transacción, distinta de las dos de CuentasRepository.
+-- Los 55 casos sintéticos NO prueban esta ruta. Riesgo 2: asignación de privilegios.
+-- Caso único REPORTADO, no probado/reservado: US-1 pasajero activo, RO-1 Pasajero,
+-- contadores RO-/US-=1, sin Administrador. Cualquier diferencia exige PARAR, no reparar.
+-- Prerrequisitos: conexión Workbench privada existente berruti_app, NO root/nuevos grants;
+-- abrir conexión NUEVA dedicada sin trabajo pendiente: START TRANSACTION puede confirmar
+-- trabajo previo. Misma sesión berruti_app para B-E, pausas y decisión final.
+-- Acordar ventana exclusiva sin NINGÚN otro escritor (también externos); API/Web paradas,
+-- sin reiniciar servicios. Verificar UI: transporte loopback, puerto 3306, berrutilocal.
+-- La etiqueta de conexión no prueba destino. Revisar resultados efectivos siguientes:
+-- SELECT CURRENT_USER() AS identidad_efectiva, DATABASE() AS base_actual,
+--        @@port AS puerto, @@session.autocommit AS autocommit_sesion, VERSION() AS version;
+-- PAUSA: identidad efectiva exacta berruti_app@localhost, base berrutilocal, puerto 3306,
+-- autocommit=1 SIN cambiarlo; MySQL 8.0.16+ con CHECK efectivos. Otro resultado: PARAR.
+-- SELECT TABLE_NAME, TABLE_TYPE, ENGINE FROM information_schema.TABLES
+-- WHERE TABLE_SCHEMA='berrutilocal' ORDER BY TABLE_NAME;
+-- PAUSA: EXACTAMENTE contador_entidad, rol, sesion, usuario, usuario_rol;
+-- todas BASE TABLE/InnoDB. Revisión previa de metadatos/definiciones contra
+-- create-auth-demo.sql: columnas, claves, restricciones y ausencia de objetos extra.
+-- SELECT COUNT(*) AS triggers_debe_0 FROM information_schema.TRIGGERS
+-- WHERE TRIGGER_SCHEMA='berrutilocal';
+-- PAUSA: esperar 0; un conteo filtrado por privilegios NO demuestra ausencia de triggers.
+-- Exigir evidencia administrativa vigente de esquema canónico y triggers=0; puede
+-- provenir de una revisión de lectura separada. B-E solo con berruti_app, sin nuevos grants.
+-- Si falta esa evidencia/visibilidad o hay triggers: PARAR sin quitar ni crear objetos.
+-- Custodia privada/recuperación humana posterior de la NUEVA contraseña debe acordarse
+-- antes del uso; si no puede asegurarse, PARAR. No se incluye consulta de recuperación.
+-- Nunca chat/capturas/logs/historial con secretos literales; no mostrar valores privados.
+-- B. Solo tras revisar prerrequisitos: seleccionar una sentencia cada vez, nunca todo.
+-- Cualquier error, warning inesperado o control distinto: PARAR siguientes escrituras;
+-- operador debe efectuar ROLLBACK explícito mientras la transacción siga activa.
+-- Un error de sentencia NO garantiza rollback de toda la transacción. No reintentar.
+-- START TRANSACTION;
+-- SET @ro=NULL, @us=NULL, @sesiones=NULL, @rol_nuevo=NULL, @usuario_nuevo=NULL,
+--     @clave=NULL, @publico=NULL;
+-- SELECT ultimo INTO @ro FROM berrutilocal.contador_entidad WHERE prefijo='RO-' FOR UPDATE;
+-- SELECT ultimo INTO @us FROM berrutilocal.contador_entidad WHERE prefijo='US-' FOR UPDATE;
+-- SELECT COUNT(*) AS contadores_debe_2 FROM berrutilocal.contador_entidad;
+-- SELECT (@ro=1 AND @us=1 AND @ro BETWEEN 0 AND 49999 AND @us BETWEEN 0 AND 49999)
+--        AS contadores_bloqueados_y_capacidad_debe_1;
+-- PAUSA: ambas lecturas bloquearon exactamente una fila, orden RO luego US; total 2,
+-- booleano 1, sin NULL/warnings. IDs se derivan de estos valores bloqueados, nunca MAX.
+-- SELECT COUNT(*) AS usuarios_debe_1 FROM berrutilocal.usuario;
+-- SELECT COUNT(*) AS pasajero_debe_1 FROM berrutilocal.usuario
+-- WHERE usuario_id='US-1' AND correo='pasajero.demo@example.test' AND activo=1;
+-- SELECT COUNT(*) AS correo_admin_debe_0 FROM berrutilocal.usuario
+-- WHERE correo='admin.demo@example.test';
+-- SELECT COUNT(*) AS roles_debe_1 FROM berrutilocal.rol;
+-- SELECT COUNT(*) AS pasajero_rol_debe_1 FROM berrutilocal.rol
+-- WHERE rol_id='RO-1' AND nombre='Pasajero';
+-- SELECT COUNT(*) AS administrador_rol_debe_0 FROM berrutilocal.rol WHERE nombre='Administrador';
+-- SELECT COUNT(*) AS membresias_debe_1 FROM berrutilocal.usuario_rol;
+-- SELECT COUNT(*) AS pasajero_membresia_debe_1 FROM berrutilocal.usuario_rol
+-- WHERE usuario_id='US-1' AND rol_id='RO-1';
+-- SELECT COUNT(*) INTO @sesiones FROM berrutilocal.sesion;
+-- SELECT @sesiones AS sesiones_basales;
+-- PAUSA: cada cantidad debe coincidir con su nombre. Total+fila exacta excluyen otros
+-- IDs/filas/discrepancias; US-1/RO-1 concuerdan con ambos contadores=1. Sesiones: guardar
+-- cantidad, no leer huellas/tokens. NINGÚN DML antes de TODOS los controles correctos.
+-- C. Solo entonces generar dentro de DB, sin imprimir variables privadas:
+-- SET @rol_nuevo=CONCAT('RO-', @ro+1), @usuario_nuevo=CONCAT('US-', @us+1);
+-- SET @clave=HEX(RANDOM_BYTES(24));
+-- SET @publico=TRIM(TRAILING '=' FROM
+-- REPLACE(REPLACE(TO_BASE64(RANDOM_BYTES(32)), '+', '-'), '/', '_'));
+-- SELECT (CHAR_LENGTH(@clave)=48 AND @clave REGEXP '^[0-9A-F]{48}$') AS clave_valida_debe_1,
+-- (CHAR_LENGTH(@publico)=43 AND @publico REGEXP '^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$')
+-- AS publico_valido_debe_1;
+-- PAUSA: ambos 1, no NULL. Demo académica compatible con almacenamiento existente,
+-- NO esquema de contraseña de producción ni promesa de borrado seguro de memoria.
+-- D. Allowlist: solo dos incrementos acotados y tres INSERT nuevos. Cada SELECT
+-- ROW_COUNT debe ser INMEDIATO tras su mutación, sin otra sentencia intermedia.
+-- UPDATE berrutilocal.contador_entidad SET ultimo=ultimo+1
+-- WHERE prefijo='RO-' AND ultimo=@ro AND ultimo BETWEEN 0 AND 49999;
+-- SELECT ROW_COUNT() AS incremento_ro_debe_1;
+-- PAUSA: exigir 1 ANTES de siguiente mutación; si no, PARAR y rollback explícito.
+-- UPDATE berrutilocal.contador_entidad SET ultimo=ultimo+1
+-- WHERE prefijo='US-' AND ultimo=@us AND ultimo BETWEEN 0 AND 49999;
+-- SELECT ROW_COUNT() AS incremento_us_debe_1;
+-- PAUSA: exigir 1 ANTES de siguiente mutación; si no, PARAR y rollback explícito.
+-- INSERT INTO berrutilocal.rol (rol_id, nombre) VALUES (@rol_nuevo, 'Administrador');
+-- SELECT ROW_COUNT() AS insercion_rol_debe_1;
+-- PAUSA: exigir 1 ANTES de siguiente mutación; si no, PARAR y rollback explícito.
+-- INSERT INTO berrutilocal.usuario (usuario_id, identificador_publico, correo, contrasena, activo)
+-- VALUES (@usuario_nuevo, @publico, 'admin.demo@example.test', @clave, 1);
+-- SELECT ROW_COUNT() AS insercion_usuario_debe_1;
+-- PAUSA: exigir 1 ANTES de siguiente mutación; si no, PARAR y rollback explícito.
+-- INSERT INTO berrutilocal.usuario_rol (usuario_id, rol_id) VALUES (@usuario_nuevo, @rol_nuevo);
+-- SELECT ROW_COUNT() AS insercion_membresia_debe_1;
+-- PAUSA: exigir 1 ANTES de postchecks; si no, PARAR y rollback explícito.
+-- E. Postchecks públicos EN ESTA transacción/conexión; cada resultado debe ser 1.
+-- SELECT ((SELECT COUNT(*) FROM berrutilocal.usuario)=2
+-- AND (SELECT COUNT(*) FROM berrutilocal.rol)=2
+-- AND (SELECT COUNT(*) FROM berrutilocal.usuario_rol)=2) AS cantidades_debe_1;
+-- SELECT ((SELECT COUNT(*) FROM berrutilocal.usuario WHERE usuario_id='US-1'
+-- AND correo='pasajero.demo@example.test' AND activo=1)=1
+-- AND (SELECT COUNT(*) FROM berrutilocal.rol WHERE rol_id='RO-1' AND nombre='Pasajero')=1
+-- AND (SELECT COUNT(*) FROM berrutilocal.usuario_rol
+-- WHERE usuario_id='US-1' AND rol_id='RO-1')=1) AS pasajero_preservado_debe_1;
+-- SELECT (COUNT(*)=1) AS nuevo_admin_debe_1 FROM berrutilocal.usuario AS u
+-- JOIN berrutilocal.usuario_rol AS ur ON ur.usuario_id=u.usuario_id
+-- JOIN berrutilocal.rol AS r ON r.rol_id=ur.rol_id
+-- WHERE u.usuario_id=@usuario_nuevo AND u.correo='admin.demo@example.test' AND u.activo=1
+-- AND r.rol_id=@rol_nuevo AND r.nombre='Administrador'
+-- AND CHAR_LENGTH(u.identificador_publico)=43
+-- AND u.identificador_publico REGEXP '^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$'
+-- AND BINARY u.identificador_publico=BINARY @publico AND BINARY u.contrasena=BINARY @clave;
+-- SELECT ((SELECT COUNT(*) FROM berrutilocal.contador_entidad)=2
+-- AND (SELECT COUNT(*) FROM berrutilocal.contador_entidad WHERE prefijo='RO-' AND ultimo=@ro+1)=1
+-- AND (SELECT COUNT(*) FROM berrutilocal.contador_entidad WHERE prefijo='US-' AND ultimo=@us+1)=1)
+-- AS contadores_avanzaron_uno_debe_1;
+-- SELECT (COUNT(*)=@sesiones) AS sesiones_sin_cambio_debe_1 FROM berrutilocal.sesion;
+-- PAUSA FINAL: todos 1, cinco mutaciones afectaron una fila cada una, sin errores.
+-- Sin prueba total de invariancia de campos privados: preservación descansa en allowlist
+-- revisada, esquema canónico y exclusividad. Nunca consultar secretos existentes.
+-- No se incluye sentencia de confirmación. Transacción sigue ABIERTA: operador decidirá
+-- COMMIT únicamente después de revisión y todas las pruebas; en caso contrario ROLLBACK.
+-- No hay confirmación/reversión automática. Pérdida de conexión o confirmación incierta:
+-- PARAR, no repetir ni compensar borrando; inspección separada del estado durable.
+-- Fuentes públicas: create-auth-demo.sql (campos/restricciones), seed-auth-demo-passenger.sql
+-- (base64url), CuentasRepository/ContadoresRepository/PoliticaSesion (alta/rango/generación).
+-- SQL runtime, rollback real, custodia, identidad/exclusividad y preservación real: NO verificados.
