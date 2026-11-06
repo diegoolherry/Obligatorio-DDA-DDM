@@ -464,7 +464,8 @@ Flujo real en navegador ([L31](../odd/tasks/mvp-001-05-admin-auth.md)), observad
 tipeadas por el usuario: administrador autorizado por la API y cierre confirmado en
 servidor; pasajero (contraseña restablecida por el usuario) denegado por la API; sin
 sesión 401. Límites: no se reutilizó el token revocado ni se probaron en navegador los
-estados de fallo de S4. T3 queda bloqueado solo por la revisión cruzada de Enzo.
+estados de fallo de S4. Revisión cruzada de Enzo conforme según reporte del usuario:
+T3 y MVP-001-05 done ([L35](../odd/tasks/mvp-001-05-admin-auth.md)).
 ASSESS es plan, no aprobación; verifier no disponible no repetido ni gate único.
 T3 bloqueado, revisión cruzada académica no dispensada; ver [L22–L24](../odd/tasks/mvp-001-05-admin-auth.md).
 T6 done solo autoría/autocheck; alta durable reportada por el usuario en L30 (campos privados no
