@@ -45,8 +45,10 @@ dotnet run --project API-Berruti/API-Berruti.csproj --no-build --launch-profile 
 
 ```sh
 cd src/Web/Web-App
-dotnet run --project Web-App/Web-App.csproj --no-build --launch-profile https
+Api__BaseUrl="https://localhost:7053/" dotnet run --project Web-App/Web-App.csproj --no-build --launch-profile https
 ```
+
+En PowerShell, definí antes `$env:Api__BaseUrl = "https://localhost:7053/"`. Sin esa variable pública, `/ingreso` muestra un error de configuración y no envía credenciales. No es un secreto: es la raíz HTTPS de la API, descrita en la [configuración cliente/API](../how-to/client-api-configuration.md).
 
 Los perfiles declaran API `https://localhost:7053` y Web `https://localhost:7054/ingreso`. Son direcciones configuradas, **no TLS comprobado**: verificar certificados sin omitir su validación. Además hacen falta los datos/configuración privados indicados en las guías; cambiar de perfil no crea tablas/cuentas ni conecta automáticamente los clientes.
 

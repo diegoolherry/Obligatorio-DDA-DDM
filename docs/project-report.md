@@ -28,7 +28,7 @@ El MVP de las primeras semanas de octubre es un corte inicial; la entrega comple
 
 **Avance independiente de cobrador (MVP-001-04):** pantalla Mobile compartida con pasajero y comprobación de permiso `prueba-cobrador` de solo lectura, sin duplicar ingreso/salida ni añadir operaciones de transporte. Mobile: 17/17 checks offline y typecheck exit 0; la presencia de las acciones UI se comprueba estructuralmente, no en un dispositivo. Verificación API y revisión independiente offline conformes: sesiones 45/45, contratos 50/50, Mobile 17/17 y typecheck exit 0; comparación del flujo anterior sin diferencias. Evidencia y límites en su [seguimiento](../odd/tasks/mvp-001-04-collector-auth.md). No se ejecutó SQL ni se inició la API; el flujo real, iPhone y revisión de Enzo siguen pendientes. La corrección SQL de pruebas conserva su bloqueo administrativo.
 
-**Avance independiente de administrador (MVP-001-05):** `/ingreso` reutiliza el servicio y endpoint existentes mediante una acción de comprobación administrativa de lectura, con progreso y reintento, sin panel operativo. Web RED estructural 83/84 → GREEN 84/84, matriz API offline ampliada 46/46 y build Web sin advertencias/errores. Verificación independiente conforme (`mw16b3cu-3-wtyo`), con los mismos checks exit 0 y sin bloqueadores concretos; navegador/circuito, TLS, cuenta ficticia, MySQL y revisión de Enzo no verificados. [Seguimiento y límites](../odd/tasks/mvp-001-05-admin-auth.md).
+**Avance independiente de administrador (MVP-001-05):** `/ingreso` reutiliza el servicio y endpoint existentes mediante una acción de comprobación administrativa de lectura, con progreso y reintento, sin panel operativo. Web RED estructural 83/84 → GREEN 84/84, matriz API offline ampliada 46/46 y build Web sin advertencias/errores. Verificación independiente conforme (`mw16b3cu-3-wtyo`), con los mismos checks exit 0 y sin bloqueadores concretos; en ese momento navegador/circuito, TLS, cuenta ficticia y MySQL no estaban verificados (luego cubiertos por L30–L31, ver sección de alta administrativa); revisión de Enzo pendiente. [Seguimiento y límites](../odd/tasks/mvp-001-05-admin-auth.md).
 
 **Publicación e incidente de integración de MVP-001:** [tracker #37](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/37) y 14 hijos #38–#51 se publicaron correctamente como borradores, con `Refs #36` y un único tipo por PR. Después, el usuario informó que había integrado todos; la consulta de GitHub confirmó los 15 como merged, pero #37 se fusionó primero. `main` quedó en `722e14d`, con el documento coordinador y sin los cambios de autenticación: ninguno de los 91 blobs finales comparados coincidió con la implementación completa `bb0452a`. Los merges posteriores hacia las ramas base no propagaron automáticamente sus cambios a `main`. El código original se conserva intacto; se preparó una recuperación **solo local** en `fix/mvp-001-auth-integration-recovery`, conservando la historia completa y sin modificar código de aplicación, tests ni scripts. La simulación sobre el candidato revisado preservó el árbol completo más el coordinador del destino, con cero conflictos; pasaron builds API/Web sin advertencias/errores, contratos 50/50, sesiones 46/46, Web 84/84, Mobile 17/17 y typecheck. La revisión independiente confirmó procedencia, equivalencia y referencias, y reprodujo sesiones 46/46 y Mobile 17/17; no repitió la simulación ni la suite completa. La advertencia experimental de Node no fue bloqueante. El destino fijado es `origin/main` en `722e14d`; la rama local `main` en `c5ea2bf` permaneció intacta. Esto no aplica la recuperación a GitHub: no hubo push ni merge de esta rama. [Seguimiento y límites de recuperación](../odd/tasks/mvp-001-auth-integration-recovery.md). La [issue #36](https://github.com/diegoolherry/Obligatorio-DDA-DDM/issues/36) aparece cerrada y conserva `status:approved`; no se infiere la causa del cierre ni aceptación académica y no se reabre en esta preparación. La CI histórica del tracker solo comprobó JSON/whitespace; no acredita autenticación ni los 14 hijos. Continúan pendientes SQL administrativo/fixtures, TLS/navegador/iPhone y revisión cruzada. [Evidencia de publicación y límites](../odd/tasks/mvp-001-pr-preparation.md).
 
@@ -399,6 +399,77 @@ La configuración privada de pruebas todavía no existe según la comprobación 
 **Evidencia posterior real y preparación T18/S20:** el padre ejecutó una vez el inspector compilado, job-1 exit0/INSPECT_EXIT=0 en 3 segundos ([L96–L98](../odd/tasks/mvp-001-03-passenger-auth.md)), con conexión privada e identidad/base reales aceptadas por sus guardias, sin leer secretos. Observó cuatro tablas InnoDB con conteos 0, sin contadores ni `sesion` (ausencia aceptable para T1), pero la PK de `usuario_rol` contiene solo `usuario_id`, no la pareja esperada. CREATE canónico y mapeo EF ya son correctos; no se atribuye causa. Exit0 acredita inspección, no compatibilidad completa del DDL (longitudes VARCHAR/semántica CHECK no verificadas) ni pruebas normal/frontera. El usuario aprobó únicamente preparar [un parche manual administrativo](../scripts/database/repair-auth-tests-membership-primary-key.sql), con puertas humanas frescas y postchecks; no se ejecutó. La [guía T1](how-to/mysql-persistence-checks.md#hallazgo-real-y-corrección-manual-acotada-t18s20) conserva el bloqueo de semillas/escenarios hasta revisión, ejecución humana y posterior inspección. MVP-001-03 sigue `blocked`, finalización null, sin aprobación de Enzo ni cierre académico; sin cambios de API/despliegue/permisos/demo, API apagada por elección humana. Los fallos y snapshots anteriores se conservan como historia.
 
 **Actualización de autorización S21, sin ejecución:** el usuario informó que agregó `ALTER` en la base a `berruti_test` y autorizó una corrección puntual por el agente con la configuración privada existente; no se verificó el permiso ni se ejecutó el cambio. Una consulta acotada de viabilidad detectó que DML+ALTER limitados a la base no acreditan visibilidad completa de referencias entrantes desde otros esquemas: `INFORMATION_SCHEMA` filtra por privilegios. La puerta administrativa ya prevista sigue pendiente de evidencia fresca con cobertura completa y de exclusión de otros escritores; no se rebajó ni se usó `root`, ni se añadieron permisos por el agente. T18 y los escenarios SQL permanecen bloqueados; no se creó un ejecutor ni se cambió el inspector de lectura. Evidencia y distinción autorización/prueba en [L101–L102](../odd/tasks/mvp-001-03-passenger-auth.md); regla de visibilidad en el [manual MySQL](https://dev.mysql.com/doc/refman/8.0/en/information-schema-introduction.html).
+
+### Preparación aislada de administrador: núcleo revisado según reporte, conexión real pendiente
+
+Evidencia de mw4611zb-o-utgu y lectura del padre de cinco archivos nuevos, no
+reejecutada aquí: tests/DemoAdministratorPreparation, 347 líneas (248 sin README),
+consola net10 sin paquetes/referencias a proyectos. Puerto tipado IContextoSintetico
+solo Falso; sin adaptador/configuración privada/SQL/EF/CLI de alta real ni cambios
+API/aplicación. Rótulos lógicos no acreditan identidad/destino MySQL efectivos.
+RED compilable31/55 y0/55, exit1/stderr vacío; intermedio48/55 por fixtures/call counts
+corregidos sin debilitar núcleo; GREEN55/55 exacto/stderr vacío, build limpio y
+CLI3/3 (ocho procesos), exit0 reportado. Whitespace sin errores, avisos LF→CRLF.
+Los55 casos/snapshots públicos modelan guards, reutilización/alta de rol, contadores,
+fallos parciales y duplicados; no atomicidad global ni prueba SQL/concurrencia/seguridad.
+Posible rol/RO durable tras fallo de usuario, sin compensación/reset/reintento ciego.
+ASSESS nuevo: riesgo alto ítem2, no evaluable nativamente/untracked/RDD off; exige
+verificación independiente, no es aprobación. T4 done solo implementación/autocheck;
+T5/T3 siguen abiertos por adaptador/custodia/prepostchecks reales. El usuario
+informó «Reviso enzo. Me dijo que todo perfecto.» sobre el núcleo aislado:
+visto bueno reportado, sin comandos/resultados de reejecución independiente.
+No se extiende a un adaptador real inexistente ni al cierre académico. Verificador no disponible no reintentado.
+Cuenta no creada, API/Web detenidos, Ego2 finalizado; sin staging/commits/cierre MVP
+ni cambios del backlog. [Contrato, evidencia y pendientes](../tests/DemoAdministratorPreparation/README.md);
+[seguimiento L11–L16](../odd/tasks/mvp-001-05-admin-auth.md).
+
+Precontrol posterior reportado por la persona: contadores RO-=1 y US-=1, sin fila
+de rol Administrador. RO-2/US-2 serían los siguientes solo si el estado no cambia
+y se cumplen los controles restantes; no están reservados ni asignados. No hubo
+escritura ni alta. La conexión real/custodia privada aún se está definiendo para
+revisión; estos resultados no prueban identidad efectiva ni conservación SQL.
+
+### Alta administrativa: intentos, alta confirmada y recorrido en navegador
+
+La ruta consola/adaptador quedó apartada: el usuario operará Workbench. Aclaró
+«osea era eso, ya hicimos la verificacion tecnica con el profe»: revisión del SQL
+reportada, no solo aprobación visual; no repetirla ni atribuirla a Enzo. [Borrador](../scripts/database/review-demo-admin-creation.sql),124 líneas,
+SHA256 `0bfffae686eaa2c2ecf7051fe0214862ba3db784ca5643dee8c75a79faa1abbc`.
+Todo comentario, cero SQL al Run All, sin COMMIT ejecutable/DDL/grants/reset/delete.
+Una transacción manual con locks RO→US y cinco mutaciones/checkpoints; distinta de
+las dos de CuentasRepository/modelo sintético55 casos, cuyo visto bueno no se extiende.
+Control estático inicial exit1: regex confundió filename con DDL, resto omitido;
+corrección del padre exit0 completó asserts/regresiones. Diff no-index exit1 ambiguo,
+solo aviso LF→CRLF; chequeo textual del padre PASS. Esos controles no prueban
+sintaxis/MySQL/rollback ni preservación real. Reporte humano: berruti_app@localhost/berrutilocal,
+3306/autocommit1/versión26.7.0, MySQL Community Server - GPL; cinco tablas InnoDB.
+Screenshot administrativo root@localhost/solo lectura confirmó triggers0, distinto
+del conteo app filtrable. Comparación estructural de cinco SHOW CREATE sin diferencias
+semánticas de columnas/claves/expresiones, no prueba funcional CHECK. Después de
+«dale segui», el usuario reportó TX/precontroles, sesiones5, validaciones1,1 y
+«perfecto la guarde» para custodia privada; agentes no recibieron secretos. ROW_COUNT
+reportados1,1,1: incrementos RO/US e INSERT rol. INSERT usuario instruido pero estado
+DESCONOCIDO; membresía no instruida/confirmada, sin postchecks/COMMIT reportados.
+Tras la pausa, ROLLBACK sin error reportado mediante «si»; no repetirlo. Retorno:
+«dale sigamos dale». Proyecciones públicas posrollback reportadas coinciden con
+baseline (RO/US1, pasajero/membresía1, sin admin correo/rol, sesiones5); resuelven
+la incertidumbre pública durable del cuarto INSERT, no campos privados/filas de sesión.
+Tercer intento ([L30](../odd/tasks/mvp-001-05-admin-auth.md)), reportado por el usuario:
+una reconexión de Workbench descartó una transacción sin DML; ROW_COUNT() en ejecución
+separada dio 0 y se reemplazó por controles de estado; un UPDATE accidental dejó el hueco
+RO-2, aceptado sin reparación. Transacción final con controles en 1 y COMMIT OK; lectura
+desde conexión nueva: US-2 admin.demo@example.test activo con RO-3 Administrador y
+pasajero US-1/RO-1 preservado. T5 done.
+Flujo real en navegador ([L31](../odd/tasks/mvp-001-05-admin-auth.md)), observado por el agente con contraseñas
+tipeadas por el usuario: administrador autorizado por la API y cierre confirmado en
+servidor; pasajero (contraseña restablecida por el usuario) denegado por la API; sin
+sesión 401. Límites: no se reutilizó el token revocado ni se probaron en navegador los
+estados de fallo de S4. T3 queda bloqueado solo por la revisión cruzada de Enzo.
+ASSESS es plan, no aprobación; verifier no disponible no repetido ni gate único.
+T3 bloqueado, revisión cruzada académica no dispensada; ver [L22–L24](../odd/tasks/mvp-001-05-admin-auth.md).
+T6 done solo autoría/autocheck; alta durable reportada por el usuario en L30 (campos privados no
+validados byte a byte; el agente no observó la base), sin cierre académico,
+API/Web parados, Ego2 finalizado. [Pausa y estado L25–L27](../odd/tasks/mvp-001-05-admin-auth.md). [Evidencia y puertas L19–L21](../odd/tasks/mvp-001-05-admin-auth.md).
 
 ## 8. Riesgos, puesta en marcha y cierre
 
