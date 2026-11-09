@@ -1,3 +1,4 @@
+using API_Berruti.Data;
 using API_Berruti.Security.Authentication;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -19,6 +20,9 @@ builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.None);
 
 var app = builder.Build();
 
+if (args.Contains(ReinicioLocal.Argumento))
+    return await ReinicioLocal.EjecutarAsync(app.Services, builder.Configuration, app.Environment);
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -34,3 +38,4 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+return 0;
