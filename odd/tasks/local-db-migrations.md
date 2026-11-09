@@ -15,7 +15,7 @@ Branch: `feat/local-db-migrations` (from `main`). Rules: AGENTS.md "Base de dato
 
 - T1 (S1, S4) — EF tooling, model constraints, initial migration, generated `scripts/database/migrations.sql`. Inline. Done: 2120513.
 - T2 (S2, S3, S5) — `--reset-local` command (drop tables, migrate, seed), `scripts/reset-local-db.ps1`, one-time `scripts/database/grant-local-ddl.sql`. Inline. Done: 2120513 (build OK; sin MySQL, el reset sale con exit 2 por falta de contraseña).
-- T3 (S1-S6) — Short how-to guide; human runs GRANT + reset; real login check for MVP-001-03/04. Commit: pending.
+- T3 (S1-S6) — Short how-to guide; human runs GRANT + reset; real login check for MVP-001-03/04. API part done: 620dfcb, user ran reset + check-demo-login.ps1 19/19 PASS. Client (Web/Mobile) login and Enzo review pending.
 
 ## Log
 
