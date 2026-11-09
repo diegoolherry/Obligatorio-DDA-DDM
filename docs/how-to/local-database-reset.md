@@ -32,4 +32,5 @@ dotnet ef migrations add <Nombre> --project src/Api/API-Berruti/API-Berruti/API-
 dotnet ef migrations script --project src/Api/API-Berruti/API-Berruti/API-Berruti.csproj -o scripts/database/migrations.sql
 ```
 
-3. Corré `reset-local-db.ps1`. No edites a mano `scripts/database/migrations.sql`.
+3. EF deja una línea en blanco al final del script y el CI (`git diff --check`) la rechaza: borrala. Es el único retoque permitido; no edites el resto de `scripts/database/migrations.sql`.
+4. Corré `reset-local-db.ps1`.
