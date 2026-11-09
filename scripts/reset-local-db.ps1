@@ -39,8 +39,13 @@ try {
     [Environment]::SetEnvironmentVariable('ASPNETCORE_ENVIRONMENT', $Environment, 'Process')
     if ($Environment -eq 'Development') {
         $secure = Read-Host 'Contrasena ficticia para las cuentas demo' -AsSecureString
-        $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure))
-        [Environment]::SetEnvironmentVariable('DemoSeed__Contrasena', $plain, 'Process')
+        $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+        try {
+            [Environment]::SetEnvironmentVariable('DemoSeed__Contrasena',
+                [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr), 'Process')
+        } finally {
+            [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+        }
     }
     & dotnet run --project $project --no-launch-profile -- --reset-local
     $code = $LASTEXITCODE

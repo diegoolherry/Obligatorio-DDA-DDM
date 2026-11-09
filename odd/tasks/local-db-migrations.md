@@ -21,3 +21,4 @@ Branch: `feat/local-db-migrations` (from `main`). Rules: AGENTS.md "Base de dato
 
 - L1 — User: "podemos terminar el MVP esta semana? es ambisiosa pero, el tema uqe se interrumpe mucho en cada implementacion estoy ,ucho en el loop. Podriamos cambiar un poco"; first step chosen: "Cerrar 001-03 y 001-04".
 - L2 — Decision: one shared fictitious demo password read from private `.env` key `DemoSeed__Contrasena`; emails `pasajero.demo@`, `cobrador.demo@`, `admin.demo@example.test` (first and last already used in docs).
+- L3 — Correction of L2 (agent implementation decision, not a user decision): the demo password is NOT read from `.env`; `scripts/reset-local-db.ps1` asks for it with `Read-Host -AsSecureString` because the `.env` parser of `start-api-local.ps1` accepts a single key. Independent verify `mw9pl6ld-2-xpb0`: PASS S1-S5 and risk items 1, 2, 5; real MySQL reset and login pending (T3).
