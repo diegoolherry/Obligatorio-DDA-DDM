@@ -23,6 +23,11 @@ if ($Save) {
     Write-Host 'Contrasena demo guardada cifrada para este usuario de Windows.'
     exit 0
 }
+$target = [Uri]$BaseUrl
+if ($target.Scheme -ne 'https' -or $target.Host -notin @('localhost', '127.0.0.1', '::1', '[::1]')) {
+    [Console]::Error.WriteLine('BaseUrl debe ser https en localhost: la contrasena demo no sale de esta maquina.')
+    exit 2
+}
 if (!(Test-Path $file)) {
     [Console]::Error.WriteLine('Falta la contrasena demo: ejecuta primero .\scripts\check-demo-login.ps1 -Save')
     exit 2
@@ -41,9 +46,11 @@ function Invoke-Api([string]$Method, [string]$Path, [string]$Token, $Body) {
     try {
         $response = Invoke-WebRequest @request
         return @{ Status = [int]$response.StatusCode; Content = $response.Content }
-    } catch [System.Net.WebException] {
-        if ($null -eq $_.Exception.Response) { return @{ Status = 0; Content = $null } }
-        return @{ Status = [int]$_.Exception.Response.StatusCode; Content = $null }
+    } catch {
+        # WebException (Windows PowerShell) o HttpResponseException (PowerShell 7): solo el codigo.
+        $response = $_.Exception.Response
+        if ($null -eq $response) { return @{ Status = 0; Content = $null } }
+        return @{ Status = [int]$response.StatusCode; Content = $null }
     }
 }
 
