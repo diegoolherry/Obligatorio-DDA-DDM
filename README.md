@@ -7,7 +7,7 @@ Proyecto académico de pasajes y abonos por tramo, inspirado en una operativa ob
 | Quiero… | Documento |
 | --- | --- |
 | Aprender con una primera ejecución | [Tutorial: primer arranque local](docs/tutorials/first-local-run.md) |
-| Resolver una tarea concreta | [Direcciones cliente/API](docs/how-to/client-api-configuration.md) · [Bases MySQL locales](docs/how-to/local-auth-database.md) · [Resolución de problemas](docs/how-to/troubleshooting.md) |
+| Resolver una tarea concreta | [Direcciones cliente/API](docs/how-to/client-api-configuration.md) · [Bases MySQL locales](docs/how-to/local-auth-database.md) · [Recrear la base local](docs/how-to/local-database-reset.md) · [Resolución de problemas](docs/how-to/troubleshooting.md) |
 | Configurar el ingreso local | [API y sesiones](docs/how-to/api-session-checks.md) · [Cliente Web](docs/how-to/web-passenger-login.md) · [Cliente Mobile](docs/how-to/mobile-passenger-login.md) |
 | Consultar especificaciones | [Requisitos](docs/reference/requirements.md) · [Historias de usuario](docs/reference/user-stories.md) · [Alcance final](docs/reference/final-scope.md) · [API implementada](docs/reference/api.md) · [Contratos iniciales de autenticación](docs/reference/auth-contracts.md) |
 | Entender el contexto y las decisiones | [MVP](docs/explanation/mvp.md) · [Modelo de datos](docs/explanation/data-model.md) · [Entidades explicadas](docs/explanation/entities-explained.md) · [Diseño UX](docs/explanation/ux-design.md) |
