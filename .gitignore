@@ -19,3 +19,4 @@
 [Oo]bj/
 .vs/
 *.csproj.user
+/.local/demo-password.dpapi

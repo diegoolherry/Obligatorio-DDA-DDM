@@ -34,3 +34,14 @@ dotnet ef migrations script --project src/Api/API-Berruti/API-Berruti/API-Berrut
 
 3. EF deja una línea en blanco al final del script y el CI (`git diff --check`) la rechaza: borrala. Es el único retoque permitido; no edites el resto de `scripts/database/migrations.sql`.
 4. Corré `reset-local-db.ps1`.
+
+## Probar el ingreso de las cuentas demo
+
+Con la API corriendo (`.\scripts\start-api-local.ps1`):
+
+```powershell
+.\scripts\check-demo-login.ps1 -Save   # una vez: guarda la contraseña demo cifrada con DPAPI en .local/
+.\scripts\check-demo-login.ps1         # pasajero, cobrador y admin: ingreso, rol permitido/denegado, sin sesión, salida y token revocado
+```
+
+Solo imprime códigos HTTP; nunca la contraseña ni el token. El archivo cifrado está fuera de git y solo lo descifra tu usuario de Windows.
