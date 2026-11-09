@@ -3,6 +3,7 @@ import {
   ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable,
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
+import type { TextInputInstance } from 'react-native';
 import type { IAuthenticationService } from '../../services/Authentication/IAuthenticationService';
 import type { AuthenticationResult } from '../../contracts/session';
 
@@ -14,7 +15,7 @@ export function PassengerLogin({ service }: { service: IAuthenticationService })
   const [message, setMessage] = useState('Ingresá con una cuenta ficticia.');
   const mounted = useRef(false);
   const submitting = useRef(false);
-  const passwordInput = useRef<TextInput>(null);
+  const passwordInput = useRef<TextInputInstance>(null);
 
   useEffect(() => {
     mounted.current = true;
