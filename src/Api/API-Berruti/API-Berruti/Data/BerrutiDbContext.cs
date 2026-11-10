@@ -1,4 +1,5 @@
 using API_Berruti.Models.Authentication;
+using API_Berruti.Models.Operational;
 using Microsoft.EntityFrameworkCore;
 using MySql.EntityFrameworkCore.Extensions;
 
@@ -13,6 +14,10 @@ public class BerrutiDbContext : DbContext
     public DbSet<Rol> Roles => Set<Rol>();
     public DbSet<UsuarioRol> UsuariosRoles => Set<UsuarioRol>();
     public DbSet<ContadorEntidad> Contadores => Set<ContadorEntidad>();
+    public DbSet<Parada> Paradas => Set<Parada>();
+    public DbSet<Tramo> Tramos => Set<Tramo>();
+    public DbSet<Servicio> Servicios => Set<Servicio>();
+    public DbSet<Tarifa> Tarifas => Set<Tarifa>();
 
     // Mismas restricciones que el esquema aprobado en scripts/database/create-auth-demo.sql.
     private const string Ascii = "ascii_bin";
@@ -79,5 +84,42 @@ public class BerrutiDbContext : DbContext
         contador.HasKey(c => c.Prefijo);
         contador.Property(c => c.Prefijo).HasColumnName("prefijo").HasMaxLength(3).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).ValueGeneratedNever();
         contador.Property(c => c.Ultimo).HasColumnName("ultimo");
+
+        var parada = modelo.Entity<Parada>();
+        parada.ToTable("parada");
+        parada.HasKey(p => p.Id);
+        parada.Property(p => p.Id).HasColumnName("parada_id").HasMaxLength(36).ValueGeneratedNever();
+        parada.Property(p => p.Nombre).HasColumnName("nombre").HasMaxLength(100).IsRequired();
+
+        var tramo = modelo.Entity<Tramo>();
+        tramo.ToTable("tramo");
+        tramo.HasKey(t => t.Id);
+        tramo.Property(t => t.Id).HasColumnName("tramo_id").HasMaxLength(36).ValueGeneratedNever();
+        tramo.Property(t => t.OrigenId).HasColumnName("origen_id").HasMaxLength(36).IsRequired();
+        tramo.Property(t => t.DestinoId).HasColumnName("destino_id").HasMaxLength(36).IsRequired();
+        tramo.HasOne<Parada>().WithMany().HasForeignKey(t => t.OrigenId).OnDelete(DeleteBehavior.Restrict);
+        tramo.HasOne<Parada>().WithMany().HasForeignKey(t => t.DestinoId).OnDelete(DeleteBehavior.Restrict);
+
+        var servicio = modelo.Entity<Servicio>();
+        servicio.ToTable("servicio");
+        servicio.HasKey(s => s.Id);
+        servicio.Property(s => s.Id).HasColumnName("servicio_id").HasMaxLength(36).ValueGeneratedNever();
+        servicio.Property(s => s.TramoId).HasColumnName("tramo_id").HasMaxLength(36).IsRequired();
+        servicio.Property(s => s.Fecha).HasColumnName("fecha").HasColumnType("date").IsRequired();
+        servicio.Property(s => s.HoraSalida).HasColumnName("hora_salida").HasColumnType("time").IsRequired();
+        servicio.Property(s => s.HoraLlegada).HasColumnName("hora_llegada").HasColumnType("time").IsRequired();
+        servicio.Property(s => s.Capacidad).HasColumnName("capacidad").IsRequired();
+        servicio.Property(s => s.PoliticaAsiento).HasColumnName("politica_asiento").HasConversion<string>().HasMaxLength(24).IsRequired();
+        servicio.HasOne<Tramo>().WithMany().HasForeignKey(s => s.TramoId).OnDelete(DeleteBehavior.Restrict);
+
+        var tarifa = modelo.Entity<Tarifa>();
+        tarifa.ToTable("tarifa");
+        tarifa.HasKey(t => t.Id);
+        tarifa.Property(t => t.Id).HasColumnName("tarifa_id").HasMaxLength(36).ValueGeneratedNever();
+        tarifa.Property(t => t.TramoId).HasColumnName("tramo_id").HasMaxLength(36).IsRequired();
+        tarifa.Property(t => t.Importe).HasColumnName("importe").HasPrecision(18, 2).IsRequired();
+        tarifa.Property(t => t.VigenteDesde).HasColumnName("vigente_desde").HasColumnType("date").IsRequired();
+        tarifa.Property(t => t.VigenteHasta).HasColumnName("vigente_hasta").HasColumnType("date").IsRequired();
+        tarifa.HasOne<Tramo>().WithMany().HasForeignKey(t => t.TramoId).OnDelete(DeleteBehavior.Restrict);
     }
 }

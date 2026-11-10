@@ -16,7 +16,7 @@ namespace API_Berruti.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.9")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             modelBuilder.Entity("API_Berruti.Models.Authentication.ContadorEntidad", b =>
@@ -189,6 +189,127 @@ namespace API_Berruti.Data.Migrations
                     b.ToTable("usuario_rol", (string)null);
                 });
 
+            modelBuilder.Entity("API_Berruti.Models.Operational.Parada", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("parada_id");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("nombre");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("parada", (string)null);
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.Servicio", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("servicio_id");
+
+                    b.Property<int>("Capacidad")
+                        .HasColumnType("int")
+                        .HasColumnName("capacidad");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("date")
+                        .HasColumnName("fecha");
+
+                    b.Property<TimeSpan>("HoraLlegada")
+                        .HasColumnType("time")
+                        .HasColumnName("hora_llegada");
+
+                    b.Property<TimeSpan>("HoraSalida")
+                        .HasColumnType("time")
+                        .HasColumnName("hora_salida");
+
+                    b.Property<string>("PoliticaAsiento")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("varchar(24)")
+                        .HasColumnName("politica_asiento");
+
+                    b.Property<string>("TramoId")
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("tramo_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TramoId");
+
+                    b.ToTable("servicio", (string)null);
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.Tarifa", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("tarifa_id");
+
+                    b.Property<decimal>("Importe")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("importe");
+
+                    b.Property<string>("TramoId")
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("tramo_id");
+
+                    b.Property<DateTime>("VigenteDesde")
+                        .HasColumnType("date")
+                        .HasColumnName("vigente_desde");
+
+                    b.Property<DateTime>("VigenteHasta")
+                        .HasColumnType("date")
+                        .HasColumnName("vigente_hasta");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TramoId");
+
+                    b.ToTable("tarifa", (string)null);
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.Tramo", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("tramo_id");
+
+                    b.Property<string>("DestinoId")
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("destino_id");
+
+                    b.Property<string>("OrigenId")
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("origen_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DestinoId");
+
+                    b.HasIndex("OrigenId");
+
+                    b.ToTable("tramo", (string)null);
+                });
+
             modelBuilder.Entity("API_Berruti.Models.Authentication.Sesion", b =>
                 {
                     b.HasOne("API_Berruti.Models.Authentication.Usuario", null)
@@ -214,6 +335,39 @@ namespace API_Berruti.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_usuario_rol_usuario");
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.Servicio", b =>
+                {
+                    b.HasOne("API_Berruti.Models.Operational.Tramo", null)
+                        .WithMany()
+                        .HasForeignKey("TramoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.Tarifa", b =>
+                {
+                    b.HasOne("API_Berruti.Models.Operational.Tramo", null)
+                        .WithMany()
+                        .HasForeignKey("TramoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.Tramo", b =>
+                {
+                    b.HasOne("API_Berruti.Models.Operational.Parada", null)
+                        .WithMany()
+                        .HasForeignKey("DestinoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("API_Berruti.Models.Operational.Parada", null)
+                        .WithMany()
+                        .HasForeignKey("OrigenId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }
