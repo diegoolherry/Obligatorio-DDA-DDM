@@ -47,4 +47,3 @@ sealed class FakeParadasService : IParadasService
     public Task<ParadaDto> ActualizarAsync(string id, ParadaDto dto) { UpdateCalls++; return Update(id); }
     public Task EliminarAsync(string id) => Task.CompletedTask;
 }
-
