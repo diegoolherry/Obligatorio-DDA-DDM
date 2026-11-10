@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Web_App.Models.Authentication;
+using Web_App.Models.Operational;
 
 namespace Web_App.Services.Authentication;
 
@@ -32,6 +33,29 @@ public class SesionCliente(IHttpClientFactory factory, IConfiguration configurat
     public Task<ResultadoAutenticacion> ConsultarIdentidadAsync() => EjecutarAsync("identidad");
     public Task<ResultadoAutenticacion> ProbarPasajeroAsync() => EjecutarAsync("prueba-pasajero");
     public Task<ResultadoAutenticacion> ProbarAdministradorAsync() => EjecutarAsync("prueba-administrador");
+
+    public async Task<RespuestaApiAdministracion> SolicitarAdministradorAsync(HttpMethod metodo, string ruta, string? json = null)
+    {
+        if (!Estado.Autenticada || string.IsNullOrEmpty(_token)) return new(false, null, null, "Ingresá con una sesión activa.");
+        if (!TryBaseUrl(configuration["Api:BaseUrl"], out var baseUrl)) return new(false, null, null, "La URL de la API no está configurada correctamente.");
+        try
+        {
+            using var client = factory.CreateClient("Autenticacion");
+            using var request = new HttpRequestMessage(metodo, new Uri(baseUrl!, ruta));
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token);
+            if (json != null) request.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+            using var response = await client.SendAsync(request);
+            string body = await response.Content.ReadAsStringAsync();
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized) Descartar();
+            return response.IsSuccessStatusCode
+                ? new(true, (int)response.StatusCode, body, "Operación completada.")
+                : new(false, (int)response.StatusCode, null, response.StatusCode == System.Net.HttpStatusCode.Forbidden
+                    ? "La API denegó el acceso de administrador." : response.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                    ? "La sesión venció o no es válida. Ingresá nuevamente." : "La API no pudo completar la operación.");
+        }
+        catch (HttpRequestException) { return new(false, null, null, "No se pudo contactar con la API. Revisá la conexión y reintentá."); }
+        catch (TaskCanceledException) { return new(false, null, null, "La solicitud agotó el tiempo de espera. Reintentá."); }
+    }
 
     private async Task<ResultadoAutenticacion> EjecutarAsync(string operacion, SolicitudIngresoDto? solicitud = null)
     {
