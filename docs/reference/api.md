@@ -21,8 +21,33 @@ Las rutas protegidas sin sesión válida reciben `401` con `WWW-Authenticate: Be
 
 Fuentes: [WeatherForecastController.cs](../../src/Api/API-Berruti/API-Berruti/Controllers/WeatherForecastController.cs), [WeatherForecast.cs](../../src/Api/API-Berruti/API-Berruti/WeatherForecast.cs) y [Program.cs](../../src/Api/API-Berruti/API-Berruti/Program.cs). Consultá el JSON servido para campos, tipos y respuestas; la variación aleatoria impide esperar valores exactos.
 
+## Administración operativa
+
+Las rutas operativas están protegidas con `[Authorize(Roles = "Administrador")]` y usan DTOs tipados. Esta tabla resume los controllers y contratos actuales; es documentación basada en fuente, no evidencia de una prueba HTTP integrada ni de persistencia MySQL.
+
+| Método y ruta | Comportamiento establecido en fuente |
+| --- | --- |
+| `GET /api/administracion/paradas` | Lista `ParadaDto` para Administrador. |
+| `POST /api/administracion/paradas` | Crea desde `ParadaDto`: `201` o `400` por validación. |
+| `PUT /api/administracion/paradas/{id}` | Actualiza: `200`, `400` para datos esperados inválidos o `404` si falta. |
+| `DELETE /api/administracion/paradas/{id}` | Elimina: `204`, `404` si falta o `409` cuando la parada está referenciada por un tramo. |
+| `GET/POST/PUT/DELETE /api/administracion/tramos[/{id}]` | CRUD de `TramoDto`, con origen/destino ligados a paradas; `201/200/204`, validación `400`, ausencia `404` y restricción referencial `409`. |
+| `GET/POST/PUT/DELETE /api/administracion/servicios[/{id}]` | CRUD de `ServicioDto`: tramo, fecha, horarios, capacidad y política `SinAsiento` o `AsignacionAutomatica`; `201/200/204`, validación `400`, ausencia `404`. |
+| `GET/POST/PUT/DELETE /api/administracion/tarifas[/{id}]` | CRUD de `TarifaDto`: tramo, importe y vigencia; `201/200/204`, validación `400`, ausencia `404`. |
+| `POST /api/administracion/escenario-demo/preparar-demo` | Recibe `SolicitudPreparacionDemoDto`; responde `200`, `409` con conflictos o `400` por solicitud inválida, sin reemplazar datos incompatibles. |
+
+### Comprobación local de autorización operativa
+
+El script fuente [`scripts/check-operational-authorization.ps1`](../../scripts/check-operational-authorization.ps1) prepara una matriz HTTP para las cuatro listas y para el POST vacío de preparación demo. Para ejecutarlo, la API debe estar disponible en HTTPS de loopback y el entorno local debe estar autorizado y configurado; el script solicita la contraseña demo con entrada segura, no la guarda, no relaja la validación TLS y no imprime credenciales, tokens ni cuerpos de error.
+
+```powershell
+.\scripts\check-operational-authorization.ps1 -BaseUrl https://localhost:7053
+```
+
+Se esperan `401` anónimo, `403` para Pasajero/Cobrador y `200` para Administrador en cada lista; el POST vacío de preparación espera `401`, `403` y `400` respectivamente. Solo se crean sesiones de autenticación y el script intenta revocarlas siempre en `finally`; la solicitud vacía se rechaza por validación y **no demuestra preparación de demo**, CRUD, persistencia MySQL ni ausencia de fallos fuera de esta matriz. El script no fue ejecutado; ninguna de estas respuestas se presenta como resultado observado.
+
 ## Límites y evidencia
 
-Las sesiones API usan Controller → interfaz Service → interfaces Repository → DbContext; autenticación Bearer opaca y autorización del framework compartido, sin JWT ni paquetes nuevos. Roles se consultan en MySQL en cada solicitud; token solo se entrega al ingresar, huella SHA-256 única en DB, vencimiento UTC absoluto de siete días y revocación por sesión. No hay rutas reales de negocio, pagos, QR ni consumidores cliente. La matriz pública local `200/204/401/403` y el rechazo inmediato del token anterior tras logout sí tienen evidencia independiente enlazada arriba; persistencia ante reinicio, revocación durable, límite de vencimiento, otras sesiones, concurrencia e invariancia de BD/contadores siguen sin prueba funcional. Los fallos de servidor/proveedor y reintento (incluido el escenario 503, fuera de esta matriz) permanecen pendientes; no se acredita un ensayo de fallos por el resultado positivo local. Ver [contratos](auth-contracts.md) y [checks pendientes](../how-to/api-session-checks.md). Los [requisitos](requirements.md) describen lo exigido/propuesto, **no esta superficie disponible**.
+Las sesiones API usan Controller → interfaz Service → interfaces Repository → DbContext; autenticación Bearer opaca y autorización del framework compartido, sin JWT ni paquetes nuevos. Roles se consultan en MySQL en cada solicitud; token solo se entrega al ingresar, huella SHA-256 única en DB, vencimiento UTC absoluto de siete días y revocación por sesión. La administración Web consume las rutas operativas documentadas arriba; estas rutas aún no tienen verificación HTTP/MySQL ejecutada. Compra, reserva, pagos y QR no forman parte de este corte. La matriz pública local `200/204/401/403` y el rechazo inmediato del token anterior tras logout sí tienen evidencia independiente enlazada arriba; persistencia ante reinicio, revocación durable, límite de vencimiento, otras sesiones, concurrencia e invariancia de BD/contadores siguen sin prueba funcional. Los fallos de servidor/proveedor y reintento (incluido el escenario 503, fuera de esta matriz) permanecen pendientes; no se acredita un ensayo de fallos por el resultado positivo local. Ver [contratos](auth-contracts.md) y [checks pendientes](../how-to/api-session-checks.md). Los [requisitos](requirements.md) describen lo exigido/propuesto, **no esta superficie disponible**.
 
 La verificación previa observó HTTP 200 y cinco registros en `/weatherforecast`, y HTTP 200 con OpenAPI `3.1.1` en `/openapi/v1.json`, bajo Development. Son resultados históricos atribuidos al verificador en el [informe §7](../project-report.md#7-calidad-pruebas-y-gestión-de-configuración), no pruebas nuevas ni una promesa de idéntica salida en otro entorno. En aquella verificación histórica no se probó TLS ni autenticación; no debe confundirse con la evidencia HTTPS/autenticación local posterior enlazada arriba. Mobile/iPhone y revisión de Enzo siguen pendientes; no hay cierre del backlog ni autorización de producción.

@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><NuGetAudit>false</NuGetAudit><UseAppHost>false</UseAppHost></PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <Compile Include="..\..\src\Api\API-Berruti\API-Berruti\Controllers\Operational\*.cs" Link="Production\Controllers\Operational\%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\Api\API-Berruti\API-Berruti\DTOs\Operational\*.cs" Link="Production\DTOs\Operational\%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\Api\API-Berruti\API-Berruti\Models\Operational\*.cs" Link="Production\Models\Operational\%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\Api\API-Berruti\API-Berruti\Services\Operational\*.cs" Link="Production\Services\Operational\%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\Api\API-Berruti\API-Berruti\Repositories\Operational\I*.cs" Link="Production\Repositories\Operational\%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>
