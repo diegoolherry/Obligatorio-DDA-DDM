@@ -13,9 +13,9 @@ Rama `feature/mvp-002-01-schedule-seed`, PR de corrección posterior al merge de
 
 ## Tasks
 
-- T1 (S1-S3, S6) Modelo, mapeo, migración + SQL, DTO/servicio/repositorio API, DTO/formulario Web, checks. Route: inline. Commit: pendiente.
-- T2 (S4-S5) Quitar endpoint demo y su UI/cliente/scripts/checks; sembrar escenario operativo en `ReinicioLocal`. Route: inline. Commit: pendiente.
-- T3 (S7) Backlog hijo y docs (`api.md`, guía de reinicio, registro MVP-002). Route: inline. Commit: pendiente.
+- T1 (S1-S3, S6) Modelo, mapeo, migración + SQL, DTO/servicio/repositorio API, DTO/formulario Web, checks. Route: worker. Commit: 8a8a397.
+- T2 (S4-S5) Quitar endpoint demo y su UI/cliente/scripts/checks; sembrar escenario operativo en `ReinicioLocal`. Route: inline + worker. Commit: e827b09 (retiro), 8a8a397 (seed).
+- T3 (S7) Backlog hijo y docs (`api.md`, guía de reinicio, registro MVP-002). Route: inline. Commit: este commit de backlog.
 
 ## Log
 
@@ -23,3 +23,4 @@ Rama `feature/mvp-002-01-schedule-seed`, PR de corrección posterior al merge de
 - L2 (usuario, decisiones previas): horario «Salida + Llegada (DateTime)», zona «Hora local Uruguay»; seed «Seed fuera de la API (recomendada)». Enzo de acuerdo según reporte del usuario (WhatsApp).
 - L3 (evidencia): pila #61-#66 mergeada en `main` (`1a75964`); builds API/Web 0/0; checks 107+46, 4/4, 50/50, 92/92, 46/46 PASS antes del merge.
 - L4 (decisión técnica): el repo ya tiene el comando único de recreación `scripts/reset-local-db.ps1` → `dotnet run -- --reset-local` (`Data/ReinicioLocal.cs`), que siembra cuentas demo sin exponer HTTP. El escenario operativo se siembra ahí en lugar de un `.sql` aparte, para mantener un solo comando. Valores tomados de `scripts/check-operational-demo-runtime.ps1` (08:00-08:30 y 08:45-10:00, capacidades 30/40, tarifas 100.00/250.00); fecha relativa (día siguiente al reinicio) para que la demo no quede en el pasado.
+- L5 (evidencia): builds API/Web 0/0; OperationalAdministration 84 PASS (RED de horario observado como fallo de compilación); OperationalControllerValidation 4/4; WebAuthentication 92/92; AuthenticationSessions 46/46; AuthenticationContracts 49/50 por residuo local no versionado src/Shared/ (bin/obj), ajeno al cambio. Migración HorarioServicio y seed NO ejecutados contra MySQL: el reset AuthenticationTests fue rechazado por el guard de conexión; pendiente prueba local del usuario.
