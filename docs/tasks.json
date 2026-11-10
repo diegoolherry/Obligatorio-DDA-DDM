@@ -650,7 +650,7 @@
         "scripts/reset-local-db.ps1 en Development siembra Ombúes, Radial de Conchillas y Colonia, los dos tramos, el servicio Ombúes–Radial sin asiento y Radial–Colonia con asignación automática, y sus tarifas.",
         "Enzo confirma los criterios mediante revisión cruzada; MVP-002 no pasa a done hasta mergear esta tarea."
       ],
-      "evidence": "(1) Rama feature/mvp-002-01-schedule-seed; commits e827b09 (retiro endpoint demo) y 8a8a397 (Salida/Llegada, migración HorarioServicio, seed en reinicio local); PR pendiente.\n(2) Builds API/Web 0/0; OperationalAdministration 84 PASS, controllers 4/4, WebAuthentication 92/92, sesiones 46/46; AuthenticationContracts 49/50 por residuo local src/Shared/. Migración y seed sin ejecutar contra MySQL.\n(3) Revisión cruzada de Enzo pendiente."
+      "evidence": "(1) Rama feature/mvp-002-01-schedule-seed; commits e827b09 (retiro endpoint demo), 8a8a397 (Salida/Llegada, migración HorarioServicio, seed), 7426738 (guía); PR pendiente.\n(2) Builds API/Web 0/0; OperationalAdministration 84 PASS; has-pending-model-changes sin cambios; MySQL local (reporte del usuario): update-local-db -Apply aplicó EsquemaOperativa y HorarioServicio sobre tabla vacía (conversión de filas no ejercitada); reset-local-db sembró 3 cuentas y escenario 2026-11-11 (3/2/2/2). Recorrido Blazor pendiente.\n(3) Verificación independiente sin bloqueantes; revisión cruzada de Enzo pendiente."
     }
   ]
 }
