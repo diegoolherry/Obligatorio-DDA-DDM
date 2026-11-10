@@ -1,5 +1,17 @@
 # Guía del repositorio
 
+## Excepción local de modelos para delegación ODD
+
+Solo en este repositorio, esta tabla reemplaza las asignaciones globales de modelos ODD. Conserva las reglas existentes de delegación, verificación independiente y revisión; no cambia la configuración global ni los modelos de la revisión RDD nativa.
+
+| ODD worker class | Model | reasoning_effort |
+|---|---|---|
+| `odd-explorer` | `gpt-6-luna` | `high` |
+| `odd-worker` | `gpt-6-luna` | `high` |
+| `odd-verify` | `gpt-6.1-sol` | `medium` |
+
+Al usar estas asignaciones, pasar `fork_turns: "none"` y cargar las skills correspondientes antes del trabajo delegado.
+
 ## Idioma de colaboración en GitHub
 
 - Escribí en español los títulos y las descripciones de issues y pull requests, incluidos sus encabezados, criterios de aceptación, resúmenes y planes de verificación.
