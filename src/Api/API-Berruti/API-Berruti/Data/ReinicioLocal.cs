@@ -48,6 +48,16 @@ public static class ReinicioLocal
             await cuentas.CrearUsuarioAsync(correo, contrasena!, rol.Identificador);
             Console.WriteLine($"Reinicio local: cuenta {correo} ({rolIngreso}).");
         }
+
+        // La fecha del servicio es mañana respecto del día del reinicio; las tarifas la cubren por un año.
+        var fecha = DateTime.Today.AddDays(1);
+        var escenario = EscenarioOperativoDemo.Construir(fecha);
+        contexto.Paradas.AddRange(escenario.Paradas);
+        contexto.Tramos.AddRange(escenario.Tramos);
+        contexto.Servicios.AddRange(escenario.Servicios);
+        contexto.Tarifas.AddRange(escenario.Tarifas);
+        await contexto.SaveChangesAsync();
+        Console.WriteLine($"Reinicio local: escenario operativo {fecha:yyyy-MM-dd} ({escenario.Paradas.Count} paradas, {escenario.Tramos.Count} tramos, {escenario.Servicios.Count} servicios, {escenario.Tarifas.Count} tarifas).");
         return 0;
     }
 

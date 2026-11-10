@@ -18,7 +18,68 @@ internal static class OperationalExecutableChecks
     public static async Task RunAsync(Action<bool, string> check)
     {
         await CheckAuthorizationAsync(check);
+        await CheckServiceScheduleAsync(check);
+        CheckDemoScenario(check);
         CheckDecimalRangeValidation(check);
+    }
+
+    private static async Task CheckServiceScheduleAsync(Action<bool, string> check)
+    {
+        var salida = new DateTime(2031, 5, 12, 23, 30, 0);
+        ServicioDto Dto(DateTime llegada) => new()
+        {
+            TramoId = "tramo-test", Salida = salida, Llegada = llegada,
+            Capacidad = 30, PoliticaAsiento = PoliticaAsiento.SinAsiento
+        };
+
+        foreach (var (name, llegada) in new[] { ("equal to", salida), ("before", salida.AddMinutes(-1)) })
+        {
+            var repository = new MemoryServiciosRepository();
+            var rejected = false;
+            try { await new ServiciosService(repository).CrearAsync(Dto(llegada)); }
+            catch (ArgumentException) { rejected = true; }
+            check(rejected && repository.Services.Count == 0 && repository.SaveCount == 0,
+                $"service with arrival {name} departure is rejected without writes");
+        }
+
+        var overnight = new MemoryServiciosRepository();
+        var created = await new ServiciosService(overnight).CrearAsync(Dto(salida.AddMinutes(105)));
+        check(overnight.Services.Count == 1 && overnight.SaveCount == 1 &&
+            overnight.Services[0].Salida == salida && overnight.Services[0].Llegada == new DateTime(2031, 5, 13, 1, 15, 0) &&
+            created.Salida == salida && created.Llegada == salida.AddMinutes(105),
+            "service crossing midnight keeps departure and next-day arrival");
+
+        var existing = new MemoryServiciosRepository();
+        existing.Services.Add(new Servicio { Id = "servicio-1", TramoId = "tramo-test", Salida = salida, Llegada = salida.AddHours(1), Capacidad = 30 });
+        var updateRejected = false;
+        try { await new ServiciosService(existing).ActualizarAsync("servicio-1", Dto(salida)); }
+        catch (ArgumentException) { updateRejected = true; }
+        check(updateRejected && existing.Services[0].Llegada == salida.AddHours(1) && existing.SaveCount == 0,
+            "invalid schedule update leaves the stored service unchanged");
+    }
+
+    private static void CheckDemoScenario(Action<bool, string> check)
+    {
+        var date = new DateTime(2031, 5, 12, 17, 45, 0);
+        var scenario = API_Berruti.Data.EscenarioOperativoDemo.Construir(date);
+        check(scenario.Paradas.Count == 3 && scenario.Tramos.Count == 2 && scenario.Servicios.Count == 2 && scenario.Tarifas.Count == 2,
+            "demo scenario has 3 stops, 2 tramos, 2 services, and 2 tariffs");
+        check(scenario.Paradas.Select(p => p.Nombre).SequenceEqual(["Ombúes", "Radial de Conchillas", "Colonia"]) &&
+            scenario.Tramos[0].OrigenId == scenario.Paradas[0].Id && scenario.Tramos[1].DestinoId == scenario.Paradas[2].Id,
+            "demo tramos connect the named stops in order");
+        check(scenario.Tramos[0].DestinoId == scenario.Tramos[1].OrigenId, "demo tramos chain through the transfer stop");
+        check(scenario.Servicios[0].TramoId == scenario.Tramos[0].Id && scenario.Servicios[1].TramoId == scenario.Tramos[1].Id &&
+            scenario.Tarifas[0].TramoId == scenario.Tramos[0].Id && scenario.Tarifas[1].TramoId == scenario.Tramos[1].Id,
+            "demo services and tariffs reference their tramo IDs");
+        check(scenario.Servicios[0].PoliticaAsiento == PoliticaAsiento.SinAsiento && scenario.Servicios[0].Capacidad == 30 &&
+            scenario.Servicios[1].PoliticaAsiento == PoliticaAsiento.AsignacionAutomatica && scenario.Servicios[1].Capacidad == 40,
+            "demo services keep capacity and seat policies");
+        check(scenario.Servicios.All(s => s.Llegada > s.Salida && s.Salida.Date == date.Date && s.Llegada.Date == date.Date) &&
+            scenario.Servicios[0].Salida == date.Date.AddHours(8) && scenario.Servicios[1].Llegada == date.Date.AddHours(10),
+            "demo services run on the given date with arrival after departure");
+        check(scenario.Tarifas.Select(t => t.Importe).SequenceEqual([100.00m, 250.00m]) &&
+            scenario.Tarifas.All(t => t.VigenteDesde <= date.Date && t.VigenteHasta >= date.Date && t.VigenteHasta == t.VigenteDesde.AddYears(1)),
+            "demo tariffs cover the service date");
     }
 
     private static void CheckDecimalRangeValidation(Action<bool, string> check)
@@ -154,4 +215,17 @@ public class CountingServiceProxy : DispatchProxy
             result = Activator.CreateInstance(resultType);
         return typeof(Task).GetMethod(nameof(Task.FromResult))!.MakeGenericMethod(resultType).Invoke(null, [result]);
     }
+}
+
+internal sealed class MemoryServiciosRepository : IServiciosRepository
+{
+    public List<Servicio> Services { get; } = [];
+    public int SaveCount { get; private set; }
+
+    public Task<List<Servicio>> ListarAsync() => Task.FromResult(Services.ToList());
+    public Task<Servicio?> BuscarAsync(string id) => Task.FromResult(Services.FirstOrDefault(s => s.Id == id));
+    public Task<bool> ExisteTramoAsync(string tramoId) => Task.FromResult(true);
+    public Task AgregarAsync(Servicio servicio) { Services.Add(servicio); return Task.CompletedTask; }
+    public Task GuardarAsync() { SaveCount++; return Task.CompletedTask; }
+    public Task EliminarAsync(Servicio servicio) { Services.Remove(servicio); return Task.CompletedTask; }
 }

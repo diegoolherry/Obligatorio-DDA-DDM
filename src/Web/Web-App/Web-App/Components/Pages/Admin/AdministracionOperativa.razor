@@ -70,12 +70,10 @@ else
                 <option value="">Seleccioná un tramo</option>
                 @foreach (var tramo in Tramos) { <option value="@tramo.Id">@tramo.OrigenNombre → @tramo.DestinoNombre</option> }
             </InputSelect>
-            <label for="servicio-fecha">Fecha</label>
-            <InputDate id="servicio-fecha" class="form-control" @bind-Value="ServicioForm.Fecha" />
-            <label for="servicio-salida">Hora de salida</label>
-            <InputText id="servicio-salida" type="time" class="form-control" @bind-Value="ServicioForm.HoraSalida" />
-            <label for="servicio-llegada">Hora de llegada</label>
-            <InputText id="servicio-llegada" type="time" class="form-control" @bind-Value="ServicioForm.HoraLlegada" />
+            <label for="servicio-salida">Salida</label>
+            <InputDate id="servicio-salida" Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="ServicioForm.Salida" />
+            <label for="servicio-llegada">Llegada</label>
+            <InputDate id="servicio-llegada" Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="ServicioForm.Llegada" />
             <label for="servicio-capacidad">Capacidad</label>
             <InputNumber id="servicio-capacidad" class="form-control" @bind-Value="ServicioForm.Capacidad" />
             <label for="servicio-politica">Política de asiento</label>
@@ -92,7 +90,7 @@ else
                 var tramo = Tramos.FirstOrDefault(t => t.Id == servicio.TramoId);
                 <li>
                     @(tramo == null ? "Tramo no disponible" : $"{tramo.OrigenNombre} → {tramo.DestinoNombre}") —
-                    @servicio.Fecha.ToString("yyyy-MM-dd") @servicio.HoraSalida.ToString(@"hh\:mm")–@servicio.HoraLlegada.ToString(@"hh\:mm"),
+                    Salida @servicio.Salida.ToString("yyyy-MM-dd HH:mm") – Llegada @servicio.Llegada.ToString("yyyy-MM-dd HH:mm"),
                     capacidad @servicio.Capacidad, @EtiquetaPolitica(servicio.PoliticaAsiento)
                     <button class="btn btn-link" disabled="@Ocupado" @onclick="() => EditarServicio(servicio)">Editar</button>
                     <button class="btn btn-link text-danger" disabled="@Ocupado" @onclick="() => SolicitarEliminarServicio(servicio)">Eliminar</button>
@@ -194,27 +192,24 @@ else
     private void LimpiarTramo() { TramoForm.Id = null; TramoForm.OrigenId = TramoForm.DestinoId = string.Empty; }
     private async Task GuardarServicioAsync()
     {
-        if (!TimeSpan.TryParseExact(ServicioForm.HoraSalida, @"hh\:mm", CultureInfo.InvariantCulture, out var salida) ||
-            !TimeSpan.TryParseExact(ServicioForm.HoraLlegada, @"hh\:mm", CultureInfo.InvariantCulture, out var llegada))
-        { Mensaje = "Ingresá horarios válidos en formato de 24 horas."; return; }
+        if (ServicioForm.Llegada <= ServicioForm.Salida)
+        { Mensaje = "La llegada debe ser posterior a la salida."; return; }
         Ocupado = true;
         var error = await Cliente.GuardarServicioAsync(new() { Id = ServicioForm.Id, TramoId = ServicioForm.TramoId,
-            Fecha = ServicioForm.Fecha!.Value.Date, HoraSalida = salida, HoraLlegada = llegada,
+            Salida = ServicioForm.Salida!.Value, Llegada = ServicioForm.Llegada!.Value,
             Capacidad = ServicioForm.Capacidad, PoliticaAsiento = ServicioForm.PoliticaAsiento });
         if (error == null) LimpiarServicio();
         await RecargarAsync(); Mensaje = error ?? "Servicio guardado."; Ocupado = false;
     }
     private void EditarServicio(ServicioDto servicio)
     {
-        ServicioForm.Id = servicio.Id; ServicioForm.TramoId = servicio.TramoId; ServicioForm.Fecha = servicio.Fecha;
-        ServicioForm.HoraSalida = servicio.HoraSalida.ToString(@"hh\:mm");
-        ServicioForm.HoraLlegada = servicio.HoraLlegada.ToString(@"hh\:mm");
+        ServicioForm.Id = servicio.Id; ServicioForm.TramoId = servicio.TramoId; ServicioForm.Salida = servicio.Salida;
+        ServicioForm.Llegada = servicio.Llegada;
         ServicioForm.Capacidad = servicio.Capacidad; ServicioForm.PoliticaAsiento = servicio.PoliticaAsiento;
     }
     private void LimpiarServicio()
     {
-        ServicioForm.Id = null; ServicioForm.TramoId = string.Empty; ServicioForm.Fecha = null;
-        ServicioForm.HoraSalida = ServicioForm.HoraLlegada = string.Empty; ServicioForm.Capacidad = 1;
+        ServicioForm.Id = null; ServicioForm.TramoId = string.Empty; ServicioForm.Salida = ServicioForm.Llegada = null; ServicioForm.Capacidad = 1;
         ServicioForm.PoliticaAsiento = PoliticaAsiento.SinAsiento;
     }
     private async Task GuardarTarifaAsync()
@@ -269,9 +264,8 @@ else
     {
         public string? Id { get; set; }
         [Required] public string TramoId { get; set; } = string.Empty;
-        [Required] public DateTime? Fecha { get; set; }
-        [Required, RegularExpression(@"^([01]\d|2[0-3]):[0-5]\d$")] public string HoraSalida { get; set; } = string.Empty;
-        [Required, RegularExpression(@"^([01]\d|2[0-3]):[0-5]\d$")] public string HoraLlegada { get; set; } = string.Empty;
+        [Required] public DateTime? Salida { get; set; }
+        [Required] public DateTime? Llegada { get; set; }
         [Range(1, int.MaxValue)] public int Capacidad { get; set; } = 1;
         public PoliticaAsiento PoliticaAsiento { get; set; }
     }

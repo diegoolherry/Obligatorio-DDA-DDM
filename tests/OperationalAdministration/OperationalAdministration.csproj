@@ -7,5 +7,6 @@
     <Compile Include="..\..\src\Api\API-Berruti\API-Berruti\Models\Operational\*.cs" Link="Production\Models\Operational\%(Filename)%(Extension)" />
     <Compile Include="..\..\src\Api\API-Berruti\API-Berruti\Services\Operational\*.cs" Link="Production\Services\Operational\%(Filename)%(Extension)" />
     <Compile Include="..\..\src\Api\API-Berruti\API-Berruti\Repositories\Operational\I*.cs" Link="Production\Repositories\Operational\%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\Api\API-Berruti\API-Berruti\Data\EscenarioOperativoDemo.cs" Link="Production\Data\EscenarioOperativoDemo.cs" />
   </ItemGroup>
 </Project>
