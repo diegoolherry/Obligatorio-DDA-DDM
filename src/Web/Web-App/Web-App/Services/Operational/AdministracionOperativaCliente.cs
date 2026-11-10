@@ -41,17 +41,6 @@ public class AdministracionOperativaCliente(ISesionCliente sesion)
         "api/administracion/servicios" + (dto.Id == null ? "" : "/" + Uri.EscapeDataString(dto.Id)), dto);
     public async Task<string?> GuardarTarifaAsync(TarifaDto dto) => await EnviarAsync(dto.Id == null ? HttpMethod.Post : HttpMethod.Put,
         "api/administracion/tarifas" + (dto.Id == null ? "" : "/" + Uri.EscapeDataString(dto.Id)), dto);
-    public async Task<ResultadoPreparacionDemoDto> PrepararDemoAsync(SolicitudPreparacionDemoDto dto)
-    {
-        var response = await sesion.SolicitarAdministradorAsync(HttpMethod.Post, "api/administracion/escenario-demo/preparar-demo",
-            JsonSerializer.Serialize(dto, Json));
-        if (response.Exito && response.Contenido != null)
-            return JsonSerializer.Deserialize<ResultadoPreparacionDemoDto>(response.Contenido, Json)
-                ?? new() { Mensaje = "La respuesta de la API no es válida." };
-        if (response.EstadoHttp == 409)
-            return new() { Conflicto = true, SinCambios = true, Mensaje = "La configuración existente es incompatible; la API no aplicó cambios." };
-        return new() { Mensaje = response.Mensaje };
-    }
     public async Task<string?> EliminarAsync(string tipo, string id)
     {
         var result = await sesion.SolicitarAdministradorAsync(HttpMethod.Delete,

@@ -140,59 +140,6 @@ else
             <button type="button" class="btn btn-secondary" disabled="@Ocupado" @onclick="CancelarEliminar">Cancelar</button>
         </section>
     }
-    <section class="mt-4">
-        <h2>Preparar escenario de demostración</h2>
-        <p>Se crean únicamente paradas, tramos, servicios y tarifas faltantes. Los valores se ingresan aquí; un conflicto existente no aplica cambios.</p>
-        <EditForm Model="PreparacionDemoForm" OnValidSubmit="PrepararDemoAsync">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
-            <label for="demo-fecha">Fecha de los servicios</label>
-            <InputDate id="demo-fecha" class="form-control" @bind-Value="PreparacionDemoForm.Fecha" />
-            <fieldset class="mt-3">
-                <legend>Ombúes → Radial de Conchillas</legend>
-                <label for="demo-salida-origen">Hora de salida</label>
-                <InputText id="demo-salida-origen" type="time" class="form-control" @bind-Value="PreparacionDemoForm.HoraSalidaOmbuesRadial" />
-                <label for="demo-llegada-origen">Hora de llegada</label>
-                <InputText id="demo-llegada-origen" type="time" class="form-control" @bind-Value="PreparacionDemoForm.HoraLlegadaOmbuesRadial" />
-                <label for="demo-capacidad-origen">Capacidad</label>
-                <InputNumber id="demo-capacidad-origen" class="form-control" min="1" @bind-Value="PreparacionDemoForm.CapacidadOmbuesRadial" />
-                <label for="demo-importe-origen">Importe de tarifa</label>
-                <InputNumber id="demo-importe-origen" class="form-control" min="0" step="0.01" @bind-Value="PreparacionDemoForm.ImporteOmbuesRadial" />
-                <label for="demo-vigencia-desde-origen">Tarifa vigente desde</label>
-                <InputDate id="demo-vigencia-desde-origen" class="form-control" @bind-Value="PreparacionDemoForm.VigenteDesdeOmbuesRadial" />
-                <label for="demo-vigencia-hasta-origen">Tarifa vigente hasta</label>
-                <InputDate id="demo-vigencia-hasta-origen" class="form-control" @bind-Value="PreparacionDemoForm.VigenteHastaOmbuesRadial" />
-            </fieldset>
-            <fieldset class="mt-3">
-                <legend>Radial de Conchillas → Colonia</legend>
-                <label for="demo-salida-destino">Hora de salida</label>
-                <InputText id="demo-salida-destino" type="time" class="form-control" @bind-Value="PreparacionDemoForm.HoraSalidaRadialColonia" />
-                <label for="demo-llegada-destino">Hora de llegada</label>
-                <InputText id="demo-llegada-destino" type="time" class="form-control" @bind-Value="PreparacionDemoForm.HoraLlegadaRadialColonia" />
-                <label for="demo-capacidad-destino">Capacidad</label>
-                <InputNumber id="demo-capacidad-destino" class="form-control" min="1" @bind-Value="PreparacionDemoForm.CapacidadRadialColonia" />
-                <label for="demo-importe-destino">Importe de tarifa</label>
-                <InputNumber id="demo-importe-destino" class="form-control" min="0" step="0.01" @bind-Value="PreparacionDemoForm.ImporteRadialColonia" />
-                <label for="demo-vigencia-desde-destino">Tarifa vigente desde</label>
-                <InputDate id="demo-vigencia-desde-destino" class="form-control" @bind-Value="PreparacionDemoForm.VigenteDesdeRadialColonia" />
-                <label for="demo-vigencia-hasta-destino">Tarifa vigente hasta</label>
-                <InputDate id="demo-vigencia-hasta-destino" class="form-control" @bind-Value="PreparacionDemoForm.VigenteHastaRadialColonia" />
-            </fieldset>
-            <button class="btn btn-primary mt-3" disabled="@Ocupado">Preparar escenario</button>
-        </EditForm>
-        @if (ResultadoDemo != null)
-        {
-            <p role="status">@ResultadoDemo.Mensaje</p>
-            @if (ResultadoDemo.Conflictos.Count > 0)
-            {
-                <ul role="alert">@foreach (var conflicto in ResultadoDemo.Conflictos) { <li>@conflicto</li> }</ul>
-            }
-            else if (!ResultadoDemo.Conflicto)
-            {
-                <p>Paradas: @ResultadoDemo.ParadasCreadas; tramos: @ResultadoDemo.TramosCreados; servicios: @ResultadoDemo.ServiciosCreados; tarifas: @ResultadoDemo.TarifasCreadas.</p>
-            }
-        }
-    </section>
 }
 
 @code {
@@ -200,12 +147,10 @@ else
     private readonly FormularioTramo TramoForm = new();
     private readonly FormularioServicio ServicioForm = new();
     private readonly FormularioTarifa TarifaForm = new();
-    private readonly FormularioPreparacionDemo PreparacionDemoForm = new();
     private List<ParadaDto> Paradas = [];
     private List<TramoDto> Tramos = [];
     private List<ServicioDto> Servicios = [];
     private List<TarifaDto> Tarifas = [];
-    private ResultadoPreparacionDemoDto? ResultadoDemo;
     private bool Autorizado, Ocupado;
     private string Mensaje = "Verificando permiso de administrador…";
 
@@ -291,33 +236,6 @@ else
         TarifaForm.Id = null; TarifaForm.TramoId = string.Empty; TarifaForm.Importe = 0;
         TarifaForm.VigenteDesde = null; TarifaForm.VigenteHasta = null;
     }
-    private async Task PrepararDemoAsync()
-    {
-        if (!TimeSpan.TryParseExact(PreparacionDemoForm.HoraSalidaOmbuesRadial, @"hh\:mm", CultureInfo.InvariantCulture, out var salidaOmbuesRadial) ||
-            !TimeSpan.TryParseExact(PreparacionDemoForm.HoraLlegadaOmbuesRadial, @"hh\:mm", CultureInfo.InvariantCulture, out var llegadaOmbuesRadial) ||
-            !TimeSpan.TryParseExact(PreparacionDemoForm.HoraSalidaRadialColonia, @"hh\:mm", CultureInfo.InvariantCulture, out var salidaRadialColonia) ||
-            !TimeSpan.TryParseExact(PreparacionDemoForm.HoraLlegadaRadialColonia, @"hh\:mm", CultureInfo.InvariantCulture, out var llegadaRadialColonia))
-        { Mensaje = "Ingresá horarios válidos en formato de 24 horas."; return; }
-        Ocupado = true;
-        ResultadoDemo = await Cliente.PrepararDemoAsync(new()
-        {
-            Fecha = PreparacionDemoForm.Fecha!.Value.Date,
-            HoraSalidaOmbuesRadial = salidaOmbuesRadial,
-            HoraLlegadaOmbuesRadial = llegadaOmbuesRadial,
-            CapacidadOmbuesRadial = PreparacionDemoForm.CapacidadOmbuesRadial!.Value,
-            ImporteOmbuesRadial = PreparacionDemoForm.ImporteOmbuesRadial!.Value,
-            VigenteDesdeOmbuesRadial = PreparacionDemoForm.VigenteDesdeOmbuesRadial!.Value.Date,
-            VigenteHastaOmbuesRadial = PreparacionDemoForm.VigenteHastaOmbuesRadial!.Value.Date,
-            HoraSalidaRadialColonia = salidaRadialColonia,
-            HoraLlegadaRadialColonia = llegadaRadialColonia,
-            CapacidadRadialColonia = PreparacionDemoForm.CapacidadRadialColonia!.Value,
-            ImporteRadialColonia = PreparacionDemoForm.ImporteRadialColonia!.Value,
-            VigenteDesdeRadialColonia = PreparacionDemoForm.VigenteDesdeRadialColonia!.Value.Date,
-            VigenteHastaRadialColonia = PreparacionDemoForm.VigenteHastaRadialColonia!.Value.Date
-        });
-        if (ResultadoDemo.Exito) await RecargarAsync();
-        Ocupado = false;
-    }
     private (string Tipo, string Id, string Nombre)? _eliminacionPendiente;
     private void SolicitarEliminarParada(ParadaDto p) => SolicitarEliminar("paradas", p.Id, "parada");
     private void SolicitarEliminarTramo(TramoDto t) => SolicitarEliminar("tramos", t.Id, "tramo");
@@ -364,21 +282,5 @@ else
         [Range(typeof(decimal), "0", "9999999999999999.99")] public decimal Importe { get; set; }
         [Required] public DateTime? VigenteDesde { get; set; }
         [Required] public DateTime? VigenteHasta { get; set; }
-    }
-    private sealed class FormularioPreparacionDemo
-    {
-        [Required] public DateTime? Fecha { get; set; }
-        [Required, RegularExpression(@"^([01]\d|2[0-3]):[0-5]\d$")] public string HoraSalidaOmbuesRadial { get; set; } = string.Empty;
-        [Required, RegularExpression(@"^([01]\d|2[0-3]):[0-5]\d$")] public string HoraLlegadaOmbuesRadial { get; set; } = string.Empty;
-        [Required, Range(1, int.MaxValue)] public int? CapacidadOmbuesRadial { get; set; }
-        [Required, Range(typeof(decimal), "0", "9999999999999999.99")] public decimal? ImporteOmbuesRadial { get; set; }
-        [Required] public DateTime? VigenteDesdeOmbuesRadial { get; set; }
-        [Required] public DateTime? VigenteHastaOmbuesRadial { get; set; }
-        [Required, RegularExpression(@"^([01]\d|2[0-3]):[0-5]\d$")] public string HoraSalidaRadialColonia { get; set; } = string.Empty;
-        [Required, RegularExpression(@"^([01]\d|2[0-3]):[0-5]\d$")] public string HoraLlegadaRadialColonia { get; set; } = string.Empty;
-        [Required, Range(1, int.MaxValue)] public int? CapacidadRadialColonia { get; set; }
-        [Required, Range(typeof(decimal), "0", "9999999999999999.99")] public decimal? ImporteRadialColonia { get; set; }
-        [Required] public DateTime? VigenteDesdeRadialColonia { get; set; }
-        [Required] public DateTime? VigenteHastaRadialColonia { get; set; }
     }
 }

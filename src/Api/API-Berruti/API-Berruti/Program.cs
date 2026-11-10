@@ -25,8 +25,6 @@ builder.Services.AddScoped<IServiciosRepository, ServiciosRepository>();
 builder.Services.AddScoped<IServiciosService, ServiciosService>();
 builder.Services.AddScoped<ITarifasRepository, TarifasRepository>();
 builder.Services.AddScoped<ITarifasService, TarifasService>();
-builder.Services.AddScoped<IPreparacionDemoRepository, PreparacionDemoRepository>();
-builder.Services.AddScoped<IPreparacionDemoService, PreparacionDemoService>();
 // EF diagnostics can include provider details; keep authentication failures sanitized.
 builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.None);
 

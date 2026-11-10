@@ -34,17 +34,18 @@ Las rutas operativas están protegidas con `[Authorize(Roles = "Administrador")]
 | `GET/POST/PUT/DELETE /api/administracion/tramos[/{id}]` | CRUD de `TramoDto`, con origen/destino ligados a paradas; `201/200/204`, validación `400`, ausencia `404` y restricción referencial `409`. |
 | `GET/POST/PUT/DELETE /api/administracion/servicios[/{id}]` | CRUD de `ServicioDto`: tramo, fecha, horarios, capacidad y política `SinAsiento` o `AsignacionAutomatica`; `201/200/204`, validación `400`, ausencia `404`. |
 | `GET/POST/PUT/DELETE /api/administracion/tarifas[/{id}]` | CRUD de `TarifaDto`: tramo, importe y vigencia; `201/200/204`, validación `400`, ausencia `404`. |
-| `POST /api/administracion/escenario-demo/preparar-demo` | Recibe `SolicitudPreparacionDemoDto`; responde `200`, `409` con conflictos o `400` por solicitud inválida, sin reemplazar datos incompatibles. |
+
+Los datos operativos de demostración no se cargan por la API: el plan es sembrarlos al recrear la base local con [`scripts/reset-local-db.ps1`](../../scripts/reset-local-db.ps1). **Pendiente de implementación en esta rama; todavía no está disponible.**
 
 ### Comprobación local de autorización operativa
 
-El script fuente [`scripts/check-operational-authorization.ps1`](../../scripts/check-operational-authorization.ps1) prepara una matriz HTTP para las cuatro listas y para el POST vacío de preparación demo. Para ejecutarlo, la API debe estar disponible en HTTPS de loopback y el entorno local debe estar autorizado y configurado; el script solicita la contraseña demo con entrada segura, no la guarda, no relaja la validación TLS y no imprime credenciales, tokens ni cuerpos de error.
+El script fuente [`scripts/check-operational-authorization.ps1`](../../scripts/check-operational-authorization.ps1) prepara una matriz HTTP `GET` para las cuatro listas. Para ejecutarlo, la API debe estar disponible en HTTPS de loopback y el entorno local debe estar autorizado y configurado; el script solicita la contraseña demo con entrada segura, no la guarda, no relaja la validación TLS y no imprime credenciales, tokens ni cuerpos de error.
 
 ```powershell
 .\scripts\check-operational-authorization.ps1 -BaseUrl https://localhost:7053
 ```
 
-Se esperan `401` anónimo, `403` para Pasajero/Cobrador y `200` para Administrador en cada lista; el POST vacío de preparación espera `401`, `403` y `400` respectivamente. Solo se crean sesiones de autenticación y el script intenta revocarlas siempre en `finally`; la solicitud vacía se rechaza por validación y **no demuestra preparación de demo**, CRUD, persistencia MySQL ni ausencia de fallos fuera de esta matriz. El script no fue ejecutado; ninguna de estas respuestas se presenta como resultado observado.
+Se esperan `401` anónimo, `403` para Pasajero/Cobrador y `200` para Administrador en cada lista. Solo se crean sesiones de autenticación y el script intenta revocarlas siempre en `finally`; **no demuestra** CRUD, persistencia MySQL ni ausencia de fallos fuera de esta matriz. El script no fue ejecutado; ninguna de estas respuestas se presenta como resultado observado.
 
 ## Límites y evidencia
 

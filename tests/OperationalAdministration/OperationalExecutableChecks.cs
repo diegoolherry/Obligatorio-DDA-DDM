@@ -18,7 +18,6 @@ internal static class OperationalExecutableChecks
     public static async Task RunAsync(Action<bool, string> check)
     {
         await CheckAuthorizationAsync(check);
-        await CheckDemoPreparationAsync(check);
         CheckDecimalRangeValidation(check);
     }
 
@@ -33,14 +32,6 @@ internal static class OperationalExecutableChecks
                 var culture = CultureInfo.GetCultureInfo(cultureName);
                 CultureInfo.CurrentCulture = culture;
                 CultureInfo.CurrentUICulture = culture;
-
-                var demo = ValidRequest();
-                foreach (var propertyName in new[]
-                {
-                    nameof(SolicitudPreparacionDemoDto.ImporteOmbuesRadial),
-                    nameof(SolicitudPreparacionDemoDto.ImporteRadialColonia)
-                })
-                    CheckAmountBoundaries(demo, propertyName, cultureName, check);
 
                 var tariff = new TarifaDto { TramoId = "tramo-test", VigenteDesde = new DateTime(2031, 1, 1), VigenteHasta = new DateTime(2031, 12, 31) };
                 CheckAmountBoundaries(tariff, nameof(TarifaDto.Importe), cultureName, check);
@@ -90,9 +81,7 @@ internal static class OperationalExecutableChecks
             new ControllerEndpoint("Servicios", typeof(ServiciosController), typeof(IServiciosService),
                 async controller => await ((ServiciosController)controller).Listar()),
             new ControllerEndpoint("Tarifas", typeof(TarifasController), typeof(ITarifasService),
-                async controller => await ((TarifasController)controller).Listar()),
-            new ControllerEndpoint("PreparacionDemo", typeof(PreparacionDemoController), typeof(IPreparacionDemoService),
-                async controller => await ((PreparacionDemoController)controller).Preparar(ValidRequest()))
+                async controller => await ((TarifasController)controller).Listar())
         };
 
         var services = new ServiceCollection();
@@ -140,86 +129,6 @@ internal static class OperationalExecutableChecks
         [new Claim(ClaimTypes.NameIdentifier, "operational-test-user"), new Claim(ClaimTypes.Role, role)],
         "operational-test"));
 
-    private static async Task CheckDemoPreparationAsync(Action<bool, string> check)
-    {
-        var repository = new MemoryDemoRepository();
-        var service = new PreparacionDemoService(repository);
-        var request = ValidRequest();
-
-        var first = await service.PrepararAsync(request);
-        check(first.Exito && !first.Conflicto && first.ParadasCreadas == 3 && first.TramosCreados == 2 &&
-            first.ServiciosCreados == 2 && first.TarifasCreadas == 2, "demo preparation inserts the missing scenario once");
-        check(repository.Services.Select(s => s.TramoId).SequenceEqual(repository.Tramos.Select(t => t.Id)) &&
-            repository.Tariffs.Select(t => t.TramoId).SequenceEqual(repository.Tramos.Select(t => t.Id)),
-            "demo services and tariffs retain the generated tramo IDs");
-        check(repository.Services[0].PoliticaAsiento == PoliticaAsiento.SinAsiento &&
-            repository.Services[1].PoliticaAsiento == PoliticaAsiento.AsignacionAutomatica &&
-            repository.Tramos[0].DestinoId == repository.Tramos[1].OrigenId,
-            "demo preparation preserves the transfer and both seat policies");
-
-        var savedIds = repository.Services.Select(s => s.Id).Concat(repository.Tariffs.Select(t => t.Id)).ToArray();
-        var insertCount = repository.InsertCount;
-        var saveCount = repository.SaveCount;
-        var repeated = await service.PrepararAsync(request);
-        check(repeated.Exito && repeated.SinCambios && repository.InsertCount == insertCount && repository.SaveCount == saveCount &&
-            repository.Services.Select(s => s.Id).Concat(repository.Tariffs.Select(t => t.Id)).SequenceEqual(savedIds),
-            "repeating an already prepared demo makes no changes and preserves IDs");
-
-        var conflictRepository = CreateExistingScenario();
-        conflictRepository.Services.Add(new Servicio
-        {
-            TramoId = "tramo-ombues-radial", Fecha = request.Fecha.Date,
-            HoraSalida = request.HoraSalidaOmbuesRadial, HoraLlegada = request.HoraLlegadaOmbuesRadial,
-            Capacidad = request.CapacidadOmbuesRadial + 1, PoliticaAsiento = PoliticaAsiento.SinAsiento
-        });
-        var conflict = await new PreparacionDemoService(conflictRepository).PrepararAsync(request);
-        check(conflict.Conflicto && conflict.SinCambios && conflictRepository.InsertCount == 0 && conflictRepository.SaveCount == 0,
-            "incompatible existing service returns conflict before any insertion");
-
-        var invalidRepository = new MemoryDemoRepository();
-        var invalidRequest = ValidRequest();
-        invalidRequest.CapacidadOmbuesRadial = 0;
-        var rejected = false;
-        try { await new PreparacionDemoService(invalidRepository).PrepararAsync(invalidRequest); }
-        catch (ArgumentException) { rejected = true; }
-        check(rejected && invalidRepository.ReadCount == 0 && invalidRepository.InsertCount == 0,
-            "invalid values are rejected before repository reads or writes");
-    }
-
-    private static SolicitudPreparacionDemoDto ValidRequest() => new()
-    {
-        Fecha = new DateTime(2031, 5, 12),
-        HoraSalidaOmbuesRadial = new TimeSpan(8, 0, 0),
-        HoraLlegadaOmbuesRadial = new TimeSpan(9, 0, 0),
-        CapacidadOmbuesRadial = 28,
-        ImporteOmbuesRadial = 125.50m,
-        VigenteDesdeOmbuesRadial = new DateTime(2031, 1, 1),
-        VigenteHastaOmbuesRadial = new DateTime(2031, 12, 31),
-        HoraSalidaRadialColonia = new TimeSpan(9, 30, 0),
-        HoraLlegadaRadialColonia = new TimeSpan(10, 30, 0),
-        CapacidadRadialColonia = 24,
-        ImporteRadialColonia = 200.00m,
-        VigenteDesdeRadialColonia = new DateTime(2031, 1, 1),
-        VigenteHastaRadialColonia = new DateTime(2031, 12, 31)
-    };
-
-    private static MemoryDemoRepository CreateExistingScenario()
-    {
-        var repository = new MemoryDemoRepository();
-        repository.Stops.AddRange(new[]
-        {
-            new Parada { Id = "stop-ombues", Nombre = "Ombúes" },
-            new Parada { Id = "stop-radial", Nombre = "Radial de Conchillas" },
-            new Parada { Id = "stop-colonia", Nombre = "Colonia" }
-        });
-        repository.Tramos.AddRange(new[]
-        {
-            new Tramo { Id = "tramo-ombues-radial", OrigenId = "stop-ombues", DestinoId = "stop-radial" },
-            new Tramo { Id = "tramo-radial-colonia", OrigenId = "stop-radial", DestinoId = "stop-colonia" }
-        });
-        return repository;
-    }
-
     private sealed record ControllerEndpoint(string Name, Type ControllerType, Type ServiceType,
         Func<object, Task<object>> Invoke);
 
@@ -245,25 +154,4 @@ public class CountingServiceProxy : DispatchProxy
             result = Activator.CreateInstance(resultType);
         return typeof(Task).GetMethod(nameof(Task.FromResult))!.MakeGenericMethod(resultType).Invoke(null, [result]);
     }
-}
-
-internal sealed class MemoryDemoRepository : IPreparacionDemoRepository
-{
-    public List<Parada> Stops { get; } = [];
-    public List<Tramo> Tramos { get; } = [];
-    public List<Servicio> Services { get; } = [];
-    public List<Tarifa> Tariffs { get; } = [];
-    public int ReadCount { get; private set; }
-    public int InsertCount { get; private set; }
-    public int SaveCount { get; private set; }
-
-    public Task<List<Parada>> ListarParadasAsync() { ReadCount++; return Task.FromResult(Stops.ToList()); }
-    public Task<List<Tramo>> ListarTramosAsync() { ReadCount++; return Task.FromResult(Tramos.ToList()); }
-    public Task<List<Servicio>> ListarServiciosAsync() { ReadCount++; return Task.FromResult(Services.ToList()); }
-    public Task<List<Tarifa>> ListarTarifasAsync() { ReadCount++; return Task.FromResult(Tariffs.ToList()); }
-    public Task AgregarParadaAsync(Parada item) { Stops.Add(item); InsertCount++; return Task.CompletedTask; }
-    public Task AgregarTramoAsync(Tramo item) { Tramos.Add(item); InsertCount++; return Task.CompletedTask; }
-    public Task AgregarServicioAsync(Servicio item) { Services.Add(item); InsertCount++; return Task.CompletedTask; }
-    public Task AgregarTarifaAsync(Tarifa item) { Tariffs.Add(item); InsertCount++; return Task.CompletedTask; }
-    public Task GuardarAsync() { SaveCount++; return Task.CompletedTask; }
 }

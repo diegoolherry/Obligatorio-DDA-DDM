@@ -71,25 +71,8 @@ Check(operationalPage.Contains("SolicitarEliminarTramo(TramoDto t) => SolicitarE
     operationalPage.Contains("@onclick=\"ConfirmarEliminarAsync\"") &&
     operationalPage.Contains("Cliente.EliminarAsync(pending.Tipo, pending.Id)"),
     "Blazor delete actions request confirmation before the shared CRUD delete operation");
-var demoControllerPath = Path.Combine(root, "src/Api/API-Berruti/API-Berruti/Controllers/Operational/PreparacionDemoController.cs");
-Check(File.Exists(demoControllerPath), "demo preparation endpoint exists");
-if (File.Exists(demoControllerPath))
-{
-    var source = File.ReadAllText(demoControllerPath);
-    Check(source.Contains("Authorize(Roles = \"Administrador\")") && source.Contains("HttpPost(\"preparar-demo\")") && source.Contains("Conflict("), "demo preparation is administrator-only with conflict response");
-}
-var demoServicePath = Path.Combine(root, "src/Api/API-Berruti/API-Berruti/Services/Operational/PreparacionDemoService.cs");
-Check(File.Exists(demoServicePath), "demo preparation service exists");
-if (File.Exists(demoServicePath))
-{
-    var source = File.ReadAllText(demoServicePath);
-    var conflictCheck = source.IndexOf("if (conflictos.Count > 0)", StringComparison.Ordinal);
-    var firstInsert = source.IndexOf("AgregarParadaAsync(", StringComparison.Ordinal);
-    Check(source.Contains("Ombúes") && source.Contains("Radial de Conchillas") && source.Contains("Colonia") &&
-        source.Contains("PoliticaAsiento.SinAsiento") && source.Contains("PoliticaAsiento.AsignacionAutomatica"), "demo builder uses the approved locations and policies");
-    Check(conflictCheck >= 0 && firstInsert > conflictCheck && !source.Contains("ActualizarAsync("), "demo builder detects conflicts before insert and never updates existing records");
-}
-Check(operationalPage.Contains("PreparacionDemoForm") && operationalPage.Contains("PrepararDemoAsync") && operationalPage.Contains("CapacidadOmbuesRadial") && operationalPage.Contains("ImporteOmbuesRadial"), "Blazor demo form accepts administrator-provided values");
+Check(!File.Exists(Path.Combine(root, "src/Api/API-Berruti/API-Berruti/Controllers/Operational/PreparacionDemoController.cs")) &&
+    !operationalPage.Contains("preparar-demo") && !operationalPage.Contains("PrepararDemoAsync"), "demo preparation endpoint and Blazor form were removed");
 var migrationDirectory = Path.Combine(root, "src/Api/API-Berruti/API-Berruti/Data/Migrations");
 var operationalMigrations = Directory.Exists(migrationDirectory)
     ? Directory.GetFiles(migrationDirectory, "*_EsquemaOperativa.cs")

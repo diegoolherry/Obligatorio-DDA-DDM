@@ -1,0 +1,25 @@
+MVP-002-01 — Horario de servicio como instantes y datos demo como seed (plan B)
+Rama `feature/mvp-002-01-schedule-seed`, PR de corrección posterior al merge de la pila MVP-002 (#61-#66). Responsable Diego, revisor Enzo.
+
+## Specs
+
+- S1. "Salida + Llegada (DateTime)" — `Servicio` reemplaza `Fecha` + `HoraSalida`/`HoraLlegada` (`TimeSpan`) por `Salida` y `Llegada` `DateTime`, con check constraint `llegada > salida`.
+- S2. "Hora local Uruguay" — los instantes se guardan en hora local de Uruguay, sin conversión UTC.
+- S3. El cambio se aplica con una migración EF Core **nueva** (la anterior ya está en `main`), con su script SQL generado en `scripts/database/`, sin editar a mano el SQL generado; los servicios existentes en una base local se convierten sin perderse.
+- S4. "Seed fuera de la API (recomendada): se corre después de dotnet ef database update, con un script o un proyecto de consola [...] La API queda limpia y recrear la base es un solo comando." — se quita el endpoint `POST /api/administracion/escenario-demo/preparar-demo` (controller, service, repository, DTOs) y su formulario/botón Blazor.
+- S5. Los datos demo (3 paradas Ombúes, Radial de Conchillas, Colonia; 2 tramos; servicio Ombúes→Radial `SinAsiento` y Radial→Colonia `AsignacionAutomatica`; 2 tarifas) se cargan al recrear la base local con el comando existente `scripts/reset-local-db.ps1`.
+- S6. El CRUD de paradas, tramos, servicios y tarifas (#62/#64) se conserva; el formulario de servicios usa salida y llegada con fecha y hora.
+- S7. Backlog: hijo `MVP-002-01` con `parentId` `MVP-002`; MVP-002 no pasa a `done` hasta mergear este PR.
+
+## Tasks
+
+- T1 (S1-S3, S6) Modelo, mapeo, migración + SQL, DTO/servicio/repositorio API, DTO/formulario Web, checks. Route: inline. Commit: pendiente.
+- T2 (S4-S5) Quitar endpoint demo y su UI/cliente/scripts/checks; sembrar escenario operativo en `ReinicioLocal`. Route: inline. Commit: pendiente.
+- T3 (S7) Backlog hijo y docs (`api.md`, guía de reinicio, registro MVP-002). Route: inline. Commit: pendiente.
+
+## Log
+
+- L1 (usuario, 2026-11-10): «dale. Mergea lso PR y dale con la B. El esta de acuerdo ya, se lo comente por wasap»
+- L2 (usuario, decisiones previas): horario «Salida + Llegada (DateTime)», zona «Hora local Uruguay»; seed «Seed fuera de la API (recomendada)». Enzo de acuerdo según reporte del usuario (WhatsApp).
+- L3 (evidencia): pila #61-#66 mergeada en `main` (`1a75964`); builds API/Web 0/0; checks 107+46, 4/4, 50/50, 92/92, 46/46 PASS antes del merge.
+- L4 (decisión técnica): el repo ya tiene el comando único de recreación `scripts/reset-local-db.ps1` → `dotnet run -- --reset-local` (`Data/ReinicioLocal.cs`), que siembra cuentas demo sin exponer HTTP. El escenario operativo se siembra ahí en lugar de un `.sql` aparte, para mantener un solo comando. Valores tomados de `scripts/check-operational-demo-runtime.ps1` (08:00-08:30 y 08:45-10:00, capacidades 30/40, tarifas 100.00/250.00); fecha relativa (día siguiente al reinicio) para que la demo no quede en el pasado.
