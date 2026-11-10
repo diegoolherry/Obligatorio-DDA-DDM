@@ -17,6 +17,8 @@ foreach (var (file, route) in new[] {
 }
 var context = Read("src/Api/API-Berruti/API-Berruti/Data/BerrutiDbContext.cs");
 Check(context.Contains("DbSet<Parada> Paradas") && context.Contains("DbSet<Tramo> Tramos") && context.Contains("HasForeignKey(t => t.OrigenId)") && context.Contains("HasForeignKey(t => t.DestinoId)"), "EF maps stop entities and both tramo endpoints");
+var page = Read("src/Web/Web-App/Web-App/Components/Pages/Admin/AdministracionOperativa.razor");
+Check(page.Contains("@page \"/admin/operativa\"") && page.Contains("GuardarParadaAsync") && page.Contains("ProbarAdministradorAsync"), "Blazor page consumes administrator session and CRUD operations");
 var servicioControllerPath = Path.Combine(root, "src/Api/API-Berruti/API-Berruti/Controllers/Operational/ServiciosController.cs");
 Check(File.Exists(servicioControllerPath), "Services CRUD controller exists");
 if (File.Exists(servicioControllerPath))
@@ -41,6 +43,8 @@ Check(serviceContext.Contains("DbSet<Servicio> Servicios") && serviceContext.Con
 var serviceLogicPath = Path.Combine(root, "src/Api/API-Berruti/API-Berruti/Services/Operational/ServiciosService.cs");
 var serviceLogic = File.ReadAllText(serviceLogicPath);
 Check(serviceLogic.Contains("ExisteTramoAsync(dto.TramoId)") && serviceLogic.Contains("dto.Capacidad < 1") && serviceLogic.Contains("Enum.IsDefined(dto.PoliticaAsiento)"), "service validates existing tramo, positive capacity, and supported policy");
+var operationalPage = Read("src/Web/Web-App/Web-App/Components/Pages/Admin/AdministracionOperativa.razor");
+Check(operationalPage.Contains("ServicioForm") && operationalPage.Contains("SinAsiento") && operationalPage.Contains("AsignacionAutomatica") && operationalPage.Contains("Capacidad"), "Blazor page exposes editable service schedule and seat policy");
 var tarifaControllerPath = Path.Combine(root, "src/Api/API-Berruti/API-Berruti/Controllers/Operational/TarifasController.cs");
 Check(File.Exists(tarifaControllerPath), "Tariff CRUD controller exists");
 if (File.Exists(tarifaControllerPath))
@@ -61,6 +65,12 @@ Check(tarifaContext.Contains("DbSet<Tarifa> Tarifas") && tarifaContext.Contains(
     tarifaContext.Contains("HasColumnName(\"vigente_desde\").HasColumnType(\"date\")") &&
     tarifaContext.Contains("HasColumnName(\"vigente_hasta\").HasColumnType(\"date\")") &&
     tarifaContext.Contains("HasForeignKey(t => t.TramoId)"), "EF maps tariff amount, validity dates, and tramo relationship");
+Check(operationalPage.Contains("TarifaForm") && operationalPage.Contains("GuardarTarifaAsync"), "Blazor page exposes tariff form and save operation");
+Check(operationalPage.Contains("SolicitarEliminarTramo(TramoDto t) => SolicitarEliminar(\"tramos\", t.Id, \"tramo\")") &&
+    operationalPage.Contains("SolicitarEliminarTarifa(TarifaDto t) => SolicitarEliminar(\"tarifas\", t.Id, \"tarifa\")") &&
+    operationalPage.Contains("@onclick=\"ConfirmarEliminarAsync\"") &&
+    operationalPage.Contains("Cliente.EliminarAsync(pending.Tipo, pending.Id)"),
+    "Blazor delete actions request confirmation before the shared CRUD delete operation");
 var demoControllerPath = Path.Combine(root, "src/Api/API-Berruti/API-Berruti/Controllers/Operational/PreparacionDemoController.cs");
 Check(File.Exists(demoControllerPath), "demo preparation endpoint exists");
 if (File.Exists(demoControllerPath))
@@ -79,6 +89,7 @@ if (File.Exists(demoServicePath))
         source.Contains("PoliticaAsiento.SinAsiento") && source.Contains("PoliticaAsiento.AsignacionAutomatica"), "demo builder uses the approved locations and policies");
     Check(conflictCheck >= 0 && firstInsert > conflictCheck && !source.Contains("ActualizarAsync("), "demo builder detects conflicts before insert and never updates existing records");
 }
+Check(operationalPage.Contains("PreparacionDemoForm") && operationalPage.Contains("PrepararDemoAsync") && operationalPage.Contains("CapacidadOmbuesRadial") && operationalPage.Contains("ImporteOmbuesRadial"), "Blazor demo form accepts administrator-provided values");
 var migrationDirectory = Path.Combine(root, "src/Api/API-Berruti/API-Berruti/Data/Migrations");
 var operationalMigrations = Directory.Exists(migrationDirectory)
     ? Directory.GetFiles(migrationDirectory, "*_EsquemaOperativa.cs")

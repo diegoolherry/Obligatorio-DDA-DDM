@@ -232,6 +232,7 @@ async Task<(DefaultHttpContext Context, int NextCalls, string Body)> FirstHop(st
 var baselineHttp = await FirstHop("http", "GET", "/ingreso", guard: false);
 Check(baselineHttp.NextCalls == 1 && baselineHttp.Context.Response.StatusCode == 200 && baselineHttp.Body.Contains("<form>"),
     "W1 baseline framework redirection without HTTPS port reaches form sink");
+var httpGuardBody = (await FirstHop("http", "GET", "/ingreso")).Body;
 foreach (var (method, path) in new[] { ("GET", "/ingreso"), ("POST", "/ingreso"), ("GET", "/InGrEsO/"), ("POST", "/INGRESO/continuacion") })
 {
     var observed = await FirstHop("http", method, path);
@@ -239,14 +240,27 @@ foreach (var (method, path) in new[] { ("GET", "/ingreso"), ("POST", "/ingreso")
         && observed.Context.Response.ContentType == "text/plain; charset=utf-8"
         && observed.Context.Response.Headers.CacheControl == "no-store"
         && !observed.Context.Response.Headers.ContainsKey("Location")
-        && observed.Body == "Se requiere HTTPS para ingresar. Abrí la dirección HTTPS configurada para esta aplicación."
+        && observed.Body == httpGuardBody
         && observed.NextCalls == 0,
         $"W1 HTTP {method} {path} rejects exactly without form processing");
 }
 var secureIngreso = await FirstHop("https", "GET", "/ingreso");
 Check(secureIngreso.NextCalls == 1 && secureIngreso.Context.Response.StatusCode == 200 && secureIngreso.Body.Contains("<form>"),
     "W1 HTTPS ingreso continues exactly once");
-foreach (var path in new[] { "/", "/counter", "/weather", "/_blazor", "/ingresos" })
+foreach (var path in new[] { "/_blazor", "/_blazor/negotiate" })
+{
+    var observed = await FirstHop("http", "POST", path);
+    Check(observed.Context.Response.StatusCode == 400
+        && observed.Context.Response.ContentType == "text/plain; charset=utf-8"
+        && observed.Context.Response.Headers.CacheControl == "no-store"
+        && observed.Body == httpGuardBody
+        && observed.NextCalls == 0,
+        $"W1 HTTP circuit {path} rejects before next (status {observed.Context.Response.StatusCode}, next {observed.NextCalls})");
+    var secure = await FirstHop("https", "POST", path);
+    Check(secure.Context.Response.StatusCode == 200 && secure.NextCalls == 1 && secure.Body.Contains("<form>"),
+        $"W1 HTTPS circuit {path} continues exactly once");
+}
+foreach (var path in new[] { "/", "/counter", "/weather", "/_blazorish", "/_blazorish/negotiate", "/ingresos", "/ingresoextra" })
 {
     var observed = await FirstHop("http", "GET", path);
     Check(observed.NextCalls == 1 && observed.Context.Response.StatusCode == 200 && observed.Body.Contains("<form>"),
@@ -268,6 +282,19 @@ Check(loginPage.Contains("@onclick=\"ProbarAdministradorAsync\"") &&
     loginPage.Contains("Sesion.ProbarAdministradorAsync()") &&
     loginPage.Contains("Consultando permiso en la API…"),
     "administrator action wired with progress feedback (structural, not rendered UI)");
+string appShell = ancestor == null ? "" : File.ReadAllText(Path.Combine(ancestor.FullName, "src/Web/Web-App/Web-App/Components/App.razor"));
+Check(appShell.Contains("<Routes @rendermode=\"InteractiveServer\" />") && appShell.Contains("<HeadOutlet @rendermode=\"InteractiveServer\" />")
+    && !loginPage.Contains("@rendermode InteractiveServer"),
+    "interactive routing is global and login shares the scoped circuit (source check)");
+string adminPage = ancestor == null ? "" : File.ReadAllText(Path.Combine(ancestor.FullName, "src/Web/Web-App/Web-App/Components/Pages/Admin/AdministracionOperativa.razor"));
+Check(adminPage.Contains("Eliminar pendiente") && adminPage.Contains("Confirmar") && adminPage.Contains("Cancelar")
+    && adminPage.Contains("ConfirmarEliminarAsync") && adminPage.Contains("CancelarEliminar")
+    && adminPage.Contains("disabled=\"@Ocupado\"") && adminPage.Contains("_eliminacionPendiente")
+    && adminPage.Contains("SolicitarEliminarParada") && adminPage.Contains("SolicitarEliminarTramo")
+    && adminPage.Contains("SolicitarEliminarServicio") && adminPage.Contains("SolicitarEliminarTarifa")
+    && adminPage.Contains("Cliente.EliminarAsync(pending.Tipo, pending.Id)")
+    && adminPage.IndexOf("SolicitarEliminar(string tipo", StringComparison.Ordinal) < adminPage.IndexOf("ConfirmarEliminarAsync()", StringComparison.Ordinal),
+    "all delete flows require typed confirm/cancel before request (source check)");
 Console.WriteLine($"{checks - failures}/{checks} PASS");
 return failures == 0 ? 0 : 1;
 

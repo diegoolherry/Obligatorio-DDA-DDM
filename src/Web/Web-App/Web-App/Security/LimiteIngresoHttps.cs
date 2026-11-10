@@ -11,8 +11,10 @@ public class LimiteIngresoHttps
 
     public async Task InvokeAsync(HttpContext context)
     {
-        if (!context.Request.IsHttps
-            && context.Request.Path.StartsWithSegments("/ingreso", StringComparison.OrdinalIgnoreCase))
+        var path = context.Request.Path;
+        var ingreso = path.StartsWithSegments("/ingreso", StringComparison.OrdinalIgnoreCase);
+        var circuito = path.StartsWithSegments("/_blazor", StringComparison.OrdinalIgnoreCase);
+        if (!context.Request.IsHttps && (ingreso || circuito))
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             context.Response.ContentType = "text/plain; charset=utf-8";

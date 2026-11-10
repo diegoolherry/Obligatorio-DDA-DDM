@@ -1,12 +1,14 @@
 using Web_App.Components;
 using Web_App.Services.Authentication;
 using Web_App.Security;
+using Web_App.Services.Operational;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Scoped: memoria aislada por circuito InteractiveServer, nunca cookie ni singleton.
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ISesionCliente, SesionCliente>();
+builder.Services.AddScoped<AdministracionOperativaCliente>();
 builder.Services.AddHttpClient("Autenticacion", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(15);
