@@ -1,5 +1,7 @@
 using API_Berruti.Data;
 using API_Berruti.Security.Authentication;
+using API_Berruti.Repositories.Operational;
+using API_Berruti.Services.Operational;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -15,6 +17,14 @@ builder.Services.AddControllers().AddJsonOptions(opciones =>
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 builder.Services.AgregarAutenticacionLocal(builder.Configuration, builder.Environment);
+builder.Services.AddScoped<IParadasRepository, ParadasRepository>();
+builder.Services.AddScoped<ITramosRepository, TramosRepository>();
+builder.Services.AddScoped<IParadasService, ParadasService>();
+builder.Services.AddScoped<ITramosService, TramosService>();
+builder.Services.AddScoped<IServiciosRepository, ServiciosRepository>();
+builder.Services.AddScoped<IServiciosService, ServiciosService>();
+builder.Services.AddScoped<ITarifasRepository, TarifasRepository>();
+builder.Services.AddScoped<ITarifasService, TarifasService>();
 // EF diagnostics can include provider details; keep authentication failures sanitized.
 builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.None);
 
