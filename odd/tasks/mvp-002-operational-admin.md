@@ -30,7 +30,7 @@ Se autorizó una excepción de tamaño para mantener cohesionados estos cortes. 
 - Evidencia real previa: API anónima `401`, roles insuficientes `403`, administrador `200`; preparación demo repetida sin duplicar datos, conflicto `409` y solicitud inválida `400`; lectura de las filas confirmada por API/DB.
 - La comprobación de UI en navegador sigue pendiente. Se verificaron HTML HTTPS y negociación SignalR, no el recorrido interactivo renderizado.
 - No se ejecutó DELETE real ni limpieza; las filas nuevas permanecen para revisión. Los scripts de runtime documentan escenarios para futuras verificaciones autorizadas.
-- El harness API-only intermedio del corte demo no tuvo assets NuGet locales disponibles al primer intento; no se afirma resultado hasta completar la comprobación cache-only prevista en la rama.
+- El harness API-only temporal del corte demo pasó 102 comprobaciones estructurales tras restauración desde el caché global local; el driver completo de 107 comprobaciones se conserva en el siguiente corte.
 
 ## Próximos pasos
 
