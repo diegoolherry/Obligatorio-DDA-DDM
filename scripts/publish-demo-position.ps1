@@ -68,7 +68,8 @@ try {
 
     $lista = Send 'GET' '/api/ubicacion/cobrador/servicios' $null
     if ($lista.Status -ne 200) { throw "Servicios asignados: $($lista.Status)." }
-    $servicios = @(ConvertFrom-Json $lista.Content)
+    # En PowerShell 5.1 ConvertFrom-Json emite el array como un solo objeto: se desenrolla con el pipeline.
+    $servicios = @((ConvertFrom-Json $lista.Content) | ForEach-Object { $_ })
     Write-Host "Servicios asignados: $($servicios.Count)"
     $servicio = $servicios | Where-Object { $_.destino -eq $Destino } | Select-Object -First 1
     if (!$servicio) { throw "No hay un servicio asignado con destino '$Destino'." }
