@@ -17,7 +17,7 @@ Backlog: hijos MVP-009-01 (API), MVP-009-02 (Mobile), MVP-009-03 (Web) en `docs/
 ## Tasks
 
 - T1 [S1-S2,S5-S7] API: migración `UbicacionDemo` (cobrador_servicio, posicion_recibida) + SQL, seed, parámetros `Ubicacion`, POST publicación (Cobrador asignado), GET consulta (Pasajero), pruebas de invariantes de autorización — inline — MVP-009-01 — commits: bde0a7a (esquema), cdc6481 (API, pruebas y docs), + fix UTC al leer recibida_utc; verificación independiente sin bloqueantes (S1,S2,S5-S7 PASS); `has-pending-model-changes` limpio y SQL idéntico al regenerado; falta `update-local-db.ps1 -Apply` (Diego).
-- T2 [S3-S6, S8] Mobile: cobrador comparte ubicación en primer plano; pasajero consulta — worker — rama `feature/mvp-009-02-mobile` — MVP-009-02 — commit: pendiente.
+- T2 [S3-S6, S8] Mobile: cobrador comparte ubicación en primer plano; pasajero consulta — worker — rama `feature/mvp-009-02-mobile` — MVP-009-02 — commits: b67367d, d53f83c, 332085e (fixes del verify); typecheck OK, node --test 37/37; verificación independiente PASS; falta prueba en iPhone (Diego).
 - T3 [S3-S5,S7] Web: página de pasajero en Blazor (`/pasajero/ubicacion`) — worker — MVP-009-03 — commit: 57ca3a5; build Web 0/0, WebAuthentication 98/98, AuthenticationContracts 50/50; sin recorrido en navegador todavía.
 
 Corte de PR: el primer PR es MVP-009-01 (bde0a7a..cdc6481, ~1.6k líneas con la migración generada). Web y Mobile van en cortes separados encima.
