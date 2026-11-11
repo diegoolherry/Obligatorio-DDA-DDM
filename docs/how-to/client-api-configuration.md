@@ -40,3 +40,5 @@ Ambas opciones son URLs públicas, no secretos ni tokens. Los servicios las vali
 4. Validá alcance de red, contratos, errores, permisos y certificados con pruebas reales. No se acreditaron aquí LAN/iPhone/TLS ni flujo de ingreso; no desactivar validación TLS ni cambiar firewall/certificados por defecto.
 
 Las decisiones y límites de arquitectura están en el [MVP](../explanation/mvp.md); la evidencia de ejecución y los pendientes están en el [informe](../project-report.md#7-calidad-pruebas-y-gestión-de-configuración).
+
+Nota: la búsqueda pública de Mobile consulta `GET /api/paradas` y `GET /api/itinerarios` con la misma `EXPO_PUBLIC_API_URL`, de forma anónima (sin token). Sigue sin verificarse contra una API real ni en dispositivo.
