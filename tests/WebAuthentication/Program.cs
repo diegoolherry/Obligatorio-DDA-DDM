@@ -103,6 +103,31 @@ using (var adminScope = adminProvider.CreateScope())
         !admin.Estado.Autenticada && adminTransport.Calls == beforeCalls, "administrator operation after logout sends no request");
 }
 
+// Passenger location requests reuse the scoped session with a role-neutral 403 text.
+var locTransport = new FakeHandler();
+using (var locProvider = Provider(locTransport))
+using (var locScope = locProvider.CreateScope())
+{
+    var loc = locScope.ServiceProvider.GetRequiredService<ISesionCliente>();
+    var noSession = await loc.SolicitarAutenticadaAsync(HttpMethod.Get, "api/ubicacion/servicios");
+    Check(!noSession.Exito && locTransport.Calls == 0, "authenticated request without session sends nothing");
+    locTransport.Reply = _ => Task.FromResult(Response(200, Success()));
+    await loc.IngresarAsync(Input());
+    locTransport.Reply = _ => Task.FromResult(Response(200, "[]"));
+    var ok = await loc.SolicitarAutenticadaAsync(HttpMethod.Get, "api/ubicacion/servicios");
+    Check(ok.Exito && ok.Contenido == "[]" && locTransport.LastMethod == "GET" && locTransport.LastPath == "/api/ubicacion/servicios"
+        && locTransport.LastBearer == "Bearer " + token, "location request sends bearer to the exact route");
+    locTransport.Reply = _ => Task.FromResult(Response(403));
+    var denied = await loc.SolicitarAutenticadaAsync(HttpMethod.Get, "api/ubicacion/servicios");
+    Check(!denied.Exito && denied.EstadoHttp == 403 && !denied.Mensaje.Contains("administrador") && loc.Estado.Autenticada, "403 text is role-neutral and keeps session");
+    locTransport.Reply = _ => Task.FromResult(Response(404));
+    var missing = await loc.SolicitarAutenticadaAsync(HttpMethod.Get, "api/ubicacion/servicios/x");
+    Check(!missing.Exito && missing.EstadoHttp == 404 && loc.Estado.Autenticada, "404 keeps session");
+    locTransport.Reply = _ => Task.FromResult(Response(401));
+    var expired = await loc.SolicitarAutenticadaAsync(HttpMethod.Get, "api/ubicacion/servicios");
+    Check(!expired.Exito && expired.EstadoHttp == 401 && !loc.Estado.Autenticada, "401 discards the local session");
+}
+
 foreach (var url in new string?[] { null, "", "http://api.example.invalid", "https://user:pass@api.example.invalid", "https://api.example.invalid/?q=1", "https://api.example.invalid/#x", "not a url" })
 {
     var transport = new FakeHandler();
@@ -333,6 +358,11 @@ using (var searchProvider = searchServices.BuildServiceProvider())
         searchFake.LastPath == "/api/paradas" && searchFake.LastBearer == null, "stop list network failure is reported for retry");
 }
 
+string locationPage = ancestor == null ? "" : File.ReadAllText(Path.Combine(ancestor.FullName, "src/Web/Web-App/Web-App/Components/Pages/Pasajero/UbicacionServicio.razor"));
+Check(locationPage.Contains("@page \"/pasajero/ubicacion\"") && locationPage.Contains("href=\"/ingreso\"") && locationPage.Contains("Reintentar")
+    && locationPage.Contains("Actualizar") && locationPage.Contains("desactualizada") && locationPage.Contains("Datos ficticios y aproximados")
+    && locationPage.Contains("Parámetros académicos usados") && locationPage.Contains("d.LlegadaAproximada is { } llegada"),
+    "passenger location page states session, retry, stale, fictitious data and parameters (source check)");
 Console.WriteLine($"{checks - failures}/{checks} PASS");
 return failures == 0 ? 0 : 1;
 

@@ -1,0 +1,173 @@
+@page "/pasajero/ubicacion"
+@using Web_App.Models.Location
+@using Web_App.Services.Authentication
+@using Web_App.Services.Location
+@inject ISesionCliente Sesion
+@inject UbicacionPasajeroCliente Cliente
+
+<PageTitle>Ubicación del servicio</PageTitle>
+<h1>Ubicación del servicio</h1>
+<p class="alert alert-info">Datos ficticios y aproximados de demostración académica: no son telemetría ni horarios reales.</p>
+@if (!Sesion.Estado.Autenticada)
+{
+    <p role="alert">@(_sesionVencida ? "La sesión venció o no es válida. Ingresá nuevamente." : "Ingresá con la cuenta de pasajero para consultar la ubicación.")</p>
+    <a href="/ingreso">Ir al ingreso</a>
+}
+else
+{
+    <section aria-label="Servicios de demostración">
+        <h2>Servicios</h2>
+        <button class="btn btn-secondary" disabled="@Ocupado" @onclick="CargarServiciosAsync">Actualizar</button>
+        @if (_aviso != null) { <p role="alert">@_aviso</p> }
+        @if (_cargandoLista)
+        {
+            <p role="status">Cargando servicios…</p>
+        }
+        else if (_errorLista != null)
+        {
+            <p role="alert">@_errorLista</p>
+            <button class="btn btn-primary" disabled="@Ocupado" @onclick="CargarServiciosAsync">Reintentar</button>
+        }
+        else if (Servicios.Count == 0)
+        {
+            <p role="status">No hay servicios de demostración disponibles.</p>
+        }
+        else
+        {
+            <ul class="list-unstyled mt-2">
+                @foreach (var servicio in Servicios)
+                {
+                    <li>
+                        <button class="btn btn-link" disabled="@Ocupado" aria-pressed="@(servicio.Id == _seleccionado)" @onclick="() => SeleccionarAsync(servicio.Id)">
+                            @servicio.Origen → @servicio.Destino, salida @servicio.Salida.ToString("yyyy-MM-dd HH:mm") – llegada @servicio.Llegada.ToString("yyyy-MM-dd HH:mm")
+                        </button>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+    @if (_seleccionado != null)
+    {
+        <section class="mt-4" aria-label="Detalle de ubicación" aria-busy="@_cargandoDetalle.ToString().ToLowerInvariant()">
+            <h2>Última posición</h2>
+            @if (_cargandoDetalle)
+            {
+                <p role="status">Consultando ubicación…</p>
+            }
+            else if (_errorDetalle != null)
+            {
+                <p role="alert">@_errorDetalle</p>
+                <button class="btn btn-primary" disabled="@Ocupado" @onclick="() => ConsultarAsync()">Reintentar</button>
+            }
+            else if (Detalle is { } d)
+            {
+                <p><strong>@d.Servicio.Origen → @d.Servicio.Destino</strong></p>
+                @if (d.UltimaPosicion is not { } pos)
+                {
+                    <p role="status">Todavía no hay posiciones para este servicio.</p>
+                }
+                else
+                {
+                    <p>Latitud @pos.Latitud.ToString("0.000000", Cultura), longitud @pos.Longitud.ToString("0.000000", Cultura)</p>
+                    <p>Actualizada: @HoraLocal(pos.RecibidaUtc) (hora de Uruguay, hace @Antiguedad(pos.AntiguedadSegundos))</p>
+                    @if (d.Desactualizada)
+                    {
+                        <p class="alert alert-warning" role="alert">Posición desactualizada: supera el umbral de @d.Parametros.UmbralDesactualizacionSegundos s. No la tomes como ubicación actual.</p>
+                    }
+                }
+                <h3>Llegada y demora</h3>
+                @if (d.LlegadaAproximada is { } llegada && d.EstadoDemora != EstadoDemora.SinDatos)
+                {
+                    <p>Llegada aproximada: @llegada.ToString("HH:mm") (hora local de Uruguay)</p>
+                    <p>Estado: @(d.EstadoDemora == EstadoDemora.ConDemora ? "con demora" : "en horario")</p>
+                }
+                else
+                {
+                    <p role="status">Llegada y demora no disponibles: @(string.IsNullOrWhiteSpace(d.Motivo) ? "la API no informó el motivo." : d.Motivo)</p>
+                }
+                <h3>Parámetros académicos usados</h3>
+                <ul>
+                    <li>Periodicidad de publicación: @d.Parametros.PeriodicidadSegundos s</li>
+                    <li>Umbral de desactualización: @d.Parametros.UmbralDesactualizacionSegundos s</li>
+                    <li>Velocidad promedio: @d.Parametros.VelocidadPromedioKmH.ToString(Cultura) km/h</li>
+                    <li>Tolerancia de demora: @d.Parametros.ToleranciaDemoraMinutos min</li>
+                </ul>
+                @if (d.DatosFicticios) { <p><small>Datos ficticios y aproximados.</small></p> }
+                <button class="btn btn-secondary" disabled="@Ocupado" @onclick="() => ConsultarAsync()">Actualizar</button>
+            }
+        </section>
+    }
+}
+
+@code {
+    private static readonly System.Globalization.CultureInfo Cultura = System.Globalization.CultureInfo.InvariantCulture;
+    private List<ServicioUbicacionDto> Servicios = [];
+    private ConsultaUbicacionResponse? Detalle;
+    private string? _seleccionado, _errorLista, _errorDetalle, _aviso;
+    private bool _cargandoLista, _cargandoDetalle, _sesionVencida;
+    private bool Ocupado => _cargandoLista || _cargandoDetalle;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Sesion.Estado.Autenticada) await CargarServiciosAsync();
+    }
+
+    private async Task CargarServiciosAsync()
+    {
+        if (Ocupado) return;
+        _cargandoLista = true; _errorLista = null; _aviso = null;
+        try
+        {
+            var (items, estado, error) = await Cliente.ListarServiciosAsync();
+            if (estado == 401) _sesionVencida = true;
+            _errorLista = error;
+            Servicios = error == null ? items.ToList() : [];
+            if (_seleccionado != null && !Servicios.Any(s => s.Id == _seleccionado)) { _seleccionado = null; Detalle = null; }
+        }
+        finally { _cargandoLista = false; }
+    }
+
+    private async Task SeleccionarAsync(string id)
+    {
+        _seleccionado = id;
+        await ConsultarAsync();
+    }
+
+    private async Task ConsultarAsync()
+    {
+        if (Ocupado || _seleccionado == null) return;
+        _cargandoDetalle = true; _errorDetalle = null; Detalle = null;
+        try
+        {
+            var (item, estado, error) = await Cliente.ConsultarAsync(_seleccionado);
+            if (estado == 401) _sesionVencida = true;
+            _errorDetalle = error;
+            Detalle = item;
+            if (estado == 404) 
+            {
+                _seleccionado = null; Detalle = null; _errorDetalle = null; _cargandoDetalle = false;
+                await CargarServiciosAsync();
+                _aviso = error;
+            }
+        }
+        finally { _cargandoDetalle = false; }
+    }
+
+    // recibidaUtc es un instante UTC; si llega sin zona se asume UTC. Uruguay es UTC-3 sin horario de verano.
+    private static string HoraLocal(DateTime recibidaUtc)
+    {
+        var utc = recibidaUtc.Kind == DateTimeKind.Local ? recibidaUtc.ToUniversalTime() : DateTime.SpecifyKind(recibidaUtc, DateTimeKind.Utc);
+        TimeZoneInfo zona;
+        try { zona = TimeZoneInfo.FindSystemTimeZoneById("America/Montevideo"); }
+        catch (Exception e) when (e is TimeZoneNotFoundException or InvalidTimeZoneException)
+        {
+            try { zona = TimeZoneInfo.FindSystemTimeZoneById("Montevideo Standard Time"); }
+            catch (Exception e2) when (e2 is TimeZoneNotFoundException or InvalidTimeZoneException)
+            { zona = TimeZoneInfo.CreateCustomTimeZone("UY", TimeSpan.FromHours(-3), "Uruguay", "Uruguay"); }
+        }
+        return TimeZoneInfo.ConvertTimeFromUtc(utc, zona).ToString("yyyy-MM-dd HH:mm:ss");
+    }
+
+    private static string Antiguedad(double segundos) => segundos < 60
+        ? $"{Math.Round(segundos)} s" : $"{Math.Floor(segundos / 60)} min {Math.Round(segundos % 60)} s";
+}
