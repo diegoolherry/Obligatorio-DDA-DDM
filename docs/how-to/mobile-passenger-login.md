@@ -61,4 +61,4 @@ node --test tests/MobileAuthentication/*.test.mjs tests/MobileLocation/*.test.mj
 cd src/Mobile && npm run typecheck
 ```
 
-Las pruebas cubren la sesión (solicitud autorizada, 401/403, sin filtrar el token) y el servicio de ubicación (resultados tipados por estado, redondeo a 6 decimales, hora de Uruguay). Las pantallas, el diálogo de permiso y el GPS no tienen pruebas automáticas: se verifican con el recorrido manual anterior, que queda pendiente de ejecutar en el iPhone.
+Las pruebas cubren la sesión (solicitud autorizada, 401/403, sin filtrar el token) y el servicio de ubicación (resultados tipados por estado, redondeo a 6 decimales, hora de Uruguay). Las pantallas solo tienen comprobaciones de fuente (sesión entre pestañas, envío que sigue con la pantalla oculta); el diálogo de permiso y el GPS no tienen pruebas automáticas: se verifican con el recorrido manual anterior, que queda pendiente de ejecutar en el iPhone.
