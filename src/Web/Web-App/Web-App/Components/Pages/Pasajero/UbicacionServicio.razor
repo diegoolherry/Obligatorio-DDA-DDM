@@ -143,7 +143,7 @@ else
             if (estado == 401) _sesionVencida = true;
             _errorDetalle = error;
             Detalle = item;
-            if (estado == 404) 
+            if (estado == 404)
             {
                 _seleccionado = null; Detalle = null; _errorDetalle = null; _cargandoDetalle = false;
                 await CargarServiciosAsync();
