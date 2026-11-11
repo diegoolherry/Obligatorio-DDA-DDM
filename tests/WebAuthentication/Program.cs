@@ -295,6 +295,44 @@ Check(adminPage.Contains("Eliminar pendiente") && adminPage.Contains("Confirmar"
     && adminPage.Contains("Cliente.EliminarAsync(pending.Tipo, pending.Id)")
     && adminPage.IndexOf("SolicitarEliminar(string tipo", StringComparison.Ordinal) < adminPage.IndexOf("ConfirmarEliminarAsync()", StringComparison.Ordinal),
     "all delete flows require typed confirm/cancel before request (source check)");
+// MVP-003-02: public itinerary search client (no bearer, typed contract, user-facing states).
+var searchFake = new FakeHandler();
+var searchServices = new ServiceCollection();
+searchServices.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Api:BaseUrl"] = "https://api.example.invalid/" }).Build());
+searchServices.AddHttpClient("Autenticacion").ConfigurePrimaryHttpMessageHandler(() => searchFake);
+searchServices.AddScoped<Web_App.Services.Operational.BusquedaItinerariosCliente>();
+using (var searchProvider = searchServices.BuildServiceProvider())
+{
+    var search = searchProvider.GetRequiredService<Web_App.Services.Operational.BusquedaItinerariosCliente>();
+    const string itinerary = "[{\"salida\":\"2031-05-12T08:00:00\",\"llegada\":\"2031-05-12T10:00:00\",\"precioTotal\":350.00," +
+        "\"transbordo\":{\"parada\":{\"id\":\"r\",\"nombre\":\"Radial de Conchillas\"},\"minutos\":15},\"tramos\":[" +
+        "{\"orden\":1,\"servicioId\":\"s1\",\"tramoId\":\"t1\",\"origen\":{\"id\":\"o\",\"nombre\":\"Ombúes\"},\"destino\":{\"id\":\"r\",\"nombre\":\"Radial de Conchillas\"},\"salida\":\"2031-05-12T08:00:00\",\"llegada\":\"2031-05-12T08:30:00\",\"importe\":100.00,\"politicaAsiento\":\"sinAsiento\"}," +
+        "{\"orden\":2,\"servicioId\":\"s2\",\"tramoId\":\"t2\",\"origen\":{\"id\":\"r\",\"nombre\":\"Radial de Conchillas\"},\"destino\":{\"id\":\"c\",\"nombre\":\"Colonia\"},\"salida\":\"2031-05-12T08:45:00\",\"llegada\":\"2031-05-12T10:00:00\",\"importe\":250.00,\"politicaAsiento\":\"asignacionAutomatica\"}]}]";
+    searchFake.Reply = _ => Task.FromResult(Response(200, itinerary));
+    var found = await search.BuscarAsync("o id", "c", new DateOnly(2031, 5, 12));
+    Check(searchFake.LastMethod == "GET" && searchFake.LastPath == "/api/itinerarios" && searchFake.LastBearer == null &&
+        searchFake.LastQuery == "?origenId=o%20id&destinoId=c&fecha=2031-05-12", "itinerary search sends an anonymous GET with escaped ids and ISO date");
+    Check(found.Error == null && found.Items.Count == 1 && found.Items[0].PrecioTotal == 350.00m && found.Items[0].Transbordo?.Minutos == 15 &&
+        found.Items[0].Tramos.Select(t => t.PoliticaAsiento).SequenceEqual([Web_App.Models.Operational.PoliticaAsiento.SinAsiento, Web_App.Models.Operational.PoliticaAsiento.AsignacionAutomatica]) &&
+        found.Items[0].Tramos[1].Destino.Nombre == "Colonia", "itinerary contract deserializes legs, transfer, total and seat policies");
+    searchFake.Reply = _ => Task.FromResult(Response(200, "[]"));
+    found = await search.BuscarAsync("o", "c", new DateOnly(2031, 5, 13));
+    Check(found.Error == null && found.Items.Count == 0, "empty search result is not an error");
+    searchFake.Reply = _ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = new StringContent("El origen y el destino deben ser paradas distintas.") });
+    found = await search.BuscarAsync("o", "o", new DateOnly(2031, 5, 12));
+    Check(found.Error == "El origen y el destino deben ser paradas distintas." && found.Items.Count == 0, "400 shows the API validation message");
+    searchFake.Reply = _ => Task.FromResult(Response(404));
+    found = await search.BuscarAsync("x", "c", new DateOnly(2031, 5, 12));
+    Check(found.Error == Web_App.Services.Operational.BusquedaItinerariosCliente.ErrorParadaInexistente, "404 asks to refresh the stop list");
+    searchFake.Reply = _ => Task.FromResult(Response(500, "internal detail"));
+    found = await search.BuscarAsync("o", "c", new DateOnly(2031, 5, 12));
+    Check(found.Error == Web_App.Services.Operational.BusquedaItinerariosCliente.ErrorServidor && !found.Error.Contains("internal"), "server error is sanitized and retryable");
+    searchFake.Reply = _ => throw new HttpRequestException("fictitious private detail");
+    var stops = await search.ListarParadasAsync();
+    Check(stops.Error == Web_App.Services.Operational.BusquedaItinerariosCliente.ErrorConexion && stops.Items.Count == 0 &&
+        searchFake.LastPath == "/api/paradas" && searchFake.LastBearer == null, "stop list network failure is reported for retry");
+}
+
 Console.WriteLine($"{checks - failures}/{checks} PASS");
 return failures == 0 ? 0 : 1;
 
@@ -308,12 +346,13 @@ class FakeHandler : HttpMessageHandler
 {
     public Func<HttpRequestMessage, Task<HttpResponseMessage>> Reply { get; set; } = _ => throw new InvalidOperationException("Unexpected transport call");
     public int Calls { get; private set; }
-    public string? LastMethod, LastPath, LastBody, LastBearer;
+    public string? LastMethod, LastPath, LastQuery, LastBody, LastBearer;
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         Calls++;
         LastMethod = request.Method.Method;
         LastPath = request.RequestUri?.AbsolutePath;
+        LastQuery = request.RequestUri?.Query;
         LastBearer = request.Headers.Authorization?.ToString();
         LastBody = request.Content == null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
         return await Reply(request);
