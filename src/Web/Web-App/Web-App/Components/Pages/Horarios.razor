@@ -1,0 +1,195 @@
+@page "/horarios"
+@using System.Globalization
+@using Web_App.Models.Catalogo
+@using Web_App.Services.Catalogo
+@inject CatalogoCliente Cliente
+@inject TimeProvider Reloj
+
+<PageTitle>Horarios</PageTitle>
+<h1>Horarios</h1>
+<p class="text-body-secondary">
+    Transcripción del horario publicado por la empresa. La primera hora de cada salida es la publicada;
+    las demás (marcadas con ≈) son aproximadas.
+</p>
+
+<section class="mb-5" aria-labelledby="titulo-dia">
+    <h2 id="titulo-dia" class="h4">Salidas de un día</h2>
+    <div class="row g-3 align-items-end mb-3">
+        <div class="col-sm-4 col-md-3">
+            <label for="fecha" class="form-label">Fecha</label>
+            <InputDate id="fecha" class="form-control" @bind-Value="Fecha" />
+        </div>
+        <div class="col-sm-3 col-md-2">
+            <button class="btn btn-primary w-100" @onclick="ConsultarDiaAsync" disabled="@CargandoDia">@(CargandoDia ? "Consultando…" : "Consultar")</button>
+        </div>
+    </div>
+
+    @if (CargandoDia)
+    {
+        <p role="status">Consultando salidas…</p>
+    }
+    else if (ErrorDia != null)
+    {
+        <p role="alert">@ErrorDia</p>
+        <button class="btn btn-primary" @onclick="ConsultarDiaAsync">Reintentar</button>
+    }
+    else if (Dia != null)
+    {
+        <p role="status">
+            @Dia.Fecha.ToString("dddd dd/MM/yyyy", Uruguay)@(Dia.Feriado != null ? $" · Feriado: {Dia.Feriado}" : "")
+        </p>
+        @foreach (var bloque in Dia.Bloques)
+        {
+            <article class="card mb-3">
+                <div class="card-body">
+                    <h3 class="h5 card-title">@bloque.Nombre</h3>
+                    @if (bloque.Estado != EstadoDia.Opera)
+                    {
+                        <p class="mb-0">@Estado(bloque.Estado)@(bloque.Motivo != null ? $": {bloque.Motivo}" : "")</p>
+                    }
+                    else if (bloque.Salidas.Count == 0)
+                    {
+                        <p class="mb-0">No hay salidas este día.</p>
+                    }
+                    else
+                    {
+                        <ul class="list-group">
+                            @foreach (var s in bloque.Salidas)
+                            {
+                                <li class="list-group-item">
+                                    <strong>@Hora(s.Salida.Horas[0]) · @s.Ruta</strong>
+                                    @if (s.Salida.Codigos != null) { <span class="badge text-bg-light ms-1">@s.Salida.Codigos</span> }
+                                    <br /><span class="small">@Recorrido(s.Salida)</span>
+                                    @if (s.Salida.Nota != null) { <br /><span class="small fst-italic">@s.Salida.Nota</span> }
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </article>
+        }
+    }
+</section>
+
+<section aria-labelledby="titulo-catalogo">
+    <h2 id="titulo-catalogo" class="h4">Catálogo completo</h2>
+    @if (CargandoCatalogo)
+    {
+        <p role="status">Cargando catálogo…</p>
+    }
+    else if (ErrorCatalogo != null)
+    {
+        <p role="alert">@ErrorCatalogo</p>
+        <button class="btn btn-primary" @onclick="CargarCatalogoAsync">Reintentar</button>
+    }
+    else if (Catalogo != null)
+    {
+        @if (Catalogo.Bloques.Count == 0)
+        {
+            <p>Todavía no hay horarios cargados.</p>
+        }
+        @foreach (var bloque in Catalogo.Bloques)
+        {
+            <details class="mb-3">
+                <summary class="h5">@bloque.Nombre</summary>
+                <p class="small mb-2">
+                    @bloque.Empresa · @Vigencia(bloque) ·
+                    <a href="@bloque.FuenteUrl" target="_blank" rel="noopener noreferrer">fuente</a>
+                </p>
+                @foreach (var ruta in bloque.Rutas)
+                {
+                    <h3 class="h6 mt-3">@ruta.Nombre</h3>
+                    <p class="small mb-1">Paradas: @string.Join(" → ", ruta.Paradas.OrderBy(p => p.Orden).Select(p => p.Nombre))</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead><tr><th scope="col">Días</th><th scope="col">Recorrido</th><th scope="col">Códigos</th><th scope="col">Nota</th></tr></thead>
+                            <tbody>
+                                @foreach (var s in ruta.Salidas)
+                                {
+                                    <tr><td>@Dias(s.Dias)</td><td>@Recorrido(s)</td><td>@s.Codigos</td><td>@s.Nota</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </details>
+        }
+        <h3 class="h6">Feriados y excepciones</h3>
+        <ul class="small">
+            @foreach (var f in Catalogo.Feriados) { <li>@f.Fecha.ToString("dd/MM/yyyy", Uruguay): @f.Nombre (horario de domingos y feriados)</li> }
+            @foreach (var e in Catalogo.Excepciones)
+            {
+                <li>@Rango(e.Desde, e.Hasta): @e.Motivo@(e.Bloque != null ? $" (bloque {e.Bloque})" : "")</li>
+            }
+        </ul>
+        <p class="small">Leyenda: O = combinan a Ombúes · M = combinan a Mercedes · P = por Polancos · C = combinan con Conchillas · S = solo sale · SE = solo entra.</p>
+    }
+</section>
+
+@code {
+    private static readonly CultureInfo Uruguay = CultureInfo.GetCultureInfo("es-UY");
+
+    private DateOnly Fecha { get; set; }
+    private SalidasDelDiaDto? Dia { get; set; }
+    private bool CargandoDia { get; set; }
+    private string? ErrorDia { get; set; }
+    private CatalogoDto? Catalogo { get; set; }
+    private bool CargandoCatalogo { get; set; } = true;
+    private string? ErrorCatalogo { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Fecha = DateOnly.FromDateTime(Reloj.GetLocalNow().DateTime);
+        await Task.WhenAll(ConsultarDiaAsync(), CargarCatalogoAsync());
+    }
+
+    private async Task ConsultarDiaAsync()
+    {
+        CargandoDia = true;
+        ErrorDia = null;
+        var (item, error) = await Cliente.SalidasDelDiaAsync(Fecha);
+        Dia = item;
+        ErrorDia = error;
+        CargandoDia = false;
+    }
+
+    private async Task CargarCatalogoAsync()
+    {
+        CargandoCatalogo = true;
+        ErrorCatalogo = null;
+        var (item, error) = await Cliente.ObtenerAsync();
+        Catalogo = item;
+        ErrorCatalogo = error;
+        CargandoCatalogo = false;
+    }
+
+    private static string Hora(HoraParadaDto h) => (h.Aproximada ? "≈" : "") + h.Hora.ToString("HH:mm", Uruguay);
+    private static string Recorrido(SalidaCatalogoDto s) => string.Join(" → ", s.Horas.Select(h => $"{h.Parada} {Hora(h)}"));
+    private static string Rango(DateOnly desde, DateOnly hasta) =>
+        desde == hasta ? desde.ToString("dd/MM/yyyy", Uruguay) : $"{desde.ToString("dd/MM/yyyy", Uruguay)} al {hasta.ToString("dd/MM/yyyy", Uruguay)}";
+
+    private static string Vigencia(BloqueCatalogoDto b) => (b.VigenteDesde, b.VigenteHasta) switch
+    {
+        ({ } d, { } h) => $"vigente del {Rango(d, h)}",
+        ({ } d, null) => $"vigente desde el {d.ToString("dd/MM/yyyy", Uruguay)}",
+        _ => "vigencia no publicada"
+    };
+
+    private static string Dias(DiasOperacion d) => d switch
+    {
+        DiasOperacion.LunesAViernes => "Lunes a viernes",
+        DiasOperacion.Sabados => "Sábados",
+        DiasOperacion.DomingosYFeriados => "Domingos y feriados",
+        DiasOperacion.LunesASabado => "Lunes a sábado",
+        DiasOperacion.LunesYViernes => "Lunes y viernes",
+        _ => d.ToString()
+    };
+
+    private static string Estado(EstadoDia e) => e switch
+    {
+        EstadoDia.FueraDeVigencia => "Sin salidas",
+        EstadoDia.SinServicio => "No hay servicio",
+        EstadoDia.ConsultarAgencia => "Consultá en la agencia",
+        _ => ""
+    };
+}
