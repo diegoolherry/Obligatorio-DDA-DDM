@@ -19,9 +19,9 @@ export function PassengerLogin({ service }: { service: IAuthenticationService })
 
   useEffect(() => {
     mounted.current = true;
+    // The session belongs to the app, not to this tab: App.tsx discards it on unmount.
     return () => {
       mounted.current = false;
-      service.discard();
     };
   }, [service]);
 

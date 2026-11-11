@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -25,6 +25,8 @@ export default function App() {
   // The location service asks the session to send its requests: the token stays inside it.
   const [location] = useState<ILocationService>(() => new LocationService(authentication));
   const [screen, setScreen] = useState<Screen>('buscar');
+  // The in-memory session outlives tab switches and is discarded only when the app root unmounts.
+  useEffect(() => () => authentication.discard(), [authentication]);
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.safeArea}>

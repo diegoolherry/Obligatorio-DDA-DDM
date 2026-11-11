@@ -174,3 +174,11 @@ test('local arrival time is read as written and ages are readable', () => {
   assert.equal(format.formatAge(-1), 'antigüedad desconocida');
   assert.equal(format.formatAge(Number.NaN), 'antigüedad desconocida');
 });
+
+test('session survives switching tabs: only the app root discards it on unmount (source check)', async () => {
+  const login = await readFile(new URL('../../src/Mobile/src/components/Authentication/PassengerLogin.tsx', import.meta.url), 'utf8');
+  const app = await readFile(new URL('../../src/Mobile/App.tsx', import.meta.url), 'utf8');
+  const loginCleanup = login.match(/return \(\) => \{([\s\S]*?)\};/)?.[1] ?? '';
+  assert.doesNotMatch(loginCleanup, /discard\(\)/, 'leaving the Ingreso tab must not discard the session');
+  assert.match(app, /useEffect\(\(\) => \(\) => authentication\.discard\(\), \[authentication\]\)/, 'the app root discards the session when it unmounts');
+});
