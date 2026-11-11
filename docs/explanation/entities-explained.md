@@ -147,14 +147,14 @@ El formato acordado de IDs `string` con abreviaturas de dos letras y guion, los 
 
 ## Ampliación final: rutas, salidas y asientos por intervalo
 
-El [modelo complementario de la entrega final](data-model.md#5-modelo-conceptual-complementario-de-la-entrega-final) propone los siguientes conceptos fuera de los 17 del UML MVP. Son mejoras del equipo, no exigencias académicas explícitas ni un esquema aprobado; su correspondencia con `Tramo` y `Servicio` sigue por acordar.
+El [modelo complementario de la entrega final](data-model.md#5-modelo-conceptual-complementario-de-la-entrega-final) propone los siguientes conceptos fuera de los 17 del UML MVP. Son mejoras del equipo, no exigencias académicas explícitas. Ruta, parada en ruta y calendario ya están implementados en FIN-001 como un catálogo que genera `Servicio` fechados (ver el [modelo](data-model.md#5-modelo-conceptual-complementario-de-la-entrega-final)); vehículos, asientos y ocupación siguen como propuesta.
 
 | Concepto candidato | Propósito y vínculo |
 | --- | --- |
 | Ruta dirigida / variante | Ordena ocurrencias de parada con sentido explícito; no comparte órdenes numéricos con otras variantes por inferencia. |
 | Parada en ruta | Identifica una ocurrencia ordenada dentro de una ruta, incluso si se visita más de una vez la misma parada. |
-| Calendario de operación | Define días, vigencia y excepciones por bloque/variante; la validación de su fuente sigue pendiente. |
-| Salida | Instancia fechada de una ruta, con secuencia y vehículo asignado; no equivale automáticamente al `Servicio` MVP. |
+| Calendario de operación | Define días, vigencia y excepciones por bloque/variante; fuente: horario publicado por la empresa, transcripto en FIN-001. |
+| Salida | Instancia fechada de una ruta, con secuencia y vehículo asignado; en FIN-001 genera `Servicio` MVP por par de paradas; el vehículo asignado sigue pendiente (FIN-002). |
 | Vehículo / configuración | Define el plano académico y números únicos de asiento; los planos no acreditan asignaciones reales. |
 | Asiento de salida | Inventario identificado por salida y asiento de su configuración; reutilizar vehículo no comparte inventario entre salidas. |
 | Ocupación confirmada | Asocia asiento e intervalo de embarque/desembarque de la misma ruta/salida; admite reutilización solo sin superposición. |
