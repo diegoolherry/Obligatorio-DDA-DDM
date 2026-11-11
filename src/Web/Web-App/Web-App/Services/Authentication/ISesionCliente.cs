@@ -12,5 +12,6 @@ public interface ISesionCliente
     Task<ResultadoAutenticacion> ProbarPasajeroAsync();
     Task<ResultadoAutenticacion> ProbarAdministradorAsync();
     Task<RespuestaApiAdministracion> SolicitarAdministradorAsync(HttpMethod metodo, string ruta, string? json = null);
+    Task<RespuestaApiAdministracion> SolicitarAutenticadaAsync(HttpMethod metodo, string ruta, string? json = null);
     void Descartar();
 }

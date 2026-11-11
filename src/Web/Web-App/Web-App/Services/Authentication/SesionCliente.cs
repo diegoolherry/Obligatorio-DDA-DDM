@@ -34,7 +34,14 @@ public class SesionCliente(IHttpClientFactory factory, IConfiguration configurat
     public Task<ResultadoAutenticacion> ProbarPasajeroAsync() => EjecutarAsync("prueba-pasajero");
     public Task<ResultadoAutenticacion> ProbarAdministradorAsync() => EjecutarAsync("prueba-administrador");
 
-    public async Task<RespuestaApiAdministracion> SolicitarAdministradorAsync(HttpMethod metodo, string ruta, string? json = null)
+    public Task<RespuestaApiAdministracion> SolicitarAdministradorAsync(HttpMethod metodo, string ruta, string? json = null) =>
+        SolicitarAsync(metodo, ruta, json, "La API denegó el acceso de administrador.");
+
+    // Solicitud autenticada neutral al rol: el 403 no menciona al administrador.
+    public Task<RespuestaApiAdministracion> SolicitarAutenticadaAsync(HttpMethod metodo, string ruta, string? json = null) =>
+        SolicitarAsync(metodo, ruta, json, "La API denegó el acceso a esta operación.");
+
+    private async Task<RespuestaApiAdministracion> SolicitarAsync(HttpMethod metodo, string ruta, string? json, string textoDenegado)
     {
         if (!Estado.Autenticada || string.IsNullOrEmpty(_token)) return new(false, null, null, "Ingresá con una sesión activa.");
         if (!TryBaseUrl(configuration["Api:BaseUrl"], out var baseUrl)) return new(false, null, null, "La URL de la API no está configurada correctamente.");
@@ -50,7 +57,7 @@ public class SesionCliente(IHttpClientFactory factory, IConfiguration configurat
             return response.IsSuccessStatusCode
                 ? new(true, (int)response.StatusCode, body, "Operación completada.")
                 : new(false, (int)response.StatusCode, null, response.StatusCode == System.Net.HttpStatusCode.Forbidden
-                    ? "La API denegó el acceso de administrador." : response.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                    ? textoDenegado : response.StatusCode == System.Net.HttpStatusCode.Unauthorized
                     ? "La sesión venció o no es válida. Ingresá nuevamente." : "La API no pudo completar la operación.");
         }
         catch (HttpRequestException) { return new(false, null, null, "No se pudo contactar con la API. Revisá la conexión y reintentá."); }

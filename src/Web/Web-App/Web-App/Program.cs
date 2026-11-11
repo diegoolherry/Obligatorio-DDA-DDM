@@ -1,6 +1,7 @@
 using Web_App.Components;
 using Web_App.Services.Authentication;
 using Web_App.Security;
+using Web_App.Services.Location;
 using Web_App.Services.Operational;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +11,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ISesionCliente, SesionCliente>();
 builder.Services.AddScoped<AdministracionOperativaCliente>();
 builder.Services.AddScoped<BusquedaItinerariosCliente>();
+builder.Services.AddScoped<UbicacionPasajeroCliente>();
 builder.Services.AddHttpClient("Autenticacion", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(15);
