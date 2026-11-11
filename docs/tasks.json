@@ -812,6 +812,32 @@
         "Llegada aproximada y estado de demora se muestran solo cuando la API los informa; sin datos o con error se comunica con opción de reintento.",
         "La página identifica los datos como ficticios y aproximados y muestra los parámetros académicos usados."
       ]
+    },
+    {
+      "id": "FIN-007",
+      "name": "Envío de ubicación del cobrador en segundo plano",
+      "description": "Pedido de Diego durante la prueba de MVP-009-02 (2026-11-11): que el celular del cobrador siga publicando con la app minimizada o la pantalla bloqueada. Requiere el permiso «Siempre» como segundo paso tras el de primer plano (material de clase: «solo si es esencial»), expo-task-manager, UIBackgroundModes de ubicación y un build de desarrollo, porque Expo Go en iOS no lo soporta.",
+      "priority": "baja",
+      "area": [
+        "Mobile",
+        "Docs"
+      ],
+      "status": "pending",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-11-11T02:15:38-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [
+        "MVP-009"
+      ],
+      "acceptanceCriteria": [
+        "El permiso de segundo plano se pide solo después del de primer plano, con explicación previa y sin bloquear el uso en primer plano si se rechaza.",
+        "Con el permiso concedido, las publicaciones continúan con la app en segundo plano respetando la periodicidad configurada, y se detienen con «Detener» o al cerrar la sesión.",
+        "La prueba se hace en un build de desarrollo en iPhone y queda documentada; Expo Go sigue funcionando en primer plano."
+      ],
+      "evidence": null
     }
   ]
 }
