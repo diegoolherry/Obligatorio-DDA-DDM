@@ -54,6 +54,8 @@ public class GeneracionServiciosService(ICatalogoRepository catalogo, IGeneracio
                         for (var j = i + 1; j < horas.Count; j++)
                         {
                             var clave = (paradas[horas[i].Orden], paradas[horas[j].Orden]);
+                            // Una ruta que vuelve a pasar por la misma parada no genera un tramo de la parada a sí misma.
+                            if (clave.Item1 == clave.Item2) continue;
                             if (!tramos.TryGetValue(clave, out var tramo))
                             {
                                 tramo = new Tramo { OrigenId = clave.Item1, DestinoId = clave.Item2 };

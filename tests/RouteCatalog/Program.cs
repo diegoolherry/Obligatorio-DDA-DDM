@@ -21,6 +21,7 @@ try
     TranscriptionChecks.Run(json, Check);
     await CalendarChecks.RunAsync(json, Check);
     await GenerationChecks.RunAsync(json, Check);
+    await AdversarialChecks.RunAsync(json, Check);
 }
 catch (Exception e)
 {

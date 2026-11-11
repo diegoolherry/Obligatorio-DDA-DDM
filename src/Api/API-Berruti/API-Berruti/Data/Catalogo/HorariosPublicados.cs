@@ -51,6 +51,7 @@ public static class HorariosPublicados
         }
 
         var bloques = archivo.Bloques ?? [];
+        if (bloques.Count == 0) errores.Add("La transcripción no tiene bloques.");
         foreach (var g in bloques.GroupBy(b => b.Clave).Where(g => g.Count() > 1)) errores.Add($"Bloque repetido: {g.Key}.");
         var rutas = bloques.SelectMany(b => b.Rutas ?? []).ToList();
         foreach (var g in rutas.GroupBy(r => r.Clave).Where(g => g.Count() > 1)) errores.Add($"Ruta repetida: {g.Key}.");
