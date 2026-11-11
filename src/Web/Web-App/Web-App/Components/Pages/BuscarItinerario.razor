@@ -60,7 +60,7 @@ else
             <button class="btn btn-primary" @onclick="ReintentarAsync" disabled="@Buscando">Reintentar</button>
             break;
         case EstadoBusqueda.Vacio:
-            <p role="status">No hay viajes de @UltimaBusqueda para esa fecha. Probá con otra fecha u otras paradas.</p>
+            <p role="status">No hay viajes de @UltimaBusqueda. Probá con otra fecha u otras paradas.</p>
             break;
         case EstadoBusqueda.Exito:
             <p role="status">@Itinerarios.Count @(Itinerarios.Count == 1 ? "itinerario encontrado" : "itinerarios encontrados") de @UltimaBusqueda.</p>
@@ -73,22 +73,22 @@ else
                             · @(itinerario.Tramos.Count == 1 ? "Directo" : $"{itinerario.Tramos.Count} tramos")
                             · Total @Precio(itinerario.PrecioTotal)
                         </h2>
-                        <ol class="list-group list-group-numbered">
+                        <ul class="list-group">
                             @foreach (var tramo in itinerario.Tramos.OrderBy(t => t.Orden))
                             {
                                 <li class="list-group-item">
-                                    <strong>@tramo.Origen.Nombre → @tramo.Destino.Nombre</strong><br />
+                                    <strong>Tramo @tramo.Orden: @tramo.Origen.Nombre → @tramo.Destino.Nombre</strong><br />
                                     Sale @Hora(tramo.Salida) · llega @Hora(tramo.Llegada) · @Precio(tramo.Importe)<br />
                                     <span>Asiento: @Politica(tramo.PoliticaAsiento)</span>
                                 </li>
                                 @if (itinerario.Transbordo != null && tramo.Orden == 1)
                                 {
-                                    <li class="list-group-item list-group-item-light" style="list-style: none">
+                                    <li class="list-group-item list-group-item-light">
                                         Transbordo en @itinerario.Transbordo.Parada.Nombre: @itinerario.Transbordo.Minutos min de espera
                                     </li>
                                 }
                             }
-                        </ol>
+                        </ul>
                     </div>
                 </article>
             }
