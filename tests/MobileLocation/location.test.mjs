@@ -182,3 +182,11 @@ test('session survives switching tabs: only the app root discards it on unmount 
   assert.doesNotMatch(loginCleanup, /discard\(\)/, 'leaving the Ingreso tab must not discard the session');
   assert.match(app, /useEffect\(\(\) => \(\) => authentication\.discard\(\), \[authentication\]\)/, 'the app root discards the session when it unmounts');
 });
+
+test('sharing keeps running across tabs and stops without a collector session (source check)', async () => {
+  const app = await readFile(new URL('../../src/Mobile/App.tsx', import.meta.url), 'utf8');
+  const sharing = await readFile(new URL('../../src/Mobile/src/components/Location/LocationSharing.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(app, /screen === 'compartir' && <LocationSharing/, 'the sharing screen must not unmount when changing tabs');
+  assert.match(app, /<View style=\{screen === 'compartir' \? styles\.screen : styles\.hidden\}>\s*<LocationSharing/, 'the sharing screen stays mounted and is only hidden');
+  assert.match(sharing, /if \(!allowed\) setSharing\(false\);/, 'sharing stops when there is no collector session');
+});

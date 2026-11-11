@@ -38,7 +38,10 @@ export default function App() {
         </View>
         {screen === 'buscar' && <ItinerarySearch service={itineraries} />}
         {screen === 'ingreso' && <PassengerLogin service={authentication} />}
-        {screen === 'compartir' && <LocationSharing session={authentication} service={location} />}
+        {/* Stays mounted while hidden so the collector keeps sharing from any tab (foreground only). */}
+        <View style={screen === 'compartir' ? styles.screen : styles.hidden}>
+          <LocationSharing session={authentication} service={location} />
+        </View>
         {screen === 'ubicacion' && <ServiceLocation session={authentication} service={location} />}
         <StatusBar style="dark" />
       </SafeAreaView>
@@ -59,6 +62,8 @@ function Tab({ label, selected, onPress }: { label: string; selected: boolean; o
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#fff' },
+  screen: { flex: 1 },
+  hidden: { display: 'none' },
   tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#999' },
   tab: { flex: 1, minHeight: 48, paddingHorizontal: 2, justifyContent: 'center', alignItems: 'center', borderBottomWidth: 3, borderBottomColor: 'transparent' },
   tabSelected: { borderBottomColor: '#111' },

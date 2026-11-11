@@ -52,7 +52,7 @@ Dos pestañas nuevas usan la sesión del ingreso: **Compartir ubicación** (rol 
 - Solo ubicación en primer plano («mientras se usa la app»). No hay ubicación en segundo plano ni `UIBackgroundModes`; el plugin `expo-location` de `app.json` define el texto de propósito en español y desactiva explícitamente los modos de segundo plano. Expo Go puede mostrar su propio texto: el de `app.json` rige en un build de desarrollo o propio.
 - El permiso no se pide al abrir la app: primero se explica para qué se usa y se pide al tocar «Permitir ubicación».
 - Si se deniega y el sistema no vuelve a preguntar, aparece «Abrir Ajustes» (`Linking.openSettings()`). Al volver a la app se vuelve a leer el permiso, y también justo antes de «Compartir».
-- La lectura se detiene con «Detener», al salir de la pantalla, si el permiso deja de estar concedido y cuando la app pasa a segundo plano; hay que volver a tocar «Compartir».
+- La lectura sigue aunque el cobrador cambie de pestaña mientras la app está abierta. Se detiene con «Detener», al cerrar la sesión de cobrador, si el permiso deja de estar concedido y cuando la app pasa a segundo plano; hay que volver a tocar «Compartir». El envío en segundo plano queda para FIN-007.
 
 ### Comprobaciones
 

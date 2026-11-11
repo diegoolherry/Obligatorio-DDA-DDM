@@ -128,6 +128,11 @@ export function LocationSharing({ session, service }: {
     };
   }, [sharing, permission.state, publish]);
 
+  // The screen stays mounted across tabs: stop sharing when the collector session ends.
+  useEffect(() => {
+    if (!allowed) setSharing(false);
+  }, [allowed]);
+
   useEffect(() => {
     if (!sharing) return undefined;
     const subscription = AppState.addEventListener('change', next => {
