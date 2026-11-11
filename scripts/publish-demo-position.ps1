@@ -22,6 +22,8 @@ param(
     [double]$Paso = 0.01
 )
 $ErrorActionPreference = 'Stop'
+# Windows PowerShell 5.1 no carga System.Net.Http por defecto.
+Add-Type -AssemblyName System.Net.Http
 $client = $null
 $token = $null
 $inv = [Globalization.CultureInfo]::InvariantCulture
