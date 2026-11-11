@@ -4,6 +4,8 @@ using API_Berruti.Repositories.Operational;
 using API_Berruti.Services.Operational;
 using API_Berruti.Repositories.Location;
 using API_Berruti.Services.Location;
+using API_Berruti.Repositories.Catalogo;
+using API_Berruti.Services.Catalogo;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -29,6 +31,10 @@ builder.Services.AddScoped<ITarifasRepository, TarifasRepository>();
 builder.Services.AddScoped<ITarifasService, TarifasService>();
 builder.Services.AddScoped<IBusquedaItinerariosRepository, BusquedaItinerariosRepository>();
 builder.Services.AddScoped<IItinerariosService, ItinerariosService>();
+builder.Services.AddScoped<ICatalogoRepository, CatalogoRepository>();
+builder.Services.AddScoped<ICatalogoService, CatalogoService>();
+builder.Services.AddScoped<IGeneracionServiciosRepository, GeneracionServiciosRepository>();
+builder.Services.AddScoped<IGeneracionServiciosService, GeneracionServiciosService>();
 // Parámetros académicos de ubicación (appsettings.json, sección Ubicacion); valores inválidos detienen el arranque.
 builder.Services.AddSingleton(ParametrosUbicacion.Desde(builder.Configuration));
 builder.Services.AddScoped<IUbicacionRepository, UbicacionRepository>();
