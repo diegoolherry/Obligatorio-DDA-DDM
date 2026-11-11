@@ -78,6 +78,12 @@ El dispositivo embarcado es el celular del cobrador: con su sesión `Cobrador` p
 
 La llegada aproximada es la distancia en línea recta (haversine) al destino dividida por la velocidad promedio; hay demora si supera la llegada programada más la tolerancia. No es una predicción operativa. Las pruebas `dotnet run --project tests/Geolocation/Geolocation.csproj --no-launch-profile` cubren la publicación, los rechazos sin escrituras, la consulta y los roles exigidos con un repositorio en memoria; no ejercitan HTTP ni MySQL.
 
+Para simular el celular del cobrador sin la app, [`scripts/publish-demo-position.ps1`](../../scripts/publish-demo-position.ps1) pide la contraseña demo con entrada segura, ingresa como cobrador, lista sus servicios y publica `-Cantidad` posiciones hacia el `-Destino` cada `-Segundos`, y luego revoca la sesión. No imprime credenciales ni tokens. Requiere la base reiniciada con la asignación sembrada:
+
+```powershell
+.\scripts\publish-demo-position.ps1 -Destino Colonia -Latitud -34.1928 -Longitud -57.8400 -Cantidad 3 -Segundos 30
+```
+
 ## Límites y evidencia
 
 Las sesiones API usan Controller → interfaz Service → interfaces Repository → DbContext; autenticación Bearer opaca y autorización del framework compartido, sin JWT ni paquetes nuevos. Roles se consultan en MySQL en cada solicitud; token solo se entrega al ingresar, huella SHA-256 única en DB, vencimiento UTC absoluto de siete días y revocación por sesión. La administración Web consume las rutas operativas documentadas arriba; estas rutas aún no tienen verificación HTTP/MySQL ejecutada. Compra, reserva, pagos y QR no forman parte de este corte. La matriz pública local `200/204/401/403` y el rechazo inmediato del token anterior tras logout sí tienen evidencia independiente enlazada arriba; persistencia ante reinicio, revocación durable, límite de vencimiento, otras sesiones, concurrencia e invariancia de BD/contadores siguen sin prueba funcional. Los fallos de servidor/proveedor y reintento (incluido el escenario 503, fuera de esta matriz) permanecen pendientes; no se acredita un ensayo de fallos por el resultado positivo local. Ver [contratos](auth-contracts.md) y [checks pendientes](../how-to/api-session-checks.md). Los [requisitos](requirements.md) describen lo exigido/propuesto, **no esta superficie disponible**.
