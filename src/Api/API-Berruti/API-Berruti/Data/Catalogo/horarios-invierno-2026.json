@@ -1,0 +1,293 @@
+{
+  "fuente": {
+    "url": "http://www.berruttiturismo.com.uy/horarios.html",
+    "titulo": "HORARIOS DE INVIERNO 2026",
+    "consultada": "2026-11-11",
+    "nota": "Transcripción manual de la imagen publicada. Las horas posteriores a la primera de cada salida son aproximadas. No contiene tarifas, capacidades ni asignación de flota."
+  },
+  "leyenda": {
+    "O": "Combinan a Ombúes",
+    "M": "Combinan a Mercedes",
+    "P": "Por Polancos",
+    "C": "Combinan con Conchillas",
+    "S": "Solo sale",
+    "SE": "Solo entra"
+  },
+  "feriados": [
+    { "fecha": "2026-01-01", "nombre": "Año Nuevo" },
+    { "fecha": "2026-05-01", "nombre": "Día de los Trabajadores" },
+    { "fecha": "2026-07-18", "nombre": "Jura de la Constitución" },
+    { "fecha": "2026-08-25", "nombre": "Declaratoria de la Independencia" },
+    { "fecha": "2026-12-25", "nombre": "Navidad" }
+  ],
+  "excepciones": [
+    { "desde": "2026-01-01", "hasta": "2026-01-01", "tipo": "SinServicio", "motivo": "1° de enero: no hay servicios" },
+    { "desde": "2026-03-30", "hasta": "2026-04-05", "tipo": "ConsultarAgencia", "motivo": "Semana de Turismo: consulte en agencias por horarios especiales" },
+    { "desde": "2026-05-01", "hasta": "2026-05-01", "tipo": "SinServicio", "motivo": "1° de mayo: no hay servicios" },
+    { "desde": "2026-12-25", "hasta": "2026-12-25", "tipo": "SinServicio", "motivo": "25 de diciembre: no hay servicios" }
+  ],
+  "bloques": [
+    {
+      "clave": "NP-COL",
+      "nombre": "Línea Nueva Palmira / Colonia",
+      "empresa": "Berrutti & Cía. Ltda.",
+      "vigenteDesde": "2026-03-02",
+      "vigenteHasta": "2026-12-20",
+      "rutas": [
+        {
+          "clave": "NP-COL",
+          "familia": "Nueva Palmira–Colonia",
+          "nombre": "Nueva Palmira → Colonia",
+          "paradas": ["Nueva Palmira", "Carmelo", "Radial de Conchillas", "Colonia"],
+          "salidas": [
+            { "dias": "LunesAViernes", "horas": ["05:20", "05:50", "06:15", "07:05"], "codigos": "C-O" },
+            { "dias": "LunesAViernes", "horas": ["06:55", "07:30", "08:05", "09:00"], "codigos": "C-O" },
+            { "dias": "LunesAViernes", "horas": ["09:40", "10:15", "10:45", "11:40"], "codigos": "C-O" },
+            { "dias": "LunesAViernes", "horas": ["11:05", "11:40", "12:15", "13:10"], "codigos": "C-O" },
+            { "dias": "LunesAViernes", "horas": ["12:30", "13:05", "13:35", "14:20"], "codigos": "C-O" },
+            { "dias": "LunesAViernes", "horas": ["13:30", "14:05", "14:40", "15:30"], "codigos": "O" },
+            { "dias": "LunesAViernes", "horas": ["16:25", "17:00", "17:40", "18:25"], "codigos": "C-O" },
+            { "dias": "LunesAViernes", "horas": ["18:00", "18:35", "19:10", "19:55"], "codigos": "C-O" },
+            { "dias": "LunesAViernes", "horas": ["19:20", "19:55", "20:30", "21:10"] },
+            { "dias": "Sabados", "horas": ["05:20", "05:50", "06:20", "07:30"], "codigos": "O-C" },
+            { "dias": "Sabados", "horas": ["11:05", "11:40", "12:20", "13:10"], "codigos": "O-C" },
+            { "dias": "Sabados", "horas": ["16:25", "17:00", "17:40", "18:25"], "codigos": "O-C" },
+            { "dias": "Sabados", "horas": ["19:20", "19:55", "20:30", "21:10"] },
+            { "dias": "DomingosYFeriados", "horas": ["11:05", "11:40", "12:15", "13:00"] },
+            { "dias": "DomingosYFeriados", "horas": ["17:15", "17:45", "18:25", "19:20"], "codigos": "O" },
+            { "dias": "DomingosYFeriados", "horas": ["19:20", "19:55", "20:30", "21:10"], "codigos": "O" }
+          ]
+        },
+        {
+          "clave": "NP-COL-P",
+          "familia": "Nueva Palmira–Colonia",
+          "nombre": "Nueva Palmira → Colonia, por Polancos",
+          "paradas": ["Nueva Palmira", "Polancos", "Carmelo", "Radial de Conchillas", "Colonia"],
+          "salidas": [
+            { "dias": "LunesAViernes", "horas": ["07:45", null, "08:15", "08:50", "09:35"], "codigos": "P" },
+            { "dias": "Sabados", "horas": ["07:45", null, "08:15", "08:50", "09:35"], "codigos": "O-C-P" },
+            { "dias": "DomingosYFeriados", "horas": ["07:45", null, "08:15", "08:50", "09:35"], "codigos": "O-P" }
+          ]
+        },
+        {
+          "clave": "COL-NP",
+          "familia": "Nueva Palmira–Colonia",
+          "nombre": "Colonia → Nueva Palmira",
+          "paradas": ["Colonia", "Radial de Conchillas", "Carmelo", "Nueva Palmira"],
+          "salidas": [
+            { "dias": "LunesAViernes", "horas": ["05:30", "06:10", "06:55", "07:30"], "codigos": "C-O" },
+            { "dias": "LunesAViernes", "horas": ["07:30", "08:15", "08:50", "09:20"], "codigos": "C-O" },
+            { "dias": "LunesAViernes", "horas": ["09:55", "10:40", "11:15", "11:45"], "codigos": "C-O" },
+            { "dias": "LunesAViernes", "horas": ["11:25", "12:15", "13:00", "13:30"], "codigos": "C-O-M" },
+            { "dias": "LunesAViernes", "horas": ["12:50", "13:35", "14:10", "14:45"], "codigos": "C-O" },
+            { "dias": "LunesAViernes", "horas": ["15:45", "16:25", "17:05", "17:35"], "codigos": "C" },
+            { "dias": "LunesAViernes", "horas": ["17:00", "17:40", "18:15", "18:45"], "codigos": "C-O" },
+            { "dias": "LunesAViernes", "horas": ["18:40", "19:15", "19:50", "20:25"], "codigos": "C-O" },
+            { "dias": "LunesAViernes", "horas": ["20:15", "20:55", "21:30", "22:00"], "nota": "Finaliza en Paraguay y Jacinto Laguna" },
+            { "dias": "Sabados", "horas": ["08:00", "08:45", "09:20", "09:55"], "codigos": "C-O" },
+            { "dias": "Sabados", "horas": ["11:25", "12:15", "13:00", "13:30"], "codigos": "C-O-M" },
+            { "dias": "Sabados", "horas": ["17:00", "17:40", "18:15", "18:45"], "codigos": "C-O" },
+            { "dias": "Sabados", "horas": ["18:40", "19:15", "19:50", "20:25"] },
+            { "dias": "DomingosYFeriados", "horas": ["08:00", "08:45", "09:20", "09:55"], "codigos": "O" },
+            { "dias": "DomingosYFeriados", "horas": ["13:00", "13:40", "14:15", "14:50"] },
+            { "dias": "DomingosYFeriados", "horas": ["17:00", "17:40", "18:15", "18:45"] },
+            { "dias": "DomingosYFeriados", "horas": ["19:45", "20:25", "20:55", "21:30"], "codigos": "O" }
+          ]
+        },
+        {
+          "clave": "COL-NP-P",
+          "familia": "Nueva Palmira–Colonia",
+          "nombre": "Colonia → Nueva Palmira, por Polancos",
+          "paradas": ["Colonia", "Radial de Conchillas", "Carmelo", "Polancos", "Nueva Palmira"],
+          "salidas": [
+            { "dias": "LunesAViernes", "horas": ["14:00", "14:45", "15:25", null, "16:00"], "codigos": "P-O" },
+            { "dias": "Sabados", "horas": ["14:00", "14:45", "15:25", null, "16:00"], "codigos": "P" }
+          ]
+        },
+        {
+          "clave": "OMB-RAD",
+          "familia": "Conexiones de Ombúes y Conchillas",
+          "nombre": "Ombúes → Radial de Conchillas",
+          "paradas": ["Ombúes", "Radial de Conchillas"],
+          "salidas": [
+            { "dias": "LunesAViernes", "horas": ["05:20", null] },
+            { "dias": "LunesAViernes", "horas": ["07:20", null] },
+            { "dias": "LunesAViernes", "horas": ["10:00", null] },
+            { "dias": "LunesAViernes", "horas": ["11:30", null] },
+            { "dias": "LunesAViernes", "horas": ["13:05", null] },
+            { "dias": "LunesAViernes", "horas": ["14:05", null] },
+            { "dias": "LunesAViernes", "horas": ["17:00", null] },
+            { "dias": "LunesAViernes", "horas": ["18:35", null] },
+            { "dias": "Sabados", "horas": ["05:20", null] },
+            { "dias": "Sabados", "horas": ["07:55", null] },
+            { "dias": "Sabados", "horas": ["11:15", null] },
+            { "dias": "Sabados", "horas": ["16:50", null] },
+            { "dias": "DomingosYFeriados", "horas": ["08:05", null] },
+            { "dias": "DomingosYFeriados", "horas": ["17:40", null] },
+            { "dias": "DomingosYFeriados", "horas": ["19:50", null] }
+          ]
+        },
+        {
+          "clave": "CON-RAD",
+          "familia": "Conexiones de Ombúes y Conchillas",
+          "nombre": "Conchillas → Radial de Conchillas",
+          "paradas": ["Conchillas", "Radial de Conchillas"],
+          "salidas": [
+            { "dias": "LunesAViernes", "horas": ["06:00", null] },
+            { "dias": "LunesAViernes", "horas": ["07:45", null] },
+            { "dias": "LunesAViernes", "horas": ["10:25", null] },
+            { "dias": "LunesAViernes", "horas": ["12:00", null] },
+            { "dias": "LunesAViernes", "horas": ["13:25", null] },
+            { "dias": "LunesAViernes", "horas": ["16:25", null], "codigos": "SE" },
+            { "dias": "LunesAViernes", "horas": ["17:20", null] },
+            { "dias": "LunesAViernes", "horas": ["18:50", null] },
+            { "dias": "LunesAViernes", "horas": ["19:35", null], "codigos": "S" },
+            { "dias": "Sabados", "horas": ["06:00", null] },
+            { "dias": "Sabados", "horas": ["08:30", null] },
+            { "dias": "Sabados", "horas": ["12:00", null] },
+            { "dias": "Sabados", "horas": ["17:15", null] }
+          ]
+        }
+      ]
+    },
+    {
+      "clave": "CAR-MER",
+      "nombre": "Línea Carmelo / Mercedes",
+      "empresa": "Berrutti S.R.L.",
+      "vigenteDesde": "2026-03-02",
+      "vigenteHasta": null,
+      "rutas": [
+        {
+          "clave": "CAR-MER",
+          "familia": "Carmelo–Mercedes",
+          "nombre": "Carmelo → Mercedes",
+          "paradas": ["Carmelo", "Nueva Palmira", "Dolores", "Mercedes"],
+          "salidas": [
+            { "dias": "LunesAViernes", "horas": ["06:00", "06:30", "07:10", "07:50"] },
+            { "dias": "LunesASabado", "horas": ["13:00", "13:30", "14:15", "15:00"], "nota": "Combina desde Colonia" }
+          ]
+        },
+        {
+          "clave": "MER-CAR",
+          "familia": "Carmelo–Mercedes",
+          "nombre": "Mercedes → Carmelo",
+          "paradas": ["Mercedes", "Dolores", "Nueva Palmira", "Carmelo"],
+          "salidas": [
+            { "dias": "LunesAViernes", "horas": ["08:20", "08:50", "09:40", "10:15"], "nota": "Combina a Colonia" },
+            { "dias": "LunesASabado", "horas": ["17:50", "18:30", "19:20", "19:50"], "nota": "Combina a Colonia" }
+          ]
+        }
+      ]
+    },
+    {
+      "clave": "NP-CAR",
+      "nombre": "Línea Nueva Palmira / Carmelo",
+      "empresa": "Berrutti & Cía. Ltda.",
+      "vigenteDesde": null,
+      "vigenteHasta": null,
+      "rutas": [
+        {
+          "clave": "NP-CAR",
+          "familia": "Nueva Palmira–Carmelo",
+          "nombre": "Nueva Palmira → Carmelo",
+          "paradas": ["Nueva Palmira", "Carmelo"],
+          "salidas": [
+            { "dias": "LunesAViernes", "horas": ["05:20", null] },
+            { "dias": "LunesAViernes", "horas": ["06:55", null] },
+            { "dias": "LunesAViernes", "horas": ["09:40", null] },
+            { "dias": "LunesAViernes", "horas": ["11:05", null] },
+            { "dias": "LunesAViernes", "horas": ["12:30", null] },
+            { "dias": "LunesAViernes", "horas": ["13:30", null] },
+            { "dias": "LunesAViernes", "horas": ["16:25", null] },
+            { "dias": "LunesAViernes", "horas": ["18:00", null] },
+            { "dias": "LunesAViernes", "horas": ["19:20", null] },
+            { "dias": "LunesAViernes", "horas": ["21:10", null], "nota": "No sale de barrio Sauce, salen de J. Laguna y Paraguay. El recorrido finaliza en Agencia Carmelo" },
+            { "dias": "Sabados", "horas": ["05:20", null] },
+            { "dias": "Sabados", "horas": ["11:05", null] },
+            { "dias": "Sabados", "horas": ["16:25", null] },
+            { "dias": "Sabados", "horas": ["19:20", null] },
+            { "dias": "Sabados", "horas": ["21:10", null], "nota": "No sale de barrio Sauce, salen de J. Laguna y Paraguay. El recorrido finaliza en Agencia Carmelo" },
+            { "dias": "DomingosYFeriados", "horas": ["11:05", null] },
+            { "dias": "DomingosYFeriados", "horas": ["17:15", null] },
+            { "dias": "DomingosYFeriados", "horas": ["19:20", null] }
+          ]
+        },
+        {
+          "clave": "NP-CAR-P",
+          "familia": "Nueva Palmira–Carmelo",
+          "nombre": "Nueva Palmira → Carmelo, por Polancos",
+          "paradas": ["Nueva Palmira", "Polancos", "Carmelo"],
+          "salidas": [
+            { "dias": "LunesAViernes", "horas": ["07:45", null, null], "codigos": "P" },
+            { "dias": "Sabados", "horas": ["07:45", null, null], "codigos": "P" },
+            { "dias": "DomingosYFeriados", "horas": ["07:45", null, null], "codigos": "P" }
+          ]
+        },
+        {
+          "clave": "CAR-NP",
+          "familia": "Nueva Palmira–Carmelo",
+          "nombre": "Carmelo → Nueva Palmira",
+          "paradas": ["Carmelo", "Nueva Palmira"],
+          "salidas": [
+            { "dias": "LunesAViernes", "horas": ["06:00", null] },
+            { "dias": "LunesAViernes", "horas": ["06:55", null] },
+            { "dias": "LunesAViernes", "horas": ["08:50", null] },
+            { "dias": "LunesAViernes", "horas": ["11:15", null] },
+            { "dias": "LunesAViernes", "horas": ["13:00", null] },
+            { "dias": "LunesAViernes", "horas": ["14:10", null] },
+            { "dias": "LunesAViernes", "horas": ["17:05", null] },
+            { "dias": "LunesAViernes", "horas": ["18:15", null] },
+            { "dias": "LunesAViernes", "horas": ["19:50", null] },
+            { "dias": "LunesAViernes", "horas": ["21:30", null], "nota": "Finaliza en Paraguay y Jacinto Laguna" },
+            { "dias": "Sabados", "horas": ["06:55", null] },
+            { "dias": "Sabados", "horas": ["09:20", null] },
+            { "dias": "Sabados", "horas": ["13:00", null] },
+            { "dias": "Sabados", "horas": ["18:15", null] },
+            { "dias": "Sabados", "horas": ["19:50", null] },
+            { "dias": "DomingosYFeriados", "horas": ["09:20", null] },
+            { "dias": "DomingosYFeriados", "horas": ["14:15", null] },
+            { "dias": "DomingosYFeriados", "horas": ["18:15", null] },
+            { "dias": "DomingosYFeriados", "horas": ["20:55", null] }
+          ]
+        },
+        {
+          "clave": "CAR-NP-P",
+          "familia": "Nueva Palmira–Carmelo",
+          "nombre": "Carmelo → Nueva Palmira, por Polancos",
+          "paradas": ["Carmelo", "Polancos", "Nueva Palmira"],
+          "salidas": [
+            { "dias": "LunesAViernes", "horas": ["15:25", null, null], "codigos": "P" },
+            { "dias": "Sabados", "horas": ["15:25", null, null], "codigos": "P" }
+          ]
+        }
+      ]
+    },
+    {
+      "clave": "NP-AGR",
+      "nombre": "Línea Nueva Palmira / Agraciada",
+      "empresa": "Berrutti & Cía. Ltda.",
+      "vigenteDesde": null,
+      "vigenteHasta": null,
+      "rutas": [
+        {
+          "clave": "NP-AGR",
+          "familia": "Nueva Palmira–Agraciada",
+          "nombre": "Nueva Palmira → Agraciada",
+          "paradas": ["Nueva Palmira", "Agraciada"],
+          "salidas": [
+            { "dias": "LunesYViernes", "horas": ["12:00", null] }
+          ]
+        },
+        {
+          "clave": "AGR-NP",
+          "familia": "Nueva Palmira–Agraciada",
+          "nombre": "Agraciada → Nueva Palmira",
+          "paradas": ["Agraciada", "Nueva Palmira"],
+          "salidas": [
+            { "dias": "LunesYViernes", "horas": ["12:45", null] }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -189,6 +189,244 @@ namespace API_Berruti.Data.Migrations
                     b.ToTable("usuario_rol", (string)null);
                 });
 
+            modelBuilder.Entity("API_Berruti.Models.Catalogo.BloqueHorario", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("bloque_id");
+
+                    b.Property<string>("Clave")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)")
+                        .HasColumnName("clave");
+
+                    b.Property<string>("Empresa")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("empresa");
+
+                    b.Property<string>("FuenteUrl")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("fuente_url");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("nombre");
+
+                    b.Property<DateTime?>("VigenteDesde")
+                        .HasColumnType("date")
+                        .HasColumnName("vigente_desde");
+
+                    b.Property<DateTime?>("VigenteHasta")
+                        .HasColumnType("date")
+                        .HasColumnName("vigente_hasta");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Clave")
+                        .IsUnique()
+                        .HasDatabaseName("ux_bloque_clave");
+
+                    b.ToTable("bloque_horario", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_bloque_vigencia", "vigente_hasta IS NULL OR vigente_desde IS NULL OR vigente_hasta >= vigente_desde");
+                        });
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Catalogo.ExcepcionCalendario", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("excepcion_id");
+
+                    b.Property<string>("BloqueId")
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("bloque_id");
+
+                    b.Property<DateTime>("Desde")
+                        .HasColumnType("date")
+                        .HasColumnName("desde");
+
+                    b.Property<DateTime>("Hasta")
+                        .HasColumnType("date")
+                        .HasColumnName("hasta");
+
+                    b.Property<string>("Motivo")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("motivo");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("varchar(24)")
+                        .HasColumnName("tipo");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BloqueId");
+
+                    b.ToTable("excepcion_calendario", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_excepcion_rango", "hasta >= desde");
+                        });
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Catalogo.Feriado", b =>
+                {
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("date")
+                        .HasColumnName("fecha");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("nombre");
+
+                    b.HasKey("Fecha");
+
+                    b.ToTable("feriado", (string)null);
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Catalogo.HoraSalida", b =>
+                {
+                    b.Property<string>("SalidaId")
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("salida_id");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("int")
+                        .HasColumnName("orden");
+
+                    b.Property<TimeSpan>("Hora")
+                        .HasColumnType("time(0)")
+                        .HasColumnName("hora");
+
+                    b.HasKey("SalidaId", "Orden");
+
+                    b.ToTable("hora_salida", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hora_salida_orden", "orden >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Catalogo.ParadaRuta", b =>
+                {
+                    b.Property<string>("RutaId")
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("ruta_id");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("int")
+                        .HasColumnName("orden");
+
+                    b.Property<string>("ParadaId")
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("parada_id");
+
+                    b.HasKey("RutaId", "Orden");
+
+                    b.HasIndex("ParadaId");
+
+                    b.ToTable("parada_ruta", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_parada_ruta_orden", "orden >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Catalogo.RutaCatalogo", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("ruta_id");
+
+                    b.Property<string>("BloqueId")
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("bloque_id");
+
+                    b.Property<string>("Clave")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)")
+                        .HasColumnName("clave");
+
+                    b.Property<string>("Familia")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("familia");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("nombre");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BloqueId");
+
+                    b.HasIndex("Clave")
+                        .IsUnique()
+                        .HasDatabaseName("ux_ruta_clave");
+
+                    b.ToTable("ruta", (string)null);
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Catalogo.SalidaCatalogo", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("salida_id");
+
+                    b.Property<string>("Codigos")
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)")
+                        .HasColumnName("codigos");
+
+                    b.Property<string>("Dias")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("varchar(24)")
+                        .HasColumnName("dias");
+
+                    b.Property<string>("Nota")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("nota");
+
+                    b.Property<string>("RutaId")
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("ruta_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RutaId");
+
+                    b.ToTable("salida_catalogo", (string)null);
+                });
+
             modelBuilder.Entity("API_Berruti.Models.Location.AsignacionCobrador", b =>
                 {
                     b.Property<string>("UsuarioId")
@@ -303,6 +541,11 @@ namespace API_Berruti.Data.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("salida");
 
+                    b.Property<string>("SalidaCatalogoId")
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("salida_catalogo_id");
+
                     b.Property<string>("TramoId")
                         .IsRequired()
                         .HasMaxLength(36)
@@ -312,6 +555,10 @@ namespace API_Berruti.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("TramoId");
+
+                    b.HasIndex("SalidaCatalogoId", "TramoId", "Salida")
+                        .IsUnique()
+                        .HasDatabaseName("ux_servicio_generado");
 
                     b.ToTable("servicio", null, t =>
                         {
@@ -407,6 +654,56 @@ namespace API_Berruti.Data.Migrations
                         .HasConstraintName("fk_usuario_rol_usuario");
                 });
 
+            modelBuilder.Entity("API_Berruti.Models.Catalogo.ExcepcionCalendario", b =>
+                {
+                    b.HasOne("API_Berruti.Models.Catalogo.BloqueHorario", null)
+                        .WithMany()
+                        .HasForeignKey("BloqueId")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Catalogo.HoraSalida", b =>
+                {
+                    b.HasOne("API_Berruti.Models.Catalogo.SalidaCatalogo", null)
+                        .WithMany()
+                        .HasForeignKey("SalidaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Catalogo.ParadaRuta", b =>
+                {
+                    b.HasOne("API_Berruti.Models.Operational.Parada", null)
+                        .WithMany()
+                        .HasForeignKey("ParadaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("API_Berruti.Models.Catalogo.RutaCatalogo", null)
+                        .WithMany()
+                        .HasForeignKey("RutaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Catalogo.RutaCatalogo", b =>
+                {
+                    b.HasOne("API_Berruti.Models.Catalogo.BloqueHorario", null)
+                        .WithMany()
+                        .HasForeignKey("BloqueId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Catalogo.SalidaCatalogo", b =>
+                {
+                    b.HasOne("API_Berruti.Models.Catalogo.RutaCatalogo", null)
+                        .WithMany()
+                        .HasForeignKey("RutaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("API_Berruti.Models.Location.AsignacionCobrador", b =>
                 {
                     b.HasOne("API_Berruti.Models.Operational.Servicio", null)
@@ -436,6 +733,11 @@ namespace API_Berruti.Data.Migrations
 
             modelBuilder.Entity("API_Berruti.Models.Operational.Servicio", b =>
                 {
+                    b.HasOne("API_Berruti.Models.Catalogo.SalidaCatalogo", null)
+                        .WithMany()
+                        .HasForeignKey("SalidaCatalogoId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("API_Berruti.Models.Operational.Tramo", null)
                         .WithMany()
                         .HasForeignKey("TramoId")

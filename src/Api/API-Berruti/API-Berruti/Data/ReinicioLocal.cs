@@ -1,3 +1,4 @@
+using API_Berruti.Data.Catalogo;
 using API_Berruti.DTOs.Authentication;
 using API_Berruti.Models.Authentication;
 using API_Berruti.Models.Location;
@@ -64,6 +65,18 @@ public static class ReinicioLocal
             escenario.Servicios.Select(s => new AsignacionCobrador { UsuarioId = usuarioId, ServicioId = s.Id })));
         await contexto.SaveChangesAsync();
         Console.WriteLine($"Reinicio local: escenario operativo {fecha:yyyy-MM-dd} ({escenario.Paradas.Count} paradas, {escenario.Tramos.Count} tramos, {escenario.Servicios.Count} servicios, {escenario.Tarifas.Count} tarifas, {cobradores.Count * escenario.Servicios.Count} asignaciones de cobrador).");
+        // FIN-001: catálogo transcripto del horario publicado. Reutiliza las paradas del escenario por nombre.
+        var catalogo = HorariosPublicados.Construir(HorariosPublicados.LeerRecurso(), escenario.Paradas);
+        contexto.Paradas.AddRange(catalogo.ParadasNuevas);
+        contexto.BloquesHorario.AddRange(catalogo.Bloques);
+        contexto.Rutas.AddRange(catalogo.Rutas);
+        contexto.ParadasRuta.AddRange(catalogo.ParadasRuta);
+        contexto.SalidasCatalogo.AddRange(catalogo.Salidas);
+        contexto.HorasSalida.AddRange(catalogo.Horas);
+        contexto.Feriados.AddRange(catalogo.Feriados);
+        contexto.ExcepcionesCalendario.AddRange(catalogo.Excepciones);
+        await contexto.SaveChangesAsync();
+        Console.WriteLine($"Reinicio local: catálogo de horarios ({catalogo.Bloques.Count} bloques, {catalogo.Rutas.Count} rutas, {catalogo.Salidas.Count} salidas, {catalogo.Feriados.Count} feriados, {catalogo.Excepciones.Count} excepciones).");
         return 0;
     }
 

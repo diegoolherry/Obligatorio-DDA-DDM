@@ -1,4 +1,5 @@
 using API_Berruti.Models.Authentication;
+using API_Berruti.Models.Catalogo;
 using API_Berruti.Models.Location;
 using API_Berruti.Models.Operational;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,13 @@ public class BerrutiDbContext : DbContext
     public DbSet<Tarifa> Tarifas => Set<Tarifa>();
     public DbSet<AsignacionCobrador> AsignacionesCobrador => Set<AsignacionCobrador>();
     public DbSet<PosicionRecibida> PosicionesRecibidas => Set<PosicionRecibida>();
+    public DbSet<BloqueHorario> BloquesHorario => Set<BloqueHorario>();
+    public DbSet<RutaCatalogo> Rutas => Set<RutaCatalogo>();
+    public DbSet<ParadaRuta> ParadasRuta => Set<ParadaRuta>();
+    public DbSet<SalidaCatalogo> SalidasCatalogo => Set<SalidaCatalogo>();
+    public DbSet<HoraSalida> HorasSalida => Set<HoraSalida>();
+    public DbSet<Feriado> Feriados => Set<Feriado>();
+    public DbSet<ExcepcionCalendario> ExcepcionesCalendario => Set<ExcepcionCalendario>();
 
     // Mismas restricciones que el esquema aprobado en scripts/database/create-auth-demo.sql.
     private const string Ascii = "ascii_bin";
@@ -156,5 +164,85 @@ public class BerrutiDbContext : DbContext
         posicion.HasOne<AsignacionCobrador>().WithMany().HasForeignKey(p => new { p.UsuarioId, p.ServicioId })
             .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_posicion_asignacion");
         posicion.HasIndex(p => new { p.ServicioId, p.RecibidaUtc }).HasDatabaseName("ix_posicion_servicio_recibida");
+
+        ConfigurarCatalogo(modelo);
+    }
+
+    // FIN-001: catálogo de rutas dirigidas y calendarios transcripto del horario publicado.
+    private static void ConfigurarCatalogo(ModelBuilder modelo)
+    {
+        var bloque = modelo.Entity<BloqueHorario>();
+        bloque.ToTable("bloque_horario", t =>
+            t.HasCheckConstraint("ck_bloque_vigencia", "vigente_hasta IS NULL OR vigente_desde IS NULL OR vigente_hasta >= vigente_desde"));
+        bloque.HasKey(b => b.Id);
+        bloque.Property(b => b.Id).HasColumnName("bloque_id").HasMaxLength(36).ValueGeneratedNever();
+        bloque.Property(b => b.Clave).HasColumnName("clave").HasMaxLength(16).IsRequired();
+        bloque.Property(b => b.Nombre).HasColumnName("nombre").HasMaxLength(100).IsRequired();
+        bloque.Property(b => b.Empresa).HasColumnName("empresa").HasMaxLength(100).IsRequired();
+        bloque.Property(b => b.VigenteDesde).HasColumnName("vigente_desde").HasColumnType("date");
+        bloque.Property(b => b.VigenteHasta).HasColumnName("vigente_hasta").HasColumnType("date");
+        bloque.Property(b => b.FuenteUrl).HasColumnName("fuente_url").HasMaxLength(200).IsRequired();
+        bloque.HasIndex(b => b.Clave).IsUnique().HasDatabaseName("ux_bloque_clave");
+
+        var ruta = modelo.Entity<RutaCatalogo>();
+        ruta.ToTable("ruta");
+        ruta.HasKey(r => r.Id);
+        ruta.Property(r => r.Id).HasColumnName("ruta_id").HasMaxLength(36).ValueGeneratedNever();
+        ruta.Property(r => r.BloqueId).HasColumnName("bloque_id").HasMaxLength(36).IsRequired();
+        ruta.Property(r => r.Clave).HasColumnName("clave").HasMaxLength(16).IsRequired();
+        ruta.Property(r => r.Familia).HasColumnName("familia").HasMaxLength(100).IsRequired();
+        ruta.Property(r => r.Nombre).HasColumnName("nombre").HasMaxLength(100).IsRequired();
+        ruta.HasIndex(r => r.Clave).IsUnique().HasDatabaseName("ux_ruta_clave");
+        ruta.HasOne<BloqueHorario>().WithMany().HasForeignKey(r => r.BloqueId).OnDelete(DeleteBehavior.Restrict);
+
+        var paradaRuta = modelo.Entity<ParadaRuta>();
+        paradaRuta.ToTable("parada_ruta", t => t.HasCheckConstraint("ck_parada_ruta_orden", "orden >= 1"));
+        paradaRuta.HasKey(p => new { p.RutaId, p.Orden });
+        paradaRuta.Property(p => p.RutaId).HasColumnName("ruta_id").HasMaxLength(36);
+        paradaRuta.Property(p => p.Orden).HasColumnName("orden");
+        paradaRuta.Property(p => p.ParadaId).HasColumnName("parada_id").HasMaxLength(36).IsRequired();
+        paradaRuta.HasOne<RutaCatalogo>().WithMany().HasForeignKey(p => p.RutaId).OnDelete(DeleteBehavior.Cascade);
+        paradaRuta.HasOne<Parada>().WithMany().HasForeignKey(p => p.ParadaId).OnDelete(DeleteBehavior.Restrict);
+
+        var salida = modelo.Entity<SalidaCatalogo>();
+        salida.ToTable("salida_catalogo");
+        salida.HasKey(s => s.Id);
+        salida.Property(s => s.Id).HasColumnName("salida_id").HasMaxLength(36).ValueGeneratedNever();
+        salida.Property(s => s.RutaId).HasColumnName("ruta_id").HasMaxLength(36).IsRequired();
+        salida.Property(s => s.Dias).HasColumnName("dias").HasConversion<string>().HasMaxLength(24).IsRequired();
+        salida.Property(s => s.Codigos).HasColumnName("codigos").HasMaxLength(16);
+        salida.Property(s => s.Nota).HasColumnName("nota").HasMaxLength(200);
+        salida.HasOne<RutaCatalogo>().WithMany().HasForeignKey(s => s.RutaId).OnDelete(DeleteBehavior.Cascade);
+
+        var hora = modelo.Entity<HoraSalida>();
+        hora.ToTable("hora_salida", t => t.HasCheckConstraint("ck_hora_salida_orden", "orden >= 1"));
+        hora.HasKey(h => new { h.SalidaId, h.Orden });
+        hora.Property(h => h.SalidaId).HasColumnName("salida_id").HasMaxLength(36);
+        hora.Property(h => h.Orden).HasColumnName("orden");
+        hora.Property(h => h.Hora).HasColumnName("hora").HasColumnType("time(0)").IsRequired();
+        hora.HasOne<SalidaCatalogo>().WithMany().HasForeignKey(h => h.SalidaId).OnDelete(DeleteBehavior.Cascade);
+
+        var feriado = modelo.Entity<Feriado>();
+        feriado.ToTable("feriado");
+        feriado.HasKey(f => f.Fecha);
+        feriado.Property(f => f.Fecha).HasColumnName("fecha").HasColumnType("date").ValueGeneratedNever();
+        feriado.Property(f => f.Nombre).HasColumnName("nombre").HasMaxLength(100).IsRequired();
+
+        var excepcion = modelo.Entity<ExcepcionCalendario>();
+        excepcion.ToTable("excepcion_calendario", t => t.HasCheckConstraint("ck_excepcion_rango", "hasta >= desde"));
+        excepcion.HasKey(e => e.Id);
+        excepcion.Property(e => e.Id).HasColumnName("excepcion_id").HasMaxLength(36).ValueGeneratedNever();
+        excepcion.Property(e => e.BloqueId).HasColumnName("bloque_id").HasMaxLength(36);
+        excepcion.Property(e => e.Desde).HasColumnName("desde").HasColumnType("date").IsRequired();
+        excepcion.Property(e => e.Hasta).HasColumnName("hasta").HasColumnType("date").IsRequired();
+        excepcion.Property(e => e.Tipo).HasColumnName("tipo").HasConversion<string>().HasMaxLength(24).IsRequired();
+        excepcion.Property(e => e.Motivo).HasColumnName("motivo").HasMaxLength(200).IsRequired();
+        excepcion.HasOne<BloqueHorario>().WithMany().HasForeignKey(e => e.BloqueId).OnDelete(DeleteBehavior.Cascade);
+
+        // Servicios generados desde el catálogo: el índice único impide duplicar una generación repetida.
+        var servicio = modelo.Entity<Servicio>();
+        servicio.Property(s => s.SalidaCatalogoId).HasColumnName("salida_catalogo_id").HasMaxLength(36);
+        servicio.HasOne<SalidaCatalogo>().WithMany().HasForeignKey(s => s.SalidaCatalogoId).OnDelete(DeleteBehavior.Restrict);
+        servicio.HasIndex(s => new { s.SalidaCatalogoId, s.TramoId, s.Salida }).IsUnique().HasDatabaseName("ux_servicio_generado");
     }
 }
