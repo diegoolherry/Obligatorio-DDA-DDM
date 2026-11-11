@@ -2,7 +2,7 @@ namespace Web_App.Models.Catalogo;
 
 // Contratos de GET api/catalogo y GET api/catalogo/salidas (FIN-001). Las horas posteriores a la salida son aproximadas.
 public enum DiasOperacion { LunesAViernes, Sabados, DomingosYFeriados, LunesASabado, LunesYViernes }
-public enum EstadoDia { Opera, FueraDeVigencia, SinServicio, ConsultarAgencia }
+public enum EstadoDia { Opera, FueraDeVigencia, SinServicio, ConsultarAgencia, CalendarioNoCargado }
 public enum TipoExcepcion { SinServicio, ConsultarAgencia }
 
 public class CatalogoDto
