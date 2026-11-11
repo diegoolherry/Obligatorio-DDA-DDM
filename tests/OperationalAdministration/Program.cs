@@ -123,6 +123,7 @@ if (scheduleMigrations.Length == 1 && scheduleScripts.Length == 1)
 }
 var seedSource = Read("src/Api/API-Berruti/API-Berruti/Data/ReinicioLocal.cs");
 Check(seedSource.Contains("EscenarioOperativoDemo.Construir(") && seedSource.Contains("DateTime.Today.AddDays(1)"), "local reset seeds the operational scenario for tomorrow");
+Check(operationalPage.Contains("[Range(typeof(decimal), \"0\", \"9999999999999999.99\", ParseLimitsInInvariantCulture = true)] public decimal Importe"), "Blazor tariff amount range parses its limits in invariant culture so es-UY does not crash the circuit");
 await OperationalExecutableChecks.RunAsync(Check);
 Console.WriteLine($"{(failures.Count == 0 ? "PASS" : "FAIL")}: {checkCount} structural checks; {string.Join(", ", failures)}");
 return failures.Count == 0 ? 0 : 1;
