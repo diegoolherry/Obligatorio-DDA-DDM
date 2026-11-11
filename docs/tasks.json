@@ -87,7 +87,7 @@
         "Ambos clientes muestran horarios, transbordo, precio total y la política de asiento de cada tramo.",
         "La búsqueda contempla carga, resultado vacío, error y reintento."
       ],
-      "evidence": null
+      "evidence": "Hijos: MVP-003-01 (PR #69) y MVP-003-02 (PR #70) en done; MVP-003-03 (PR #71, mergeado en 70a9c50) espera la prueba en dispositivo de Diego. El padre no pasa a done hasta cerrar MVP-003-03 y re-verificar sus criterios."
     },
     {
       "id": "MVP-004",
@@ -662,13 +662,13 @@
         "API",
         "Docs"
       ],
-      "status": "in_progress",
+      "status": "done",
       "assignee": "Diego",
       "reviewer": "Enzo",
       "createdAt": "2026-11-10T23:26:51-03:00",
       "startedAt": "2026-11-10T23:26:51-03:00",
-      "completedAt": null,
-      "completedBy": null,
+      "completedAt": "2026-11-11T00:14:59-03:00",
+      "completedBy": "Diego",
       "dependencies": [
         "MVP-001",
         "MVP-002"
@@ -679,7 +679,7 @@
         "La búsqueda devuelve todas las combinaciones directas y de dos tramos cuyos servicios salen en la fecha, ordenadas por salida; solo encadena transbordos de 5 a 30 minutos en la misma parada y excluye tramos sin tarifa vigente, usando la de VigenteDesde más reciente cuando hay varias.",
         "Las pruebas ejecutables cubren los límites del transbordo, la fecha, la tarifa, el orden, el resultado vacío y las validaciones."
       ],
-      "evidence": "Decisiones de producto de Diego (2026-11-10): transbordo de 5 a 30 minutos (excepciones operativas como accidentes, fuera de alcance); ambos tramos salen en la fecha buscada (hora local de Uruguay); se devuelven todas las combinaciones, directas y de dos tramos, ordenadas por salida; búsqueda pública (anónima); origen y destino por id de parada; sin tarifa vigente en la fecha el itinerario se excluye y con varias vigentes se usa la de VigenteDesde más reciente."
+      "evidence": "(1) PR #69 mergeado en main (0950852); commits a88cab8 (hijos en backlog), 3efe891 (GET /api/paradas y GET /api/itinerarios anónimos).\n(2) OperationalAdministration 125 PASS; builds API/Web 0/0; ControllerValidation 4/4; CI validate PASS; HTTP real contra MySQL local (seed 2026-11-11): 200 itinerario 350 con transbordo de 15 min, 200 vacío, 400 fecha/paradas iguales, 404 parada inexistente, 401 en admin sin token; verificación independiente PASS.\n(3) Revisión cruzada de Enzo: PR aprobado según reporte del usuario (2026-11-11)."
     },
     {
       "id": "MVP-003-02",
@@ -690,13 +690,13 @@
       "area": [
         "Web"
       ],
-      "status": "in_progress",
+      "status": "done",
       "assignee": "Diego",
       "reviewer": "Enzo",
       "createdAt": "2026-11-10T23:26:51-03:00",
       "startedAt": "2026-11-10T23:41:10-03:00",
-      "completedAt": null,
-      "completedBy": null,
+      "completedAt": "2026-11-11T00:14:59-03:00",
+      "completedBy": "Diego",
       "dependencies": [
         "MVP-003-01"
       ],
@@ -704,7 +704,7 @@
         "La página permite elegir origen, destino y fecha y muestra cada itinerario con tramos ordenados, horarios, transbordo, precio total y política de asiento por tramo.",
         "La página contempla carga, resultado vacío, error y reintento."
       ],
-      "evidence": "Decisiones de producto de Diego (2026-11-10): transbordo de 5 a 30 minutos (excepciones operativas como accidentes, fuera de alcance); ambos tramos salen en la fecha buscada (hora local de Uruguay); se devuelven todas las combinaciones, directas y de dos tramos, ordenadas por salida; búsqueda pública (anónima); origen y destino por id de parada; sin tarifa vigente en la fecha el itinerario se excluye y con varias vigentes se usa la de VigenteDesde más reciente. Inicia con la dependencia MVP-003-01 en PR #69 (abierto)."
+      "evidence": "(1) PR #70 mergeado en main (6e7ba2a); commits 8178f98 (página /itinerarios y cliente), 40deb30 (correcciones del recorrido). Inició con la dependencia MVP-003-01 en PR #69.\n(2) Build Web 0/0; WebAuthentication 99/99; recorrido con ego-browser contra la API y MySQL locales (2026-11-10): itinerario de dos tramos con transbordo, total y política de asiento; resultado vacío y nueva búsqueda; API caída con error y reintento.\n(3) Revisión cruzada de Enzo: PR aprobado según reporte del usuario (2026-11-11)."
     },
     {
       "id": "MVP-003-03",
