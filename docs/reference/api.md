@@ -47,6 +47,24 @@ El script fuente [`scripts/check-operational-authorization.ps1`](../../scripts/c
 
 Se esperan `401` anónimo, `403` para Pasajero/Cobrador y `200` para Administrador en cada lista. Solo se crean sesiones de autenticación y el script intenta revocarlas siempre en `finally`; **no demuestra** CRUD, persistencia MySQL ni ausencia de fallos fuera de esta matriz. El script no fue ejecutado; ninguna de estas respuestas se presenta como resultado observado.
 
+## Consulta pública de itinerarios
+
+Estas rutas son anónimas (`[AllowAnonymous]`) y de solo lectura: el pasajero busca sin sesión; la compra exigirá autenticación. Es documentación basada en fuente y en las comprobaciones ejecutables de `tests/OperationalAdministration`, no evidencia de una prueba HTTP contra MySQL.
+
+| Método y ruta | Comportamiento establecido en fuente |
+| --- | --- |
+| `GET /api/paradas` | Lista `ParadaDto` (`id`, `nombre`) para elegir origen y destino. |
+| `GET /api/itinerarios?origenId={id}&destinoId={id}&fecha=yyyy-MM-dd` | `200` con una lista de `ItinerarioDto`, vacía si no hay coincidencias; `400` si falta un parámetro, la fecha no tiene el formato `yyyy-MM-dd` o las paradas son iguales; `404` si una parada no existe. |
+
+Reglas de la búsqueda (decisiones de producto de MVP-003):
+
+- Devuelve todas las combinaciones directas (un tramo) y de dos tramos, ordenadas por salida y después por llegada.
+- Ambos servicios salen en la fecha buscada, en hora local de Uruguay; la llegada puede caer al día siguiente.
+- El transbordo se hace en la misma parada, con una espera de 5 a 30 minutos, ambos inclusive. Las excepciones operativas, como accidentes o demoras, quedan fuera de alcance.
+- Cada tramo usa la tarifa vigente en la fecha (`vigenteDesde ≤ fecha ≤ vigenteHasta`); con varias vigentes usa la de `vigenteDesde` más reciente. Un itinerario con un tramo sin tarifa vigente no se ofrece.
+
+`ItinerarioDto` contiene `salida`, `llegada`, `precioTotal`, `transbordo` (`parada`, `minutos`; `null` en un directo) y `tramos`. Cada tramo informa `orden`, `servicioId`, `tramoId`, `origen` y `destino` (`ParadaDto`), `salida`, `llegada`, `importe` y `politicaAsiento` (`sinAsiento` o `asignacionAutomatica`). Con el escenario demo, Ombúes→Colonia devuelve un itinerario: 08:00–08:30 y 08:45–10:00, con un transbordo de 15 minutos en Radial de Conchillas y 100 + 250 = 350.
+
 ## Límites y evidencia
 
 Las sesiones API usan Controller → interfaz Service → interfaces Repository → DbContext; autenticación Bearer opaca y autorización del framework compartido, sin JWT ni paquetes nuevos. Roles se consultan en MySQL en cada solicitud; token solo se entrega al ingresar, huella SHA-256 única en DB, vencimiento UTC absoluto de siete días y revocación por sesión. La administración Web consume las rutas operativas documentadas arriba; estas rutas aún no tienen verificación HTTP/MySQL ejecutada. Compra, reserva, pagos y QR no forman parte de este corte. La matriz pública local `200/204/401/403` y el rechazo inmediato del token anterior tras logout sí tienen evidencia independiente enlazada arriba; persistencia ante reinicio, revocación durable, límite de vencimiento, otras sesiones, concurrencia e invariancia de BD/contadores siguen sin prueba funcional. Los fallos de servidor/proveedor y reintento (incluido el escenario 503, fuera de esta matriz) permanecen pendientes; no se acredita un ensayo de fallos por el resultado positivo local. Ver [contratos](auth-contracts.md) y [checks pendientes](../how-to/api-session-checks.md). Los [requisitos](requirements.md) describen lo exigido/propuesto, **no esta superficie disponible**.
