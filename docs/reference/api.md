@@ -65,6 +65,20 @@ Reglas de la búsqueda (decisiones de producto de MVP-003):
 
 `ItinerarioDto` contiene `salida`, `llegada`, `precioTotal`, `transbordo` (`parada`, `minutos`; `null` en un directo) y `tramos`. Cada tramo informa `orden`, `servicioId`, `tramoId`, `origen` y `destino` (`ParadaDto`), `salida`, `llegada`, `importe` y `politicaAsiento` (`sinAsiento` o `asignacionAutomatica`). Con el escenario demo, Ombúes→Colonia devuelve un itinerario: 08:00–08:30 y 08:45–10:00, con un transbordo de 15 minutos en Radial de Conchillas y 100 + 250 = 350.
 
+## Catálogo de horarios (FIN-001)
+
+Transcripción del horario publicado en <http://www.berruttiturismo.com.uy/horarios.html> («Horarios de invierno 2026»), versionada en [`horarios-invierno-2026.json`](../../src/Api/API-Berruti/API-Berruti/Data/Catalogo/horarios-invierno-2026.json) y sembrada por el reinicio local. Documentación basada en fuente y en `tests/RouteCatalog` (en memoria), no en una prueba HTTP contra MySQL.
+
+| Método y ruta | Acceso | Comportamiento establecido en fuente |
+| --- | --- | --- |
+| `GET /api/catalogo` | Anónimo | `200` con bloques (vigencia, empresa, `fuenteUrl`), rutas dirigidas con paradas ordenadas y salidas por tipo de día, más feriados y excepciones. |
+| `GET /api/catalogo/salidas?fecha=yyyy-MM-dd` | Anónimo | `200` con las salidas de ese día por bloque y su `estado` (`opera`, `fueraDeVigencia`, `calendarioNoCargado`, `sinServicio`, `consultarAgencia`); `400` si falta la fecha o no tiene ese formato. |
+| `POST /api/administracion/catalogo/servicios` | `Administrador` | Genera `Servicio` fechados. Cuerpo: `desde`, `hasta` (hasta 31 días), `capacidad` (≥ 1) y `politicaAsiento`, todos obligatorios. `200` con `serviciosCreados`, `serviciosExistentes` y `tramosCreados`; `400` con el motivo; `409` si otra generación guardó lo mismo a la vez. |
+
+Reglas de calendario, en este orden: fuera de la vigencia publicada del bloque no hay salidas; en un año sin feriados cargados no hay salidas y el motivo lo dice («No está cargado el calendario de feriados de 2027.», decisión de Diego); una excepción «sin servicio» (1/1, 1/5, 25/12) gana sobre «consultar agencia» (Semana de Turismo, 30/3–5/4/2026); domingo o feriado usa «Domingos y feriados»; sábado usa «Sábados» y «Lunes a sábado»; lunes a viernes usa «Lunes a viernes», «Lunes a sábado» y, lunes y viernes, «Lunes y viernes». La vigencia 02/03/26–20/12/26 es solo del bloque Nueva Palmira / Colonia. Feriados: tabla por año con los no laborables de 2026.
+
+La generación crea un `Servicio` por cada par de paradas con hora publicada en ambas (por ejemplo, la salida de 05:20 de Nueva Palmira genera Nueva Palmira→Carmelo, →Radial y →Colonia, y así con cada parada siguiente). Las paradas sin hora (Polancos, los alimentadores de Ombúes y Conchillas, Nueva Palmira / Carmelo y Agraciada) no generan servicios. Reutiliza el `Tramo` existente de cada par o lo crea. No crea tarifas: un servicio generado aparece en la búsqueda recién cuando su tramo tiene una tarifa vigente. Repetir la generación no duplica: lo impide el índice único `(salida_catalogo_id, tramo_id, salida)`.
+
 ## Ubicación de demostración (MVP-009)
 
 El dispositivo embarcado es el celular del cobrador: con su sesión `Cobrador` publica la posición del servicio en el que viaja, según la asignación `cobrador_servicio` que siembra el reinicio local (el cobrador demo queda asignado a los dos servicios demo). Los parámetros son académicos y ficticios, en la sección `Ubicacion` de [`appsettings.json`](../../src/Api/API-Berruti/API-Berruti/appsettings.json): `PeriodicidadSegundos`, `MargenPeriodicidadSegundos`, `UmbralDesactualizacionSegundos`, `VelocidadPromedioKmH`, `ToleranciaDemoraMinutos`, `ZonaHoraria` y `Destinos` (coordenadas por nombre de parada de destino). Si algún valor es inválido, la API no arranca.

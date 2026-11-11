@@ -9,4 +9,6 @@ public class Servicio
     public DateTime Llegada { get; set; }
     public int Capacidad { get; set; }
     public PoliticaAsiento PoliticaAsiento { get; set; }
+    // FIN-001: salida del catálogo que lo generó; nulo para servicios cargados a mano.
+    public string? SalidaCatalogoId { get; set; }
 }

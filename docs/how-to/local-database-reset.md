@@ -42,6 +42,7 @@ En Workbench, con la cuenta administradora local, ejecutá [`scripts/database/gr
 
 - Borra **todas** las tablas de `berrutilocal`, aplica las migraciones y crea las cuentas `pasajero.demo@example.test`, `cobrador.demo@example.test` y `admin.demo@example.test`.
 - En Development también siembra el escenario operativo ficticio (paradas Ombúes, Radial de Conchillas y Colonia; dos tramos encadenados; dos servicios de 08:00–08:30 y 08:45–10:00; tarifas de 100.00 y 250.00). Los servicios quedan en la fecha de **mañana** respecto del día del reinicio (`DateTime.Today.AddDays(1)`, hora local) y las tarifas rigen desde ese día por un año; hay que volver a reiniciar para que la fecha siga siendo futura. `-Environment AuthenticationTests` no lo siembra.
+- También siembra el catálogo de horarios de FIN-001 desde `Data/Catalogo/horarios-invierno-2026.json`: 4 bloques, rutas dirigidas con sus paradas ordenadas, salidas, feriados y excepciones. Reutiliza por nombre las paradas del escenario y agrega las que faltan. No genera servicios ni tarifas: para eso está `POST /api/administracion/catalogo/servicios` ([API](../reference/api.md#catálogo-de-horarios-fin-001)).
 - Pide una contraseña ficticia para las tres cuentas: no se muestra ni se guarda. No uses una contraseña real.
 - `.\scripts\reset-local-db.ps1 -Environment AuthenticationTests` recrea solo el esquema de `berrutiauthtests`, sin cuentas. Necesita un `.env` con la cadena de `berruti_test`.
 - El guard de la API rechaza cualquier servidor que no sea `localhost:3306` o una base distinta de esas dos.

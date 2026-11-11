@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><NuGetAudit>false</NuGetAudit><UseAppHost>false</UseAppHost></PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <Compile Include="..\..\src\Api\API-Berruti\API-Berruti\Models\Catalogo\*.cs" Link="Production\Models\Catalogo\%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\Api\API-Berruti\API-Berruti\Models\Operational\*.cs" Link="Production\Models\Operational\%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\Api\API-Berruti\API-Berruti\DTOs\Catalogo\*.cs" Link="Production\DTOs\Catalogo\%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\Api\API-Berruti\API-Berruti\Services\Catalogo\*.cs" Link="Production\Services\Catalogo\%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\Api\API-Berruti\API-Berruti\Repositories\Catalogo\I*.cs" Link="Production\Repositories\Catalogo\%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\Api\API-Berruti\API-Berruti\Controllers\Catalogo\*.cs" Link="Production\Controllers\Catalogo\%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\Api\API-Berruti\API-Berruti\Data\Catalogo\HorariosPublicados.cs" Link="Production\Data\Catalogo\HorariosPublicados.cs" />
+  </ItemGroup>
+</Project>
