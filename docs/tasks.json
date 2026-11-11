@@ -776,8 +776,8 @@
       "area": [
         "Mobile"
       ],
-      "status": "pending",
-      "startedAt": null,
+      "status": "in_progress",
+      "startedAt": "2026-11-11T01:35:32-03:00",
       "dependencies": [
         "MVP-009-01"
       ],
