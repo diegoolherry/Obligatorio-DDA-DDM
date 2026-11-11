@@ -20,9 +20,8 @@ public class ServiciosService(IServiciosRepository repository) : IServiciosServi
         var servicio = await repository.BuscarAsync(id) ?? throw new KeyNotFoundException();
         await ValidarAsync(dto);
         servicio.TramoId = dto.TramoId;
-        servicio.Fecha = dto.Fecha.Date;
-        servicio.HoraSalida = dto.HoraSalida;
-        servicio.HoraLlegada = dto.HoraLlegada;
+        servicio.Salida = dto.Salida;
+        servicio.Llegada = dto.Llegada;
         servicio.Capacidad = dto.Capacidad;
         servicio.PoliticaAsiento = dto.PoliticaAsiento;
         await repository.GuardarAsync();
@@ -38,19 +37,16 @@ public class ServiciosService(IServiciosRepository repository) : IServiciosServi
     {
         if (string.IsNullOrWhiteSpace(dto.TramoId)) throw new ArgumentException("El tramo es obligatorio.");
         if (!await repository.ExisteTramoAsync(dto.TramoId)) throw new ArgumentException("El tramo seleccionado no existe.");
-        if (dto.Fecha == default) throw new ArgumentException("La fecha del servicio es obligatoria.");
+        if (dto.Salida == default) throw new ArgumentException("La salida del servicio es obligatoria.");
+        if (dto.Llegada <= dto.Salida) throw new ArgumentException("La llegada debe ser posterior a la salida.");
         if (dto.Capacidad < 1) throw new ArgumentException("La capacidad debe ser mayor a cero.");
-        if (dto.HoraSalida < TimeSpan.Zero || dto.HoraSalida >= TimeSpan.FromDays(1) ||
-            dto.HoraLlegada < TimeSpan.Zero || dto.HoraLlegada >= TimeSpan.FromDays(1))
-            throw new ArgumentException("Los horarios deben estar dentro del mismo día.");
         if (!Enum.IsDefined(dto.PoliticaAsiento)) throw new ArgumentException("La política de asiento no es válida.");
     }
     private static Servicio DesdeDto(ServicioDto dto) => new()
     {
         TramoId = dto.TramoId,
-        Fecha = dto.Fecha.Date,
-        HoraSalida = dto.HoraSalida,
-        HoraLlegada = dto.HoraLlegada,
+        Salida = dto.Salida,
+        Llegada = dto.Llegada,
         Capacidad = dto.Capacidad,
         PoliticaAsiento = dto.PoliticaAsiento
     };
@@ -58,9 +54,8 @@ public class ServiciosService(IServiciosRepository repository) : IServiciosServi
     {
         Id = s.Id,
         TramoId = s.TramoId,
-        Fecha = s.Fecha.Date,
-        HoraSalida = s.HoraSalida,
-        HoraLlegada = s.HoraLlegada,
+        Salida = s.Salida,
+        Llegada = s.Llegada,
         Capacidad = s.Capacidad,
         PoliticaAsiento = s.PoliticaAsiento
     };

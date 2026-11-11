@@ -56,7 +56,6 @@ $operationalRoutes = @(
     '/api/administracion/servicios',
     '/api/administracion/tarifas'
 )
-$demoRoute = '/api/administracion/escenario-demo/preparar-demo'
 
 try {
     try { $target = [Uri]$BaseUrl } catch { throw 'BaseUrl invalido.' }
@@ -86,8 +85,6 @@ try {
         $anonymousStatuses[$route] = $result.Status
         Assert-Status "Anonimo $route" 401 $result.Status
     }
-    $anonymousDemo = Invoke-LocalApi 'POST' $demoRoute $null '{}'
-    Assert-Status 'Anonimo preparar-demo (sin mutacion)' 401 $anonymousDemo.Status
 
     $roleTokens = @{}
     foreach ($account in $accounts) {
@@ -119,14 +116,6 @@ try {
         Assert-Status "Administrador permitido $route" 200 $adminStatus
     }
 
-    foreach ($role in @('Pasajero', 'Cobrador')) {
-        $token = $roleTokens[$role]
-        $status = if ($token) { (Invoke-LocalApi 'POST' $demoRoute $token '{}').Status } else { 0 }
-        Assert-Status "$role denegado preparar-demo" 403 $status
-    }
-    $adminToken = $roleTokens['Administrador']
-    $adminDemoStatus = if ($adminToken) { (Invoke-LocalApi 'POST' $demoRoute $adminToken '{}').Status } else { 0 }
-    Assert-Status 'Administrador preparar-demo invalido (validacion antes del servicio)' 400 $adminDemoStatus
 }
 catch {
     Write-Host "FAIL configuracion o transporte ($($_.Exception.GetType().Name)); no se muestra detalle potencialmente sensible."

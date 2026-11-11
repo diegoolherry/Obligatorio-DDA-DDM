@@ -218,23 +218,19 @@ namespace API_Berruti.Data.Migrations
                         .HasColumnType("int")
                         .HasColumnName("capacidad");
 
-                    b.Property<DateTime>("Fecha")
-                        .HasColumnType("date")
-                        .HasColumnName("fecha");
-
-                    b.Property<TimeSpan>("HoraLlegada")
-                        .HasColumnType("time")
-                        .HasColumnName("hora_llegada");
-
-                    b.Property<TimeSpan>("HoraSalida")
-                        .HasColumnType("time")
-                        .HasColumnName("hora_salida");
+                    b.Property<DateTime>("Llegada")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("llegada");
 
                     b.Property<string>("PoliticaAsiento")
                         .IsRequired()
                         .HasMaxLength(24)
                         .HasColumnType("varchar(24)")
                         .HasColumnName("politica_asiento");
+
+                    b.Property<DateTime>("Salida")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("salida");
 
                     b.Property<string>("TramoId")
                         .IsRequired()
@@ -246,7 +242,10 @@ namespace API_Berruti.Data.Migrations
 
                     b.HasIndex("TramoId");
 
-                    b.ToTable("servicio", (string)null);
+                    b.ToTable("servicio", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_servicio_llegada", "llegada > salida");
+                        });
                 });
 
             modelBuilder.Entity("API_Berruti.Models.Operational.Tarifa", b =>

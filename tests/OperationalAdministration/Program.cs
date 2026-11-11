@@ -31,18 +31,18 @@ if (!File.Exists(servicioModelPath)) Check(false, "typed Service persistence mod
 else
 {
     var serviceModel = File.ReadAllText(servicioModelPath);
-    Check(serviceModel.Contains("TramoId") && serviceModel.Contains("Fecha") && serviceModel.Contains("HoraSalida") && serviceModel.Contains("HoraLlegada") && serviceModel.Contains("Capacidad") && serviceModel.Contains("PoliticaAsiento"), "typed Service persistence model contains schedule, capacity, and seat policy");
+    Check(serviceModel.Contains("TramoId") && serviceModel.Contains("DateTime Salida") && serviceModel.Contains("DateTime Llegada") && !serviceModel.Contains("HoraSalida") && !serviceModel.Contains("Fecha") && serviceModel.Contains("Capacidad") && serviceModel.Contains("PoliticaAsiento"), "typed Service persistence model contains schedule, capacity, and seat policy");
 }
 var serviceContext = Read("src/Api/API-Berruti/API-Berruti/Data/BerrutiDbContext.cs");
-Check(serviceContext.Contains("DbSet<Servicio> Servicios") && serviceContext.Contains("ToTable(\"servicio\")") &&
-    serviceContext.Contains("HasColumnName(\"fecha\").HasColumnType(\"date\")") &&
-    serviceContext.Contains("HasColumnName(\"hora_salida\").HasColumnType(\"time\")") &&
-    serviceContext.Contains("HasColumnName(\"hora_llegada\").HasColumnType(\"time\")") &&
+Check(serviceContext.Contains("DbSet<Servicio> Servicios") && serviceContext.Contains("ToTable(\"servicio\"") &&
+    serviceContext.Contains("HasColumnName(\"salida\").HasColumnType(\"datetime(6)\")") &&
+    serviceContext.Contains("HasColumnName(\"llegada\").HasColumnType(\"datetime(6)\")") &&
+    serviceContext.Contains("HasCheckConstraint(\"ck_servicio_llegada\", \"llegada > salida\")") &&
     serviceContext.Contains("HasColumnName(\"capacidad\")") && serviceContext.Contains("HasColumnName(\"politica_asiento\").HasConversion<string>()") &&
     serviceContext.Contains("HasForeignKey(s => s.TramoId)"), "EF maps service columns, string policy, and tramo relationship");
 var serviceLogicPath = Path.Combine(root, "src/Api/API-Berruti/API-Berruti/Services/Operational/ServiciosService.cs");
 var serviceLogic = File.ReadAllText(serviceLogicPath);
-Check(serviceLogic.Contains("ExisteTramoAsync(dto.TramoId)") && serviceLogic.Contains("dto.Capacidad < 1") && serviceLogic.Contains("Enum.IsDefined(dto.PoliticaAsiento)"), "service validates existing tramo, positive capacity, and supported policy");
+Check(serviceLogic.Contains("ExisteTramoAsync(dto.TramoId)") && serviceLogic.Contains("dto.Llegada <= dto.Salida") && serviceLogic.Contains("dto.Capacidad < 1") && serviceLogic.Contains("Enum.IsDefined(dto.PoliticaAsiento)"), "service validates existing tramo, positive capacity, and supported policy");
 var operationalPage = Read("src/Web/Web-App/Web-App/Components/Pages/Admin/AdministracionOperativa.razor");
 Check(operationalPage.Contains("ServicioForm") && operationalPage.Contains("SinAsiento") && operationalPage.Contains("AsignacionAutomatica") && operationalPage.Contains("Capacidad"), "Blazor page exposes editable service schedule and seat policy");
 var tarifaControllerPath = Path.Combine(root, "src/Api/API-Berruti/API-Berruti/Controllers/Operational/TarifasController.cs");
@@ -71,25 +71,8 @@ Check(operationalPage.Contains("SolicitarEliminarTramo(TramoDto t) => SolicitarE
     operationalPage.Contains("@onclick=\"ConfirmarEliminarAsync\"") &&
     operationalPage.Contains("Cliente.EliminarAsync(pending.Tipo, pending.Id)"),
     "Blazor delete actions request confirmation before the shared CRUD delete operation");
-var demoControllerPath = Path.Combine(root, "src/Api/API-Berruti/API-Berruti/Controllers/Operational/PreparacionDemoController.cs");
-Check(File.Exists(demoControllerPath), "demo preparation endpoint exists");
-if (File.Exists(demoControllerPath))
-{
-    var source = File.ReadAllText(demoControllerPath);
-    Check(source.Contains("Authorize(Roles = \"Administrador\")") && source.Contains("HttpPost(\"preparar-demo\")") && source.Contains("Conflict("), "demo preparation is administrator-only with conflict response");
-}
-var demoServicePath = Path.Combine(root, "src/Api/API-Berruti/API-Berruti/Services/Operational/PreparacionDemoService.cs");
-Check(File.Exists(demoServicePath), "demo preparation service exists");
-if (File.Exists(demoServicePath))
-{
-    var source = File.ReadAllText(demoServicePath);
-    var conflictCheck = source.IndexOf("if (conflictos.Count > 0)", StringComparison.Ordinal);
-    var firstInsert = source.IndexOf("AgregarParadaAsync(", StringComparison.Ordinal);
-    Check(source.Contains("Ombúes") && source.Contains("Radial de Conchillas") && source.Contains("Colonia") &&
-        source.Contains("PoliticaAsiento.SinAsiento") && source.Contains("PoliticaAsiento.AsignacionAutomatica"), "demo builder uses the approved locations and policies");
-    Check(conflictCheck >= 0 && firstInsert > conflictCheck && !source.Contains("ActualizarAsync("), "demo builder detects conflicts before insert and never updates existing records");
-}
-Check(operationalPage.Contains("PreparacionDemoForm") && operationalPage.Contains("PrepararDemoAsync") && operationalPage.Contains("CapacidadOmbuesRadial") && operationalPage.Contains("ImporteOmbuesRadial"), "Blazor demo form accepts administrator-provided values");
+Check(!File.Exists(Path.Combine(root, "src/Api/API-Berruti/API-Berruti/Controllers/Operational/PreparacionDemoController.cs")) &&
+    !operationalPage.Contains("preparar-demo") && !operationalPage.Contains("PrepararDemoAsync"), "demo preparation endpoint and Blazor form were removed");
 var migrationDirectory = Path.Combine(root, "src/Api/API-Berruti/API-Berruti/Data/Migrations");
 var operationalMigrations = Directory.Exists(migrationDirectory)
     ? Directory.GetFiles(migrationDirectory, "*_EsquemaOperativa.cs")
@@ -108,8 +91,7 @@ if (operationalMigrations.Length == 1 && operationalScripts.Length == 1)
     Check(migration.Contains("table.PrimaryKey") && migration.Contains("IX_tramo_origen_id") && migration.Contains("IX_tramo_destino_id") &&
         migration.Contains("IX_servicio_tramo_id") && migration.Contains("IX_tarifa_tramo_id") && migration.Contains("ReferentialAction.Restrict"),
         "operational migration defines primary keys, indexes, and restrictive foreign keys");
-    Check(migrationSql.Contains("CREATE TABLE `servicio`") && migrationSql.Contains("`fecha` date") &&
-        migrationSql.Contains("`hora_salida` time") && migrationSql.Contains("`hora_llegada` time") && migrationSql.Contains("`capacidad` int") &&
+    Check(migrationSql.Contains("CREATE TABLE `servicio`") && migrationSql.Contains("`capacidad` int") &&
         migrationSql.Contains("`politica_asiento` varchar(24)"), "generated SQL includes mapped Servicio columns");
     Check(new[] { "CREATE TABLE `parada`", "CREATE TABLE `tramo`", "CREATE TABLE `servicio`", "CREATE TABLE `tarifa`" }
         .All(statement => migrationSql.Contains(statement)), "generated SQL creates all operational tables");
@@ -123,6 +105,24 @@ if (operationalMigrations.Length == 1 && operationalScripts.Length == 1)
         migrationSql.Contains("FOREIGN KEY (`origen_id`)") && migrationSql.Contains("FOREIGN KEY (`destino_id`)"),
         "generated SQL includes both stop foreign keys and restrictive deletes");
 }
+var scheduleMigrations = Directory.Exists(migrationDirectory)
+    ? Directory.GetFiles(migrationDirectory, "*_HorarioServicio.cs")
+    : Array.Empty<string>();
+var scheduleScripts = Directory.GetFiles(Path.Combine(root, "scripts/database"), "*_HorarioServicio.sql");
+Check(scheduleMigrations.Length == 1 && scheduleScripts.Length == 1, "schedule EF migration and its generated SQL exist");
+if (scheduleMigrations.Length == 1 && scheduleScripts.Length == 1)
+{
+    var migration = File.ReadAllText(scheduleMigrations[0]);
+    var migrationSql = File.ReadAllText(scheduleScripts[0]);
+    Check(migration.Contains("UPDATE servicio SET salida = TIMESTAMP(fecha, hora_salida)") && migration.Contains("ck_servicio_llegada") &&
+        migration.IndexOf("migrationBuilder.Sql", StringComparison.Ordinal) < migration.IndexOf("DropColumn", StringComparison.Ordinal),
+        "schedule migration converts existing services before dropping the old columns");
+    Check(migrationSql.Contains("ADD `salida` datetime(6)") && migrationSql.Contains("ADD `llegada` datetime(6)") &&
+        migrationSql.Contains("DROP COLUMN `hora_salida`") && migrationSql.Contains("CHECK (llegada > salida)") &&
+        migrationSql.Contains("HorarioServicio"), "generated schedule SQL adds datetime columns and the arrival check");
+}
+var seedSource = Read("src/Api/API-Berruti/API-Berruti/Data/ReinicioLocal.cs");
+Check(seedSource.Contains("EscenarioOperativoDemo.Construir(") && seedSource.Contains("DateTime.Today.AddDays(1)"), "local reset seeds the operational scenario for tomorrow");
 await OperationalExecutableChecks.RunAsync(Check);
 Console.WriteLine($"{(failures.Count == 0 ? "PASS" : "FAIL")}: {checkCount} structural checks; {string.Join(", ", failures)}");
 return failures.Count == 0 ? 0 : 1;

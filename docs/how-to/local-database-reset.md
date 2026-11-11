@@ -41,6 +41,7 @@ En Workbench, con la cuenta administradora local, ejecutá [`scripts/database/gr
 ```
 
 - Borra **todas** las tablas de `berrutilocal`, aplica las migraciones y crea las cuentas `pasajero.demo@example.test`, `cobrador.demo@example.test` y `admin.demo@example.test`.
+- En Development también siembra el escenario operativo ficticio (paradas Ombúes, Radial de Conchillas y Colonia; dos tramos encadenados; dos servicios de 08:00–08:30 y 08:45–10:00; tarifas de 100.00 y 250.00). Los servicios quedan en la fecha de **mañana** respecto del día del reinicio (`DateTime.Today.AddDays(1)`, hora local) y las tarifas rigen desde ese día por un año; hay que volver a reiniciar para que la fecha siga siendo futura. `-Environment AuthenticationTests` no lo siembra.
 - Pide una contraseña ficticia para las tres cuentas: no se muestra ni se guarda. No uses una contraseña real.
 - `.\scripts\reset-local-db.ps1 -Environment AuthenticationTests` recrea solo el esquema de `berrutiauthtests`, sin cuentas. Necesita un `.env` con la cadena de `berruti_test`.
 - El guard de la API rechaza cualquier servidor que no sea `localhost:3306` o una base distinta de esas dos.
@@ -55,11 +56,12 @@ Después arrancá la API con `.\scripts\start-api-local.ps1`.
 ```powershell
 dotnet tool restore
 dotnet ef migrations add <Nombre> --project src/Api/API-Berruti/API-Berruti/API-Berruti.csproj --output-dir Data/Migrations
-dotnet ef migrations script --project src/Api/API-Berruti/API-Berruti/API-Berruti.csproj -o scripts/database/migrations.sql
+dotnet ef migrations script <anterior> <nueva> --project src/Api/API-Berruti/API-Berruti/API-Berruti.csproj -o scripts/database/<id>_<Nombre>.sql
 ```
 
-3. Conserva el SQL generado por EF sin retoques manuales y versionado según la convención de scripts por migración del repositorio.
-4. Para revisar el estado sin modificar datos, ejecuta `scripts/update-local-db.ps1 -Diagnose` (o sin argumentos). Solo con autorización explícita y después de revisar historial/esquema, usa `scripts/update-local-db.ps1 -Apply`; reserva el procedimiento destructivo de arriba para recrear expresamente una base descartable.
+3. Si la migración cambia columnas con datos, ajustá el `.cs` de la migración para convertirlos (por ejemplo `HorarioServicio` convierte `fecha`/`hora_salida`/`hora_llegada` en `salida`/`llegada`) antes de generar el SQL. Se genera un script por migración; `scripts/database/migrations.sql` es histórico y solo contiene `EsquemaAutenticacion`.
+4. Conserva el SQL generado por EF sin retoques manuales y versionado según la convención de scripts por migración del repositorio. Única normalización permitida: quitar la línea en blanco final que agrega EF, porque `git diff --check` del CI la rechaza; el SQL no cambia.
+5. Para revisar el estado sin modificar datos, ejecuta `scripts/update-local-db.ps1 -Diagnose` (o sin argumentos). Solo con autorización explícita y después de revisar historial/esquema, usa `scripts/update-local-db.ps1 -Apply`; reserva el procedimiento destructivo de arriba para recrear expresamente una base descartable.
 
 ## Probar el ingreso de las cuentas demo
 

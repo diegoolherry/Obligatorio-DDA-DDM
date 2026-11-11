@@ -101,13 +101,13 @@ public class BerrutiDbContext : DbContext
         tramo.HasOne<Parada>().WithMany().HasForeignKey(t => t.DestinoId).OnDelete(DeleteBehavior.Restrict);
 
         var servicio = modelo.Entity<Servicio>();
-        servicio.ToTable("servicio");
+        servicio.ToTable("servicio", t =>
+            t.HasCheckConstraint("ck_servicio_llegada", "llegada > salida"));
         servicio.HasKey(s => s.Id);
         servicio.Property(s => s.Id).HasColumnName("servicio_id").HasMaxLength(36).ValueGeneratedNever();
         servicio.Property(s => s.TramoId).HasColumnName("tramo_id").HasMaxLength(36).IsRequired();
-        servicio.Property(s => s.Fecha).HasColumnName("fecha").HasColumnType("date").IsRequired();
-        servicio.Property(s => s.HoraSalida).HasColumnName("hora_salida").HasColumnType("time").IsRequired();
-        servicio.Property(s => s.HoraLlegada).HasColumnName("hora_llegada").HasColumnType("time").IsRequired();
+        servicio.Property(s => s.Salida).HasColumnName("salida").HasColumnType("datetime(6)").IsRequired();
+        servicio.Property(s => s.Llegada).HasColumnName("llegada").HasColumnType("datetime(6)").IsRequired();
         servicio.Property(s => s.Capacidad).HasColumnName("capacidad").IsRequired();
         servicio.Property(s => s.PoliticaAsiento).HasColumnName("politica_asiento").HasConversion<string>().HasMaxLength(24).IsRequired();
         servicio.HasOne<Tramo>().WithMany().HasForeignKey(s => s.TramoId).OnDelete(DeleteBehavior.Restrict);

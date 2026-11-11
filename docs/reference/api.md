@@ -32,19 +32,20 @@ Las rutas operativas están protegidas con `[Authorize(Roles = "Administrador")]
 | `PUT /api/administracion/paradas/{id}` | Actualiza: `200`, `400` para datos esperados inválidos o `404` si falta. |
 | `DELETE /api/administracion/paradas/{id}` | Elimina: `204`, `404` si falta o `409` cuando la parada está referenciada por un tramo. |
 | `GET/POST/PUT/DELETE /api/administracion/tramos[/{id}]` | CRUD de `TramoDto`, con origen/destino ligados a paradas; `201/200/204`, validación `400`, ausencia `404` y restricción referencial `409`. |
-| `GET/POST/PUT/DELETE /api/administracion/servicios[/{id}]` | CRUD de `ServicioDto`: tramo, fecha, horarios, capacidad y política `SinAsiento` o `AsignacionAutomatica`; `201/200/204`, validación `400`, ausencia `404`. |
+| `GET/POST/PUT/DELETE /api/administracion/servicios[/{id}]` | CRUD de `ServicioDto`: tramo, `salida` y `llegada` (fecha y hora local de Uruguay, sin conversión UTC; la llegada debe ser posterior a la salida y puede caer al día siguiente), capacidad y política `SinAsiento` o `AsignacionAutomatica`; `201/200/204`, validación `400`, ausencia `404`. |
 | `GET/POST/PUT/DELETE /api/administracion/tarifas[/{id}]` | CRUD de `TarifaDto`: tramo, importe y vigencia; `201/200/204`, validación `400`, ausencia `404`. |
-| `POST /api/administracion/escenario-demo/preparar-demo` | Recibe `SolicitudPreparacionDemoDto`; responde `200`, `409` con conflictos o `400` por solicitud inválida, sin reemplazar datos incompatibles. |
+
+Los datos operativos de demostración no se cargan por la API: según el código de [`ReinicioLocal`](../../src/Api/API-Berruti/API-Berruti/Data/ReinicioLocal.cs) y [`EscenarioOperativoDemo`](../../src/Api/API-Berruti/API-Berruti/Data/EscenarioOperativoDemo.cs), recrear la base de Development con [`scripts/reset-local-db.ps1`](../../scripts/reset-local-db.ps1) siembra 3 paradas, 2 tramos, 2 servicios y 2 tarifas para el día siguiente al reinicio. Esto describe el código; no es evidencia de una ejecución contra MySQL.
 
 ### Comprobación local de autorización operativa
 
-El script fuente [`scripts/check-operational-authorization.ps1`](../../scripts/check-operational-authorization.ps1) prepara una matriz HTTP para las cuatro listas y para el POST vacío de preparación demo. Para ejecutarlo, la API debe estar disponible en HTTPS de loopback y el entorno local debe estar autorizado y configurado; el script solicita la contraseña demo con entrada segura, no la guarda, no relaja la validación TLS y no imprime credenciales, tokens ni cuerpos de error.
+El script fuente [`scripts/check-operational-authorization.ps1`](../../scripts/check-operational-authorization.ps1) prepara una matriz HTTP `GET` para las cuatro listas. Para ejecutarlo, la API debe estar disponible en HTTPS de loopback y el entorno local debe estar autorizado y configurado; el script solicita la contraseña demo con entrada segura, no la guarda, no relaja la validación TLS y no imprime credenciales, tokens ni cuerpos de error.
 
 ```powershell
 .\scripts\check-operational-authorization.ps1 -BaseUrl https://localhost:7053
 ```
 
-Se esperan `401` anónimo, `403` para Pasajero/Cobrador y `200` para Administrador en cada lista; el POST vacío de preparación espera `401`, `403` y `400` respectivamente. Solo se crean sesiones de autenticación y el script intenta revocarlas siempre en `finally`; la solicitud vacía se rechaza por validación y **no demuestra preparación de demo**, CRUD, persistencia MySQL ni ausencia de fallos fuera de esta matriz. El script no fue ejecutado; ninguna de estas respuestas se presenta como resultado observado.
+Se esperan `401` anónimo, `403` para Pasajero/Cobrador y `200` para Administrador en cada lista. Solo se crean sesiones de autenticación y el script intenta revocarlas siempre en `finally`; **no demuestra** CRUD, persistencia MySQL ni ausencia de fallos fuera de esta matriz. El script no fue ejecutado; ninguna de estas respuestas se presenta como resultado observado.
 
 ## Límites y evidencia
 
