@@ -42,8 +42,10 @@ function Send([string]$Method, [string]$Path, [string]$Body) {
 
 try {
     $target = [Uri]$BaseUrl
-    if ($target.Scheme -ne 'https' -or $target.Host -notin @('localhost', '127.0.0.1', '::1', '[::1]') -or $target.AbsolutePath -notin @('/', '')) {
-        throw 'BaseUrl debe ser HTTPS en localhost y sin ruta.'
+    # IsLoopback cubre localhost, 127.0.0.1 y [::1] (PowerShell 5.1 expande el Host IPv6).
+    if (!$target.IsAbsoluteUri -or $target.Scheme -ne 'https' -or !$target.IsLoopback -or $target.UserInfo -or
+        $target.Query -or $target.Fragment -or $target.AbsolutePath -notin @('/', '')) {
+        throw 'BaseUrl debe ser HTTPS de loopback, sin credenciales, ruta, consulta ni fragmento.'
     }
     $script:baseUri = [Uri]::new($target.GetLeftPart([UriPartial]::Authority) + '/')
 
