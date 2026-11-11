@@ -2,6 +2,8 @@ using API_Berruti.Data;
 using API_Berruti.Security.Authentication;
 using API_Berruti.Repositories.Operational;
 using API_Berruti.Services.Operational;
+using API_Berruti.Repositories.Location;
+using API_Berruti.Services.Location;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -27,6 +29,10 @@ builder.Services.AddScoped<ITarifasRepository, TarifasRepository>();
 builder.Services.AddScoped<ITarifasService, TarifasService>();
 builder.Services.AddScoped<IBusquedaItinerariosRepository, BusquedaItinerariosRepository>();
 builder.Services.AddScoped<IItinerariosService, ItinerariosService>();
+// Parámetros académicos de ubicación (appsettings.json, sección Ubicacion); valores inválidos detienen el arranque.
+builder.Services.AddSingleton(ParametrosUbicacion.Desde(builder.Configuration));
+builder.Services.AddScoped<IUbicacionRepository, UbicacionRepository>();
+builder.Services.AddScoped<IUbicacionService, UbicacionService>();
 // EF diagnostics can include provider details; keep authentication failures sanitized.
 builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.None);
 

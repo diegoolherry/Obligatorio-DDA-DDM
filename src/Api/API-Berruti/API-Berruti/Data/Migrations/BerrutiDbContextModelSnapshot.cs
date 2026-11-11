@@ -189,6 +189,77 @@ namespace API_Berruti.Data.Migrations
                     b.ToTable("usuario_rol", (string)null);
                 });
 
+            modelBuilder.Entity("API_Berruti.Models.Location.AsignacionCobrador", b =>
+                {
+                    b.Property<string>("UsuarioId")
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("usuario_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<string>("ServicioId")
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("servicio_id");
+
+                    b.HasKey("UsuarioId", "ServicioId");
+
+                    b.HasIndex("ServicioId");
+
+                    b.ToTable("cobrador_servicio", (string)null);
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Location.PosicionRecibida", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("posicion_id");
+
+                    b.Property<decimal>("Latitud")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)")
+                        .HasColumnName("latitud");
+
+                    b.Property<decimal>("Longitud")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)")
+                        .HasColumnName("longitud");
+
+                    b.Property<DateTime>("RecibidaUtc")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("recibida_utc");
+
+                    b.Property<string>("ServicioId")
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("servicio_id");
+
+                    b.Property<string>("UsuarioId")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("usuario_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServicioId", "RecibidaUtc")
+                        .HasDatabaseName("ix_posicion_servicio_recibida");
+
+                    b.HasIndex("UsuarioId", "ServicioId");
+
+                    b.ToTable("posicion_recibida", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_posicion_latitud", "latitud BETWEEN -90 AND 90");
+
+                            t.HasCheckConstraint("ck_posicion_longitud", "longitud BETWEEN -180 AND 180");
+                        });
+                });
+
             modelBuilder.Entity("API_Berruti.Models.Operational.Parada", b =>
                 {
                     b.Property<string>("Id")
@@ -334,6 +405,33 @@ namespace API_Berruti.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_usuario_rol_usuario");
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Location.AsignacionCobrador", b =>
+                {
+                    b.HasOne("API_Berruti.Models.Operational.Servicio", null)
+                        .WithMany()
+                        .HasForeignKey("ServicioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_cobrador_servicio_servicio");
+
+                    b.HasOne("API_Berruti.Models.Authentication.Usuario", null)
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_cobrador_servicio_usuario");
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Location.PosicionRecibida", b =>
+                {
+                    b.HasOne("API_Berruti.Models.Location.AsignacionCobrador", null)
+                        .WithMany()
+                        .HasForeignKey("UsuarioId", "ServicioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_posicion_asignacion");
                 });
 
             modelBuilder.Entity("API_Berruti.Models.Operational.Servicio", b =>

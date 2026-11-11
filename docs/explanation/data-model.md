@@ -139,6 +139,8 @@ erDiagram
 
 `configuracion_ubicacion` es una configuración académica versionable por vigencia, no una fuente de posiciones; no se dibuja relación obligatoria con cada servicio hasta decidir el alcance de parámetros. Una publicación aceptada siempre conserva su asociación dispositivo/servicio y recepción; intentos rechazados no crean `posicion_recibida`.
 
+**Implementación de MVP-009 (decisión de Diego, 2026-11-10):** el dispositivo embarcado es el celular del cobrador, identificado por su sesión de rol `Cobrador`. Por eso `dispositivo` y `dispositivo_servicio` se implementan como `cobrador_servicio` (PK `usuario_id` + `servicio_id`, sembrada por el reinicio local), y `posicion_recibida` referencia esa asociación con `latitud`/`longitud` `decimal(9,6)` y `recibida_utc`. `configuracion_ubicacion` no se persiste: los parámetros viven en la sección `Ubicacion` de `appsettings.json` de la API. Las claves de las tablas nuevas siguen el GUID de las entidades operativas, no los prefijos `DI-`/`PR-`/`DS-`. Contrato: [API de ubicación](../reference/api.md#ubicación-de-demostración-mvp-009).
+
 ### Identificadores de las entidades
 
 **Formato acordado por el usuario, todavía no implementado:** los IDs propios son valores reales de tipo `string`, no códigos decorativos sobre otra PK. Se usan abreviaturas de dos letras seguidas de un guion y un correlativo, como `PA-1`. Las tres posiciones iniciales son el prefijo completo (`PA-`), por lo que `Substring(3)` extrae el sufijo (`1`).

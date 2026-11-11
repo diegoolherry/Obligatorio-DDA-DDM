@@ -1,4 +1,5 @@
 using API_Berruti.Models.Authentication;
+using API_Berruti.Models.Location;
 using API_Berruti.Models.Operational;
 using Microsoft.EntityFrameworkCore;
 using MySql.EntityFrameworkCore.Extensions;
@@ -18,6 +19,8 @@ public class BerrutiDbContext : DbContext
     public DbSet<Tramo> Tramos => Set<Tramo>();
     public DbSet<Servicio> Servicios => Set<Servicio>();
     public DbSet<Tarifa> Tarifas => Set<Tarifa>();
+    public DbSet<AsignacionCobrador> AsignacionesCobrador => Set<AsignacionCobrador>();
+    public DbSet<PosicionRecibida> PosicionesRecibidas => Set<PosicionRecibida>();
 
     // Mismas restricciones que el esquema aprobado en scripts/database/create-auth-demo.sql.
     private const string Ascii = "ascii_bin";
@@ -121,5 +124,37 @@ public class BerrutiDbContext : DbContext
         tarifa.Property(t => t.VigenteDesde).HasColumnName("vigente_desde").HasColumnType("date").IsRequired();
         tarifa.Property(t => t.VigenteHasta).HasColumnName("vigente_hasta").HasColumnType("date").IsRequired();
         tarifa.HasOne<Tramo>().WithMany().HasForeignKey(t => t.TramoId).OnDelete(DeleteBehavior.Restrict);
+
+        // MVP-009: el celular del cobrador asignado publica posiciones del servicio. Borrar un servicio
+        // demo arrastra su asignación y posiciones, para no cambiar el DELETE administrativo existente.
+        var asignacion = modelo.Entity<AsignacionCobrador>();
+        asignacion.ToTable("cobrador_servicio");
+        asignacion.HasKey(a => new { a.UsuarioId, a.ServicioId });
+        asignacion.Property(a => a.UsuarioId).HasColumnName("usuario_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii);
+        asignacion.Property(a => a.ServicioId).HasColumnName("servicio_id").HasMaxLength(36);
+        asignacion.HasOne<Usuario>().WithMany().HasForeignKey(a => a.UsuarioId).OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("fk_cobrador_servicio_usuario");
+        asignacion.HasOne<Servicio>().WithMany().HasForeignKey(a => a.ServicioId).OnDelete(DeleteBehavior.Cascade)
+            .HasConstraintName("fk_cobrador_servicio_servicio");
+
+        var posicion = modelo.Entity<PosicionRecibida>();
+        posicion.ToTable("posicion_recibida", t =>
+        {
+            t.HasCheckConstraint("ck_posicion_latitud", "latitud BETWEEN -90 AND 90");
+            t.HasCheckConstraint("ck_posicion_longitud", "longitud BETWEEN -180 AND 180");
+        });
+        posicion.HasKey(p => p.Id);
+        posicion.Property(p => p.Id).HasColumnName("posicion_id").HasMaxLength(36).ValueGeneratedNever();
+        posicion.Property(p => p.UsuarioId).HasColumnName("usuario_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).IsRequired();
+        posicion.Property(p => p.ServicioId).HasColumnName("servicio_id").HasMaxLength(36).IsRequired();
+        posicion.Property(p => p.Latitud).HasColumnName("latitud").HasPrecision(9, 6).IsRequired();
+        posicion.Property(p => p.Longitud).HasColumnName("longitud").HasPrecision(9, 6).IsRequired();
+        // MySQL no guarda el Kind: al leer se marca UTC para que el JSON lleve la zona ("Z").
+        posicion.Property(p => p.RecibidaUtc).HasColumnName("recibida_utc").HasColumnType("datetime(6)").IsRequired()
+            .HasConversion(v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+        // La posición siempre referencia una asociación cobrador/servicio existente.
+        posicion.HasOne<AsignacionCobrador>().WithMany().HasForeignKey(p => new { p.UsuarioId, p.ServicioId })
+            .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_posicion_asignacion");
+        posicion.HasIndex(p => new { p.ServicioId, p.RecibidaUtc }).HasDatabaseName("ix_posicion_servicio_recibida");
     }
 }

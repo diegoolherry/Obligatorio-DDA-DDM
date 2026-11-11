@@ -1,5 +1,6 @@
 using API_Berruti.DTOs.Authentication;
 using API_Berruti.Models.Authentication;
+using API_Berruti.Models.Location;
 using API_Berruti.Repositories.Authentication;
 using Microsoft.EntityFrameworkCore;
 
@@ -42,10 +43,12 @@ public static class ReinicioLocal
         contexto.ChangeTracker.Clear();
 
         var cuentas = alcance.ServiceProvider.GetRequiredService<ICuentasRepository>();
+        var cobradores = new List<string>();
         foreach (var (correo, rolIngreso) in CuentasDemo)
         {
             var rol = await cuentas.CrearRolAsync(rolIngreso);
-            await cuentas.CrearUsuarioAsync(correo, contrasena!, rol.Identificador);
+            var usuario = await cuentas.CrearUsuarioAsync(correo, contrasena!, rol.Identificador);
+            if (rolIngreso == RolIngreso.Cobrador) cobradores.Add(usuario.Identificador);
             Console.WriteLine($"Reinicio local: cuenta {correo} ({rolIngreso}).");
         }
 
@@ -56,8 +59,11 @@ public static class ReinicioLocal
         contexto.Tramos.AddRange(escenario.Tramos);
         contexto.Servicios.AddRange(escenario.Servicios);
         contexto.Tarifas.AddRange(escenario.Tarifas);
+        // MVP-009: el cobrador demo viaja en ambos servicios y publica su ubicación desde el celular.
+        contexto.AsignacionesCobrador.AddRange(cobradores.SelectMany(usuarioId =>
+            escenario.Servicios.Select(s => new AsignacionCobrador { UsuarioId = usuarioId, ServicioId = s.Id })));
         await contexto.SaveChangesAsync();
-        Console.WriteLine($"Reinicio local: escenario operativo {fecha:yyyy-MM-dd} ({escenario.Paradas.Count} paradas, {escenario.Tramos.Count} tramos, {escenario.Servicios.Count} servicios, {escenario.Tarifas.Count} tarifas).");
+        Console.WriteLine($"Reinicio local: escenario operativo {fecha:yyyy-MM-dd} ({escenario.Paradas.Count} paradas, {escenario.Tramos.Count} tramos, {escenario.Servicios.Count} servicios, {escenario.Tarifas.Count} tarifas, {cobradores.Count * escenario.Servicios.Count} asignaciones de cobrador).");
         return 0;
     }
 
