@@ -44,13 +44,13 @@
         "API",
         "Web"
       ],
-      "status": "blocked",
+      "status": "done",
       "assignee": "Enzo",
       "reviewer": "Diego",
       "createdAt": "2026-09-21T17:45:04-03:00",
       "startedAt": "2026-11-09T12:33:18-03:00",
-      "completedAt": null,
-      "completedBy": null,
+      "completedAt": "2026-11-10T23:12:33-03:00",
+      "completedBy": "Enzo",
       "dependencies": [
         "MVP-001"
       ],
@@ -59,7 +59,7 @@
         "Los datos de demostración incluyen los dos servicios Ombúes–Radial y Radial–Colonia para una fecha de prueba.",
         "El primer servicio no requiere asiento y el segundo asigna asiento automáticamente."
       ],
-      "evidence": "(1) PR #61: esquema; cortes apilados locales: API CRUD `776921b` (incluye `cc3d9c1`), API demo `49461cf`, Web `6cb1072`, tooling `17cfddc`; corte de evidencia en esta rama. [Registro público](../odd/tasks/mvp-002-operational-admin.md).\n(2) Evidencia funcional previa: API por roles (401/403/200), demo idempotente y validación de conflictos (200/409/400), lectura de datos; harness API-demo 102/102 (solo API), suites completas 107/107, controllers 4/4 y auth 92/92; build API 0 warnings/0 errors. Las verificaciones de slicing son locales; no se repitieron pruebas aprobadas.\n(3) Criterio 1 parcial: recorrido interactivo Web pendiente y DELETE real omitido para preservar datos; revisión cruzada de Diego pendiente. Estado blocked; completedAt/completedBy permanecen null."
+      "evidence": "(1) PRs #61-#66 (pila MVP-002, merge 1a75964), #67 (MVP-002-01, 5cdab6e) y #68 (fix importe de tarifa con cultura es-UY, 2d86f9f).\n(2) OperationalAdministration 85/85, WebAuthentication 92/92, CI validate PASS; recorrido Blazor con ego browser como admin.demo (2026-11-10): parada, tramo y tarifa creados, editados y eliminados con confirmación; servicios ya cubiertos en MVP-002-01; seed 2026-11-11 con Ombúes–Radial sin asiento y Radial–Colonia con asignación automática.\n(3) Revisión cruzada de Diego: confirma los tres criterios (2026-11-10). Bloqueo previo resuelto al mergear MVP-002-01 (blocked → in_progress → done)."
     },
     {
       "id": "MVP-003",
