@@ -15,6 +15,7 @@ internal static class AdversarialChecks
         TranscriptionAttacks(json, check);
         await GeneratorEdgesAsync(json, check);
         await ControllerInputsAsync(json, check);
+        await UnloadedYearAsync(json, check);
     }
 
     private static JsonNode Doc(string json) => JsonNode.Parse(json)!;
@@ -140,6 +141,25 @@ internal static class AdversarialChecks
         var catalogo = await new CatalogoService(new MemoryCatalogoRepository(Catalog.Data(sembradoCircular))).ObtenerAsync();
         check(catalogo.Bloques.SelectMany(b => b.Rutas).Single(r => r.Clave == "NP-AGR").Paradas.Select(p => p.Orden).SequenceEqual([1, 2, 3]),
             "repeated visits keep their own order");
+    }
+
+    // Decision (Diego, option a): a year without loaded holidays shows no departures and says so.
+    private static async Task UnloadedYearAsync(string json, Action<bool, string> check)
+    {
+        var datos = Catalog.Data(Catalog.Build(json));
+        var service = new CatalogoService(new MemoryCatalogoRepository(datos));
+        var anio = await service.SalidasDelDiaAsync(new DateOnly(2027, 1, 1));
+        var colonia = anio.Bloques.Single(b => b.Clave == "NP-COL");
+        check(colonia.Estado == EstadoDia.FueraDeVigencia && colonia.Salidas.Count == 0, "2027: the main block reports its own validity end");
+        check(anio.Bloques.Where(b => b.Clave != "NP-COL").All(b => b.Estado == EstadoDia.CalendarioNoCargado && b.Salidas.Count == 0
+            && b.Motivo == "No está cargado el calendario de feriados de 2027."), "2027: blocks without an end date show no departures and say the calendar is not loaded");
+        var marzo = await service.SalidasDelDiaAsync(new DateOnly(2027, 3, 3));
+        check(marzo.Bloques.Where(b => b.Clave != "NP-COL").All(b => b.Estado == EstadoDia.CalendarioNoCargado), "2027: an ordinary weekday is also not offered");
+        check((await service.SalidasDelDiaAsync(new DateOnly(2026, 12, 31))).Bloques.Single(b => b.Clave == "CAR-MER").Estado == EstadoDia.Opera,
+            "2026 stays loaded until 31/12");
+        var repo = new MemoryGeneracionRepository();
+        var generados = await new GeneracionServiciosService(new MemoryCatalogoRepository(datos), repo).GenerarAsync(Rango("2027-01-04", "2027-01-08"));
+        check(generados.ServiciosCreados == 0 && repo.Saves == 0, "2027: generation creates nothing");
     }
 
     private static async Task ControllerInputsAsync(string json, Action<bool, string> check)

@@ -7,15 +7,17 @@ public enum EstadoDia
     Opera,
     FueraDeVigencia,
     SinServicio,
-    ConsultarAgencia
+    ConsultarAgencia,
+    CalendarioNoCargado
 }
 
 public record ResolucionDia(EstadoDia Estado, string? Motivo, IReadOnlySet<DiasOperacion> Dias);
 
 // Reglas de calendario de FIN-001, en este orden:
 // 1. Fuera de la vigencia publicada del bloque no hay salidas (un bloque sin fecha publicada no tiene ese límite).
-// 2. Una excepción «sin servicio» gana sobre «consultar agencia»; ambas dejan el día sin salidas.
-// 3. Domingo o feriado: «Domingos y feriados». Sábado: «Sábados» y «Lunes a sábado».
+// 2. Un año sin feriados cargados no ofrece salidas («calendario no cargado»).
+// 3. Una excepción «sin servicio» gana sobre «consultar agencia»; ambas dejan el día sin salidas.
+// 4. Domingo o feriado: «Domingos y feriados». Sábado: «Sábados» y «Lunes a sábado».
 //    Lunes a viernes: «Lunes a viernes», «Lunes a sábado» y, lunes y viernes, «Lunes y viernes».
 //    Las salidas de días hábiles no corren en feriados.
 public static class CalendarioCatalogo
@@ -30,6 +32,11 @@ public static class CalendarioCatalogo
             (bloque.VigenteHasta is not null && dia > bloque.VigenteHasta.Value.Date))
             return new ResolucionDia(EstadoDia.FueraDeVigencia, "Fuera de la vigencia publicada del bloque.", Ninguno);
 
+        // Sin feriados cargados para el año no se puede saber qué horario corre: no se ofrecen salidas (decisión de Diego).
+        var feriadosCargados = feriados.ToList();
+        if (!feriadosCargados.Any(f => f.Fecha.Year == fecha.Year))
+            return new ResolucionDia(EstadoDia.CalendarioNoCargado, $"No está cargado el calendario de feriados de {fecha.Year}.", Ninguno);
+
         var aplicables = excepciones
             .Where(e => (e.BloqueId is null || e.BloqueId == bloque.Id) && e.Desde.Date <= dia && e.Hasta.Date >= dia)
             .OrderBy(e => e.Tipo == TipoExcepcion.SinServicio ? 0 : 1)
@@ -41,7 +48,7 @@ public static class CalendarioCatalogo
             return new ResolucionDia(estado, excepcion.Motivo, Ninguno);
         }
 
-        var esFeriado = feriados.Any(f => f.Fecha.Date == dia);
+        var esFeriado = feriadosCargados.Any(f => f.Fecha.Date == dia);
         return new ResolucionDia(EstadoDia.Opera, null, TiposDeDia(fecha, esFeriado));
     }
 
