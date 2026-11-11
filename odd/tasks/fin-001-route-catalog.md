@@ -17,7 +17,7 @@ Fuente: http://www.berruttiturismo.com.uy/horarios.html — imagen «HORARIOS DE
 - R1 Solo genera Servicio un par de paradas con hora publicada en ambas; paradas sin hora (Polancos, bloques sin llegadas) no generan. Capacidad y política de asiento las da quien genera: no hay valor por defecto.
 - R2 Calendario: fuera de vigencia del bloque → nada; excepción «sin servicio» → nada; «consultar agencia» → estado sin salidas; domingo o feriado → salidas «Domingos y feriados»; sábado → «Sábados» y «Lunes a sábado»; lunes a viernes → «Lunes a viernes», «Lunes a sábado» y, lunes y viernes, «Lunes y viernes». Las salidas de días hábiles no corren en feriados.
 - R3 La primera hora de cada salida es la publicada; las siguientes son aproximadas.
-- R4 Polancos se ubica entre Nueva Palmira y Carmelo, sin hora publicada (supuesto a confirmar).
+- R4 Polancos se ubica entre Nueva Palmira y Carmelo, sin hora publicada (confirmado por Diego, L13).
 
 ## Tasks
 - [x] T1 [S1,S6.3] Transcripción versionada (JSON) + validador + chequeos — inline — 29957fb (datos), 49eab2b (chequeos)
@@ -40,3 +40,4 @@ Fuente: http://www.berruttiturismo.com.uy/horarios.html — imagen «HORARIOS DE
 - L10 Usuario: «ya hice el reset». API local + MySQL real: catálogo 4 bloques, 14 rutas, 114 salidas, 5 feriados, 4 excepciones; 11/11 NP-COL 37, NP-CAR 22, CAR-MER 4, NP-AGR 0; 25/08 horario de domingos sin CAR-MER ni AGR; 01/05 sinServicio; 01/01/2027 calendarioNoCargado (NP-COL fueraDeVigencia); fecha mala 400; generar sin sesión 401.
 - L11 Concurrencia real (script de Diego con su contraseña, fuera del repo), 16–20/11/2026, esperado 720 calculado desde la API pública: dos POST simultáneos → 200 (720 creados, 21 tramos) y 409; tercer POST → 0 creados, 720 existentes; la base tiene 720 servicios en la semana.
 - L12 Usuario: «dale, haces las pruebas E2E y te confitmo eso de polancos». E2E en ego-browser sobre /horarios (Web https://localhost:7054 → API local + MySQL): 11/11 CAR-MER 4, AGR 0 «No hay salidas este día», NP-CAR 22, NP-COL 37; 09/11 AGR 2; 25/08 «Feriado: Declaratoria de la Independencia», CAR-MER y AGR sin salidas, NP-CAR 8, NP-COL 11; 01/05 «No hay servicio» en los 4; 01/04 «Consultá en la agencia» en los 4; 01/01/2027 «Calendario no cargado» en 3 y NP-COL «Sin salidas: fuera de vigencia». Catálogo: título «horario de invierno 2026», 4 bloques, enlace a la fuente, leyenda, Polancos sin hora. API detenida → alerta «No se pudo conectar con la API…» + Reintentar; API levantada → Reintentar muestra el día. Menú con «Horarios». Polancos: pendiente de confirmación de Diego.
+- L13 Usuario: «Polancos esta entre Palmira y Carmelo.» (con captura del mapa). El orden ya implementado se mantiene; sin cambios de código.
