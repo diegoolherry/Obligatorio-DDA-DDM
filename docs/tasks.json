@@ -295,13 +295,13 @@
         "API",
         "Web"
       ],
-      "status": "in_progress",
+      "status": "done",
       "assignee": "Diego",
       "reviewer": "Enzo",
       "createdAt": "2026-10-01T18:42:19.328164-03:00",
       "startedAt": "2026-11-11T13:29:06-03:00",
-      "completedAt": null,
-      "completedBy": null,
+      "completedAt": "2026-11-11T14:32:06-03:00",
+      "completedBy": "Diego",
       "dependencies": [
         "MVP-001",
         "MVP-002"
@@ -311,7 +311,7 @@
         "Se validan días hábiles, fines de semana, feriados y excepciones por bloque; 02/03/26–20/12/26 solo se aplica al bloque principal Palmira–Colonia cuando corresponde.",
         "La transcripción completa y sus pruebas conservan llegadas aproximadas, documentan una fuente reproducible autorizada y no infieren tarifas, capacidades ni flota real."
       ],
-      "evidence": "Iniciada 2026-11-11 en feature/fin-001-route-catalog. Fuente acordada por Diego: http://www.berruttiturismo.com.uy/horarios.html (Horarios de invierno 2026). Decisiones de Diego: catálogo aparte que genera Servicios; feriados en tabla por año (no laborables); Ombúes y Conchillas como alimentadores separados; Web solo catálogo, el ABM queda en FIN-008."
+      "evidence": "PRs #75 (API, merge e546755) y #76 (Web, merge 622e637); fuente http://www.berruttiturismo.com.uy/horarios.html transcripta en horarios-invierno-2026.json.\ntests/RouteCatalog 129/129 (mutaciones 38/39, la sobreviviente es equivalente); MySQL real tras reset: 4 bloques, 14 rutas, 114 salidas; generación concurrente 200+409 con 720 servicios sin duplicar; recorrido E2E de /horarios en ego-browser.\nRevisor: Enzo, aprobación de #75 y #76 según el reporte de Diego (no quedó registrada en GitHub); Polancos confirmado por Diego con el mapa."
     },
     {
       "id": "FIN-002",
