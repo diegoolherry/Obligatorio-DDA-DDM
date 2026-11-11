@@ -9,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ISesionCliente, SesionCliente>();
 builder.Services.AddScoped<AdministracionOperativaCliente>();
+builder.Services.AddScoped<BusquedaItinerariosCliente>();
 builder.Services.AddHttpClient("Autenticacion", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(15);

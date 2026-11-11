@@ -1,0 +1,168 @@
+@page "/itinerarios"
+@using System.ComponentModel.DataAnnotations
+@using System.Globalization
+@using Web_App.Models.Operational
+@using Web_App.Services.Operational
+@inject BusquedaItinerariosCliente Cliente
+@inject TimeProvider Reloj
+
+<PageTitle>Buscar viaje</PageTitle>
+<h1>Buscar viaje</h1>
+
+@if (CargandoParadas)
+{
+    <p role="status">Cargando paradas…</p>
+}
+else if (ErrorParadas != null)
+{
+    <p role="alert">@ErrorParadas</p>
+    <button class="btn btn-primary" @onclick="CargarParadasAsync">Reintentar</button>
+}
+else
+{
+    <EditForm Model="Form" OnValidSubmit="BuscarAsync" class="mb-4">
+        <DataAnnotationsValidator />
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="origen" class="form-label">Origen</label>
+                <InputSelect id="origen" class="form-select" @bind-Value="Form.OrigenId">
+                    <option value="">Seleccioná una parada</option>
+                    @foreach (var p in Paradas) { <option value="@p.Id">@p.Nombre</option> }
+                </InputSelect>
+                <ValidationMessage For="() => Form.OrigenId" />
+            </div>
+            <div class="col-md-4">
+                <label for="destino" class="form-label">Destino</label>
+                <InputSelect id="destino" class="form-select" @bind-Value="Form.DestinoId">
+                    <option value="">Seleccioná una parada</option>
+                    @foreach (var p in Paradas) { <option value="@p.Id">@p.Nombre</option> }
+                </InputSelect>
+                <ValidationMessage For="() => Form.DestinoId" />
+                @if (ParadasIguales) { <div class="validation-message">El destino debe ser distinto del origen.</div> }
+            </div>
+            <div class="col-md-2">
+                <label for="fecha" class="form-label">Fecha</label>
+                <InputDate id="fecha" class="form-control" @bind-Value="Form.Fecha" />
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100" disabled="@Buscando">@(Buscando ? "Buscando…" : "Buscar")</button>
+            </div>
+        </div>
+    </EditForm>
+
+    @switch (Estado)
+    {
+        case EstadoBusqueda.Buscando:
+            <p role="status">Buscando itinerarios…</p>
+            break;
+        case EstadoBusqueda.Error:
+            <p role="alert">@ErrorBusqueda</p>
+            <button class="btn btn-primary" @onclick="ReintentarAsync" disabled="@Buscando">Reintentar</button>
+            break;
+        case EstadoBusqueda.Vacio:
+            <p role="status">No hay viajes de @UltimaBusqueda para esa fecha. Probá con otra fecha u otras paradas.</p>
+            break;
+        case EstadoBusqueda.Exito:
+            <p role="status">@Itinerarios.Count @(Itinerarios.Count == 1 ? "itinerario encontrado" : "itinerarios encontrados") de @UltimaBusqueda.</p>
+            @foreach (var itinerario in Itinerarios)
+            {
+                <article class="card mb-3">
+                    <div class="card-body">
+                        <h2 class="h5 card-title">
+                            @Hora(itinerario.Salida) → @Hora(itinerario.Llegada)
+                            · @(itinerario.Tramos.Count == 1 ? "Directo" : $"{itinerario.Tramos.Count} tramos")
+                            · Total @Precio(itinerario.PrecioTotal)
+                        </h2>
+                        <ol class="list-group list-group-numbered">
+                            @foreach (var tramo in itinerario.Tramos.OrderBy(t => t.Orden))
+                            {
+                                <li class="list-group-item">
+                                    <strong>@tramo.Origen.Nombre → @tramo.Destino.Nombre</strong><br />
+                                    Sale @Hora(tramo.Salida) · llega @Hora(tramo.Llegada) · @Precio(tramo.Importe)<br />
+                                    <span>Asiento: @Politica(tramo.PoliticaAsiento)</span>
+                                </li>
+                                @if (itinerario.Transbordo != null && tramo.Orden == 1)
+                                {
+                                    <li class="list-group-item list-group-item-light" style="list-style: none">
+                                        Transbordo en @itinerario.Transbordo.Parada.Nombre: @itinerario.Transbordo.Minutos min de espera
+                                    </li>
+                                }
+                            }
+                        </ol>
+                    </div>
+                </article>
+            }
+            break;
+    }
+}
+
+@code {
+    private enum EstadoBusqueda { Inicial, Buscando, Vacio, Exito, Error }
+    private static readonly CultureInfo Uruguay = CultureInfo.GetCultureInfo("es-UY");
+
+    private sealed class BusquedaForm
+    {
+        [Required(ErrorMessage = "Elegí el origen.")] public string OrigenId { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Elegí el destino.")] public string DestinoId { get; set; } = string.Empty;
+        public DateOnly Fecha { get; set; }
+    }
+
+    private BusquedaForm Form { get; } = new();
+    private IReadOnlyList<ParadaDto> Paradas { get; set; } = [];
+    private IReadOnlyList<ItinerarioDto> Itinerarios { get; set; } = [];
+    private bool CargandoParadas { get; set; } = true;
+    private string? ErrorParadas { get; set; }
+    private EstadoBusqueda Estado { get; set; } = EstadoBusqueda.Inicial;
+    private string? ErrorBusqueda { get; set; }
+    private string UltimaBusqueda { get; set; } = string.Empty;
+    private bool ParadasIguales { get; set; }
+    private (string Origen, string Destino, DateOnly Fecha)? Ultima { get; set; }
+    private bool Buscando => Estado == EstadoBusqueda.Buscando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Form.Fecha = DateOnly.FromDateTime(Reloj.GetLocalNow().DateTime);
+        await CargarParadasAsync();
+    }
+
+    private async Task CargarParadasAsync()
+    {
+        CargandoParadas = true;
+        ErrorParadas = null;
+        var (items, error) = await Cliente.ListarParadasAsync();
+        Paradas = items;
+        ErrorParadas = error;
+        CargandoParadas = false;
+    }
+
+    private async Task BuscarAsync()
+    {
+        ParadasIguales = Form.OrigenId == Form.DestinoId;
+        if (ParadasIguales) return;
+        Ultima = (Form.OrigenId, Form.DestinoId, Form.Fecha);
+        await EjecutarAsync();
+    }
+
+    private async Task ReintentarAsync() => await EjecutarAsync();
+
+    private async Task EjecutarAsync()
+    {
+        if (Ultima is not { } busqueda) return;
+        Estado = EstadoBusqueda.Buscando;
+        UltimaBusqueda = $"{Nombre(busqueda.Origen)} a {Nombre(busqueda.Destino)} el {busqueda.Fecha.ToString("dd/MM/yyyy", Uruguay)}";
+        var (items, error) = await Cliente.BuscarAsync(busqueda.Origen, busqueda.Destino, busqueda.Fecha);
+        Itinerarios = items;
+        ErrorBusqueda = error;
+        Estado = error != null ? EstadoBusqueda.Error : items.Count == 0 ? EstadoBusqueda.Vacio : EstadoBusqueda.Exito;
+    }
+
+    private string Nombre(string id) => Paradas.FirstOrDefault(p => p.Id == id)?.Nombre ?? "la parada elegida";
+    private static string Hora(DateTime valor) => valor.ToString("HH:mm", Uruguay);
+    private static string Precio(decimal valor) => "$ " + valor.ToString("N2", Uruguay);
+    private static string Politica(PoliticaAsiento politica) => politica switch
+    {
+        PoliticaAsiento.SinAsiento => "sin asiento asignado",
+        PoliticaAsiento.AsignacionAutomatica => "asignación automática",
+        _ => "no informada"
+    };
+}

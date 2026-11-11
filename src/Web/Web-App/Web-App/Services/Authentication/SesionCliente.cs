@@ -155,7 +155,8 @@ public class SesionCliente(IHttpClientFactory factory, IConfiguration configurat
         finally { Interlocked.Exchange(ref _ocupada, 0); }
     }
 
-    private static bool TryBaseUrl(string? value, out Uri? uri)
+    // Compartida con los clientes públicos para aplicar la misma validación de Api:BaseUrl.
+    internal static bool TryBaseUrl(string? value, out Uri? uri)
     {
         uri = null;
         if (string.IsNullOrWhiteSpace(value) || value.Contains('?') || value.Contains('#') || value.Contains('\\')
