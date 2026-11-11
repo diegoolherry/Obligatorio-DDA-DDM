@@ -740,14 +740,14 @@
       "assignee": "Diego",
       "reviewer": "Enzo",
       "createdAt": "2026-11-10T23:36:22-03:00",
-      "completedAt": null,
-      "completedBy": null,
-      "evidence": null,
+      "completedAt": "2026-11-11T01:28:38-03:00",
+      "completedBy": "Diego",
+      "evidence": "(1) PR #72 mergeado en main (2053f28); commits a6b77df (migración UbicacionDemo + SQL + seed), 17b8b74 (endpoints /api/ubicacion, parámetros, pruebas, docs), d2ff770, 30691e4, bd4a3f9, eb3a698, ca255eb.\n(2) Geolocation 27/27; AuthenticationContracts 50/50; OperationalAdministration 125; has-pending-model-changes limpio; SQL idéntico al regenerado; CI validate PASS; MySQL local tras reset: cobrador ingresa 200, 2 asignaciones, publicaciones 201, periodicidad 30,09 s cumple, id inexistente 404 sin escritura; verificación independiente PASS (4 pasadas).\n(3) Revisión cruzada de Enzo: PR aprobado según reporte del usuario (2026-11-11).",
       "area": [
         "API",
         "Docs"
       ],
-      "status": "in_progress",
+      "status": "done",
       "startedAt": "2026-11-10T23:36:22-03:00",
       "dependencies": [
         "MVP-001",
@@ -796,13 +796,13 @@
       "assignee": "Diego",
       "reviewer": "Enzo",
       "createdAt": "2026-11-10T23:36:22-03:00",
-      "completedAt": null,
-      "completedBy": null,
-      "evidence": "Trabajo iniciado en 57ca3a5 (2026-11-10) antes de registrar el estado; startedAt se registró al corregirlo.\nRecorrido Web con ego-browser OK (2026-11-11), ver odd/tasks/mvp-009-geolocation.md L5.\nPendiente: PR y revisión cruzada de Enzo.",
+      "completedAt": "2026-11-11T01:28:38-03:00",
+      "completedBy": "Diego",
+      "evidence": "(1) PR #73 mergeado en main (5372688); commits f35ee4e (página /pasajero/ubicacion), 79e1b07, 98b546a, 4196002.\n(2) WebAuthentication 105/105; AuthenticationContracts 50/50; build Web 0/0; validación CI equivalente local (json.tool, diff --check) PASS; recorrido ego-browser contra MySQL: sin sesión, lista, en horario 01:18, desactualizada >120 s, con demora 01:29, error con Reintentar; verificación independiente PASS.\n(3) Revisión cruzada de Enzo: PR aprobado según reporte del usuario (2026-11-11).",
       "area": [
         "Web"
       ],
-      "status": "in_progress",
+      "status": "done",
       "startedAt": "2026-11-11T01:05:51-03:00",
       "dependencies": [
         "MVP-009-01"
