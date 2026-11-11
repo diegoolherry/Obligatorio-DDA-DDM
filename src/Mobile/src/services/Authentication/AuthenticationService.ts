@@ -1,6 +1,9 @@
 import type { IAuthenticationService } from './IAuthenticationService';
 import type { SolicitudIngresoDto } from '../../contracts/authentication';
-import type { AuthenticationResult, SessionState } from '../../contracts/session';
+import type { RolIngreso } from '../../contracts/authentication';
+import type {
+  AuthenticationResult, AuthorizedRequest, AuthorizedResult, SessionState,
+} from '../../contracts/session';
 
 type Operation = 'ingreso' | 'salida' | 'prueba-pasajero' | 'prueba-cobrador';
 const requiredEmail = 'El correo es obligatorio.';
@@ -46,6 +49,8 @@ export class AuthenticationService implements IAuthenticationService {
   private timeoutMs: number;
   private token: string | undefined;
   private expiresAt = 0;
+  private roles: RolIngreso[] = [];
+  private authorizedActive = new Set<AbortController>();
   private logoutPending = false;
   private active: AbortController | undefined;
   private generation = 0;
@@ -62,9 +67,17 @@ export class AuthenticationService implements IAuthenticationService {
     return { authenticated: this.token !== undefined && !this.logoutPending, logoutPending: this.logoutPending };
   }
 
+  getRoles(): readonly RolIngreso[] {
+    this.getState(); // applies expiry
+    return this.token !== undefined && !this.logoutPending ? [...this.roles] : [];
+  }
+
   discard(): void {
     this.generation++;
     this.token = undefined;
+    this.roles = [];
+    for (const controller of this.authorizedActive) controller.abort();
+    this.authorizedActive.clear();
     this.expiresAt = 0;
     this.logoutPending = false;
     this.active?.abort();
@@ -83,6 +96,65 @@ export class AuthenticationService implements IAuthenticationService {
 
   async checkCollector(): Promise<AuthenticationResult> {
     return this.perform('prueba-cobrador');
+  }
+
+  /** Authenticated request; the Bearer token is attached here and never returned. */
+  async authorizedRequest(request: AuthorizedRequest): Promise<AuthorizedResult> {
+    if (!this.root) return { outcome: 'configuration' };
+    if (!/^\/api\/[A-Za-z0-9_/-]+$/.test(request.path) || request.path.includes('..')
+      || (request.method !== 'GET' && request.method !== 'POST')) return { outcome: 'invalidRequest' };
+    this.getState(); // applies expiry
+    const token = this.token;
+    if (!token || this.logoutPending) return { outcome: 'unauthenticated' };
+    const controller = new AbortController();
+    this.authorizedActive.add(controller);
+    const generation = this.generation;
+    const headers: Record<string, string> = { Accept: 'application/json', Authorization: `Bearer ${token}` };
+    if (request.body !== undefined) headers['Content-Type'] = 'application/json';
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let removeAbort = () => {};
+    try {
+      // Bound both fetch and body consumption even when a transport ignores abort.
+      const interrupted = new Promise<never>((_, reject) => {
+        const abort = () => reject(new Error('interrupted'));
+        controller.signal.addEventListener('abort', abort, { once: true });
+        removeAbort = () => controller.signal.removeEventListener('abort', abort);
+        timer = setTimeout(() => controller.abort(), this.timeoutMs);
+      });
+      const exchange = async (): Promise<AuthorizedResult> => {
+        const response = await this.transport(`${this.root}${request.path}`, {
+          method: request.method, headers,
+          ...(request.body !== undefined ? { body: JSON.stringify(request.body) } : {}),
+          credentials: 'omit', redirect: 'error', signal: controller.signal,
+        });
+        if (generation !== this.generation || controller.signal.aborted) return { outcome: 'cancelled' };
+        const status = response.status;
+        if (response.redirected || (status >= 300 && status < 400)) return { outcome: 'invalidResponse', status };
+        if (status === 401) {
+          // Same semantics as the probes, but only for the credential this request used:
+          // a late 401 from an old request must not clear a newer session.
+          if (this.token === token) {
+            this.token = undefined;
+            this.roles = [];
+            this.logoutPending = false;
+          }
+          return { outcome: 'unauthenticated', status };
+        }
+        if (status !== 200 && status !== 201) return { outcome: 'response', status };
+        let body: unknown;
+        try { body = await response.json(); } catch { return { outcome: 'invalidResponse', status }; }
+        if (generation !== this.generation || controller.signal.aborted) return { outcome: 'cancelled' };
+        return { outcome: 'response', status, body };
+      };
+      const result = await Promise.race([exchange(), interrupted]);
+      return generation === this.generation ? result : { outcome: 'cancelled' };
+    } catch {
+      return generation === this.generation ? { outcome: 'network' } : { outcome: 'cancelled' };
+    } finally {
+      clearTimeout(timer);
+      removeAbort();
+      this.authorizedActive.delete(controller);
+    }
   }
 
   private async perform(operation: Operation, request?: SolicitudIngresoDto): Promise<AuthenticationResult> {
@@ -158,6 +230,7 @@ export class AuthenticationService implements IAuthenticationService {
             || !Number.isFinite(expiresAt) || expiresAt <= this.clock()) return { ...invalid, status };
           this.token = body.token;
           this.expiresAt = expiresAt;
+          this.roles = (body.roles as RolIngreso[]).slice();
         }
         return { outcome: 'success', message: operation === 'ingreso' ? 'Sesión confirmada.'
           : operation === 'prueba-cobrador' ? 'Acceso de cobrador confirmado por la API.' : 'Acceso de pasajero confirmado por la API.', status };

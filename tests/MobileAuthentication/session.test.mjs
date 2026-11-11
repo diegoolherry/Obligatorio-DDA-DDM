@@ -265,3 +265,131 @@ test('expiry clears local state without sending Bearer; redirects cannot succeed
   const redirected = fixture([() => ({ status: 200, redirected: true, json: async () => success })]);
   assert.equal((await redirected.service.login(request)).outcome, 'invalidResponse');
 });
+
+test('roles are exposed from the confirmed session only, never the token', async () => {
+  const collector = { ...identity, roles: ['cobrador'] };
+  const { service } = fixture([reply(200, { ...success, ...collector }), reply(204)]);
+  assert.deepEqual(service.getRoles(), []);
+  await service.login(request);
+  assert.deepEqual(service.getRoles(), ['cobrador']);
+  const copy = service.getRoles();
+  copy.push?.('administrador');
+  assert.deepEqual(service.getRoles(), ['cobrador']);
+  assert.equal(JSON.stringify(service.getRoles()).includes(token), false);
+  await service.logout();
+  assert.deepEqual(service.getRoles(), []);
+});
+
+test('authorizedRequest: Bearer attached internally, exact request, token never returned', async () => {
+  const payload = { servicios: [1] };
+  const { service, calls } = fixture([reply(200, success), reply(200, payload), reply(201, { id: 'x' })]);
+  await service.login(request);
+  const read = await service.authorizedRequest({ method: 'GET', path: '/api/ubicacion/servicios' });
+  assert.deepEqual(read, { outcome: 'response', status: 200, body: payload });
+  const write = await service.authorizedRequest({ method: 'POST', path: '/api/ubicacion/servicios/1/posiciones', body: { latitud: 1, longitud: 2 } });
+  assert.deepEqual(write, { outcome: 'response', status: 201, body: { id: 'x' } });
+  assert.equal(JSON.stringify([read, write]).includes(token), false);
+  assert.equal(calls[1][0], 'https://api.example.invalid/api/ubicacion/servicios');
+  assert.equal(calls[1][1].method, 'GET');
+  assert.equal(calls[1][1].body, undefined);
+  assert.deepEqual(calls[1][1].headers, { Accept: 'application/json', Authorization: `Bearer ${token}` });
+  assert.equal(calls[2][1].method, 'POST');
+  assert.deepEqual(JSON.parse(calls[2][1].body), { latitud: 1, longitud: 2 });
+  assert.deepEqual(calls[2][1].headers, { Accept: 'application/json', Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' });
+  for (const [, options] of calls.slice(1)) {
+    assert.equal(options.credentials, 'omit');
+    assert.equal(options.redirect, 'error');
+    assert.ok(options.signal instanceof AbortSignal);
+  }
+});
+
+test('authorizedRequest without session, with bad path or configuration never reaches transport', async () => {
+  const anonymous = fixture([]);
+  assert.deepEqual(await anonymous.service.authorizedRequest({ method: 'GET', path: '/api/ubicacion/servicios' }), { outcome: 'unauthenticated' });
+  const { service, calls } = fixture([reply(200, success)]);
+  await service.login(request);
+  for (const path of ['https://evil.invalid/api/x', '//evil.invalid', '/api/../secreto', '/api/%2e%2e/x', '/api/%2E%2E/x', '/api/a%2fb', '/otra/ruta', '/api/x?y=1', '/api/']) {
+    assert.deepEqual(await service.authorizedRequest({ method: 'GET', path }), { outcome: 'invalidRequest' });
+  }
+  assert.equal(calls.length, 1);
+  const unconfigured = fixture([], '');
+  assert.deepEqual(await unconfigured.service.authorizedRequest({ method: 'GET', path: '/api/x' }), { outcome: 'configuration' });
+  assert.equal(unconfigured.calls.length, 0);
+});
+
+test('authorizedRequest: 401 discards the session, 403 and 5xx preserve it, no body or message leaks', async () => {
+  const { service } = fixture([reply(200, success), reply(403, { secret: 1 }), reply(404), reply(400, { secret: 1 }), reply(503), new Error('private detail'), reply(401)]);
+  await service.login(request);
+  const path = '/api/ubicacion/servicios/1';
+  assert.deepEqual(await service.authorizedRequest({ method: 'GET', path }), { outcome: 'response', status: 403 });
+  assert.deepEqual(await service.authorizedRequest({ method: 'GET', path }), { outcome: 'response', status: 404 });
+  assert.deepEqual(await service.authorizedRequest({ method: 'GET', path }), { outcome: 'response', status: 400 });
+  assert.deepEqual(await service.authorizedRequest({ method: 'GET', path }), { outcome: 'response', status: 503 });
+  assert.deepEqual(await service.authorizedRequest({ method: 'GET', path }), { outcome: 'network' });
+  assert.deepEqual(service.getState(), { authenticated: true, logoutPending: false });
+  assert.deepEqual(await service.authorizedRequest({ method: 'GET', path }), { outcome: 'unauthenticated', status: 401 });
+  assert.deepEqual(service.getState(), { authenticated: false, logoutPending: false });
+  assert.deepEqual(service.getRoles(), []);
+  assert.deepEqual(await service.authorizedRequest({ method: 'GET', path }), { outcome: 'unauthenticated' });
+});
+
+test('authorizedRequest: redirects, malformed JSON and timeouts are not successes; blocked during pending logout', async () => {
+  const { service, calls } = fixture([
+    reply(200, success),
+    () => ({ status: 200, redirected: true, json: async () => ({}) }),
+    () => ({ status: 302, redirected: false, json: async () => ({}) }),
+    () => ({ status: 200, redirected: false, json: async () => { throw new Error('bad json'); } }),
+    () => new Promise(() => {}),
+    reply(503),
+  ], 'https://api.example.invalid', 5);
+  await service.login(request);
+  const path = '/api/ubicacion/servicios';
+  assert.equal((await service.authorizedRequest({ method: 'GET', path })).outcome, 'invalidResponse');
+  assert.equal((await service.authorizedRequest({ method: 'GET', path })).outcome, 'invalidResponse');
+  assert.equal((await service.authorizedRequest({ method: 'GET', path })).outcome, 'invalidResponse');
+  assert.equal((await service.authorizedRequest({ method: 'GET', path })).outcome, 'network');
+  assert.equal((await service.logout()).outcome, 'server');
+  assert.deepEqual(await service.authorizedRequest({ method: 'GET', path }), { outcome: 'unauthenticated' });
+  assert.equal(calls.length, 6);
+});
+
+test('authorizedRequest: discard cancels requests in flight and a late response is not delivered', async () => {
+  let finish;
+  const { service } = fixture([reply(200, success), () => new Promise(resolve => { finish = resolve; })]);
+  await service.login(request);
+  const pending = service.authorizedRequest({ method: 'GET', path: '/api/ubicacion/servicios' });
+  service.discard();
+  finish(reply(200, [1]));
+  assert.deepEqual(await pending, { outcome: 'cancelled' });
+  assert.equal(service.getState().authenticated, false);
+});
+
+test('authorizedRequest runs concurrently with a probe without reporting busy', async () => {
+  let finish;
+  const { service } = fixture([reply(200, success), () => new Promise(resolve => { finish = resolve; }), reply(200, [])]);
+  await service.login(request);
+  const probe = service.checkPassenger();
+  const read = await service.authorizedRequest({ method: 'GET', path: '/api/ubicacion/servicios' });
+  assert.deepEqual(read, { outcome: 'response', status: 200, body: [] });
+  finish(reply(200, identity));
+  assert.equal((await probe).outcome, 'success');
+});
+
+test('authorizedRequest: a late 401 from an old request cannot clear a newer session', async () => {
+  const secondToken = 'C'.repeat(42) + 'A';
+  let late;
+  const { service } = fixture([
+    reply(200, success), () => new Promise(resolve => { late = resolve; }), reply(401),
+    reply(200, { ...success, token: secondToken }), reply(200, identity),
+  ]);
+  await service.login(request);
+  const path = '/api/ubicacion/servicios';
+  const old = service.authorizedRequest({ method: 'GET', path });
+  assert.deepEqual(await service.authorizedRequest({ method: 'GET', path }), { outcome: 'unauthenticated', status: 401 });
+  assert.equal(service.getState().authenticated, false);
+  assert.equal((await service.login(request)).outcome, 'success');
+  late(reply(401));
+  assert.deepEqual(await old, { outcome: 'unauthenticated', status: 401 });
+  assert.equal(service.getState().authenticated, true);
+  assert.equal((await service.checkPassenger()).outcome, 'success');
+});

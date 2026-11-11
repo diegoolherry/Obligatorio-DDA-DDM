@@ -35,3 +35,30 @@ Resultado histórico del corte pasajero: pruebas de servicio `15/15` PASS (exit 
 Ampliación cobrador: `17/17` PASS (exit 0), incluidos los 15 casos previos, una secuencia de servicio cobrador (GET/Bearer, denegación, servidor/red, reintento, logout y aislamiento) y una comprobación **estructural**, no renderizada, del título/acciones de la pantalla compartida. Typecheck `tsc --noEmit` exit 0. [Seguimiento y límites del corte](../../odd/tasks/mvp-001-04-collector-auth.md).
 
 Las pruebas usan el servicio real y transporte falso con datos ficticios; no prueban TLS, MySQL, API pública ni dispositivo. Pendientes: revisión visual/táctil/accesibilidad con teclado, flujo vivo de ingreso/permiso/salida, iPhone y comportamiento nativo iOS de TLS, redirects y cookies. La API autoriza roles; la visibilidad local no autoriza operaciones.
+
+## Ubicación de demostración (MVP-009)
+
+Dos pestañas nuevas usan la sesión del ingreso: **Compartir ubicación** (rol cobrador) y **Ubicación del servicio** (rol pasajero). Consumen las rutas de [Ubicación de demostración](../reference/api.md#ubicación-de-demostración-mvp-009) con el Bearer que añade la sesión por solicitud (`authorizedRequest`); las pantallas nunca ven el token. La API sigue decidiendo los permisos: `403` si la cuenta no tiene el rol o el servicio no está asignado, `401` descarta la sesión local. Los datos son ficticios.
+
+### Cómo probarlo en el iPhone con Expo
+
+1. Reiniciá la base local con la asignación sembrada (cobrador ↔ servicios demo) y levantá la API detrás de una URL HTTPS alcanzable desde el iPhone ([configuración](client-api-configuration.md)). El túnel de Metro no publica la API.
+2. En `src/Mobile`, con `EXPO_PUBLIC_API_URL` apuntando a esa raíz HTTPS: `npx expo start` y abrí el QR con Expo Go.
+3. **Cobrador:** pestaña «Ingreso» con la cuenta de cobrador de demostración → «Compartir ubicación» → elegí un servicio → «Permitir ubicación» (solo entonces aparece el diálogo del sistema) → «Compartir». La pantalla muestra la hora de la última publicación aceptada (hora de Uruguay), la precisión en metros y si cumple la periodicidad. Se envía como máximo una vez por la periodicidad que informa la API (30 s hasta la primera respuesta).
+4. **Pasajero:** cerrá sesión, ingresá con la cuenta de pasajero → «Ubicación del servicio» → elegí el servicio. Ves la última posición, su hora y antigüedad, la llegada aproximada y si va en horario o con demora; «Actualizar ubicación» vuelve a consultar. Pasado el umbral sin publicaciones aparece «Desactualizada» y la llegada pasa a «no disponible» con su motivo.
+
+### Permiso de ubicación
+
+- Solo ubicación en primer plano («mientras se usa la app»). No hay ubicación en segundo plano ni `UIBackgroundModes`; el plugin `expo-location` de `app.json` define el texto de propósito en español y desactiva explícitamente los modos de segundo plano. Expo Go puede mostrar su propio texto: el de `app.json` rige en un build de desarrollo o propio.
+- El permiso no se pide al abrir la app: primero se explica para qué se usa y se pide al tocar «Permitir ubicación».
+- Si se deniega y el sistema no vuelve a preguntar, aparece «Abrir Ajustes» (`Linking.openSettings()`). Al volver a la app se vuelve a leer el permiso, y también justo antes de «Compartir».
+- La lectura sigue aunque el cobrador cambie de pestaña mientras la app está abierta. Se detiene con «Detener», al cerrar la sesión de cobrador, si el permiso deja de estar concedido y cuando la app pasa a segundo plano; hay que volver a tocar «Compartir». El envío en segundo plano queda para FIN-007.
+
+### Comprobaciones
+
+```sh
+node --test tests/MobileAuthentication/*.test.mjs tests/MobileLocation/*.test.mjs
+cd src/Mobile && npm run typecheck
+```
+
+Las pruebas cubren la sesión (solicitud autorizada, 401/403, sin filtrar el token) y el servicio de ubicación (resultados tipados por estado, redondeo a 6 decimales, hora de Uruguay). Las pantallas solo tienen comprobaciones de fuente (sesión entre pestañas, envío que sigue con la pantalla oculta); el diálogo de permiso y el GPS no tienen pruebas automáticas: se verifican con el recorrido manual anterior, que queda pendiente de ejecutar en el iPhone.
