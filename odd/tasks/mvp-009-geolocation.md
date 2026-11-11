@@ -15,12 +15,15 @@ Backlog: hijos MVP-009-01 (API), MVP-009-02 (Mobile), MVP-009-03 (Web) en `docs/
 
 ## Tasks
 
-- T1 [S1-S2,S5-S7] API: migración `UbicacionDemo` (cobrador_servicio, posicion_recibida) + SQL, seed, parámetros `Ubicacion`, POST publicación (Cobrador asignado), GET consulta (Pasajero), pruebas de invariantes de autorización — inline — MVP-009-01 — commit: pendiente.
+- T1 [S1-S2,S5-S7] API: migración `UbicacionDemo` (cobrador_servicio, posicion_recibida) + SQL, seed, parámetros `Ubicacion`, POST publicación (Cobrador asignado), GET consulta (Pasajero), pruebas de invariantes de autorización — inline — MVP-009-01 — commits: bde0a7a (esquema), cdc6481 (API, pruebas y docs), + fix UTC al leer recibida_utc; verificación independiente sin bloqueantes (S1,S2,S5-S7 PASS); `has-pending-model-changes` limpio y SQL idéntico al regenerado; falta `update-local-db.ps1 -Apply` (Diego).
 - T2 [S3-S6] Mobile: cobrador comparte ubicación en primer plano; pasajero consulta — pendiente de material de clase sobre permisos — MVP-009-02 — commit: pendiente.
-- T3 [S3-S5,S7] Web: página de pasajero en Blazor — MVP-009-03 — commit: pendiente.
+- T3 [S3-S5,S7] Web: página de pasajero en Blazor (`/pasajero/ubicacion`) — worker — MVP-009-03 — commit: 57ca3a5; build Web 0/0, WebAuthentication 98/98, AuthenticationContracts 50/50; sin recorrido en navegador todavía.
+
+Corte de PR: el primer PR es MVP-009-01 (bde0a7a..cdc6481, ~1.6k líneas con la migración generada). Web y Mobile van en cortes separados encima.
 
 ## Log
 
 - L1 (coordinadora, por pedido de Diego): trabajar MVP-009 «Geolocalización básica de demostración» en el worktree; avisar antes de migraciones; no correr reset-local-db.ps1; partir en hijos si cruza capas.
 - L2 (Diego): "La idea es que sea desde el celular del cobrador, tipo que mientras con su celu cobra, tambien se sepa la ubicacion de obmnibus." / "La geolocalizacion la queremos para saber la ubicacion del obmnibus, osea q por web no seria." Luego: asignación sembrada; expo-location sí ("en clase vimos cosas de permisos, tipo ciclo de vida y demas... te puedo pasar y mostrar la presentacion y creo que un repo de github"); consulta en "App Expo y también Blazor".
+- L4 (verify T1): sin bloqueantes; observó que `recibidaUtc` leído de MySQL salía sin `Z` → corregido con conversión a UTC en el DbContext.
 - L3 (coordinadora): OK a la migración; script con `dotnet ef migrations script <anterior> <nueva>`; solo se permite quitar la línea en blanco final; probar con `update-local-db.ps1 -Apply`.

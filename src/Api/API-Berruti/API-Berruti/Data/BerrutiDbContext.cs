@@ -149,7 +149,9 @@ public class BerrutiDbContext : DbContext
         posicion.Property(p => p.ServicioId).HasColumnName("servicio_id").HasMaxLength(36).IsRequired();
         posicion.Property(p => p.Latitud).HasColumnName("latitud").HasPrecision(9, 6).IsRequired();
         posicion.Property(p => p.Longitud).HasColumnName("longitud").HasPrecision(9, 6).IsRequired();
-        posicion.Property(p => p.RecibidaUtc).HasColumnName("recibida_utc").HasColumnType("datetime(6)").IsRequired();
+        // MySQL no guarda el Kind: al leer se marca UTC para que el JSON lleve la zona ("Z").
+        posicion.Property(p => p.RecibidaUtc).HasColumnName("recibida_utc").HasColumnType("datetime(6)").IsRequired()
+            .HasConversion(v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
         // La posición siempre referencia una asociación cobrador/servicio existente.
         posicion.HasOne<AsignacionCobrador>().WithMany().HasForeignKey(p => new { p.UsuarioId, p.ServicioId })
             .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_posicion_asignacion");
