@@ -11,6 +11,8 @@ export type LocationPermissionState = 'checking' | 'granted' | 'askable' | 'bloc
 
 export interface ForegroundLocationPermission {
   state: LocationPermissionState;
+  /** True when the user already rejected the dialog (even if it can be shown again). */
+  denied: boolean;
   /** Shows the system dialog. Call it only from a user tap, never when the app opens. */
   request: () => Promise<void>;
   /** Reads the current permission without asking; true when it is granted. */
@@ -45,5 +47,6 @@ export function useForegroundLocationPermission(): ForegroundLocationPermission 
   const state: LocationPermissionState = permission === null ? 'checking'
     : permission.granted ? 'granted'
       : permission.canAskAgain ? 'askable' : 'blocked';
-  return { state, request, recheck, openSettings };
+  const denied = permission !== null && !permission.granted && permission.status === 'denied';
+  return { state, denied, request, recheck, openSettings };
 }

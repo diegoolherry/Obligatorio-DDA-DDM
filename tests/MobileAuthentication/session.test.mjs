@@ -308,7 +308,7 @@ test('authorizedRequest without session, with bad path or configuration never re
   assert.deepEqual(await anonymous.service.authorizedRequest({ method: 'GET', path: '/api/ubicacion/servicios' }), { outcome: 'unauthenticated' });
   const { service, calls } = fixture([reply(200, success)]);
   await service.login(request);
-  for (const path of ['https://evil.invalid/api/x', '//evil.invalid', '/api/../secreto', '/otra/ruta', '/api/x?y=1', '/api/']) {
+  for (const path of ['https://evil.invalid/api/x', '//evil.invalid', '/api/../secreto', '/api/%2e%2e/x', '/api/%2E%2E/x', '/api/a%2fb', '/otra/ruta', '/api/x?y=1', '/api/']) {
     assert.deepEqual(await service.authorizedRequest({ method: 'GET', path }), { outcome: 'invalidRequest' });
   }
   assert.equal(calls.length, 1);
@@ -373,4 +373,23 @@ test('authorizedRequest runs concurrently with a probe without reporting busy', 
   assert.deepEqual(read, { outcome: 'response', status: 200, body: [] });
   finish(reply(200, identity));
   assert.equal((await probe).outcome, 'success');
+});
+
+test('authorizedRequest: a late 401 from an old request cannot clear a newer session', async () => {
+  const secondToken = 'C'.repeat(42) + 'A';
+  let late;
+  const { service } = fixture([
+    reply(200, success), () => new Promise(resolve => { late = resolve; }), reply(401),
+    reply(200, { ...success, token: secondToken }), reply(200, identity),
+  ]);
+  await service.login(request);
+  const path = '/api/ubicacion/servicios';
+  const old = service.authorizedRequest({ method: 'GET', path });
+  assert.deepEqual(await service.authorizedRequest({ method: 'GET', path }), { outcome: 'unauthenticated', status: 401 });
+  assert.equal(service.getState().authenticated, false);
+  assert.equal((await service.login(request)).outcome, 'success');
+  late(reply(401));
+  assert.deepEqual(await old, { outcome: 'unauthenticated', status: 401 });
+  assert.equal(service.getState().authenticated, true);
+  assert.equal((await service.checkPassenger()).outcome, 'success');
 });

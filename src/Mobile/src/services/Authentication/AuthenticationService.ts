@@ -101,7 +101,7 @@ export class AuthenticationService implements IAuthenticationService {
   /** Authenticated request; the Bearer token is attached here and never returned. */
   async authorizedRequest(request: AuthorizedRequest): Promise<AuthorizedResult> {
     if (!this.root) return { outcome: 'configuration' };
-    if (!/^\/api\/[A-Za-z0-9_%/-]+$/.test(request.path) || request.path.includes('..')
+    if (!/^\/api\/[A-Za-z0-9_/-]+$/.test(request.path) || request.path.includes('..')
       || (request.method !== 'GET' && request.method !== 'POST')) return { outcome: 'invalidRequest' };
     this.getState(); // applies expiry
     const token = this.token;
@@ -131,10 +131,13 @@ export class AuthenticationService implements IAuthenticationService {
         const status = response.status;
         if (response.redirected || (status >= 300 && status < 400)) return { outcome: 'invalidResponse', status };
         if (status === 401) {
-          // Same semantics as the probes: the credential is no longer valid, so discard it.
-          this.token = undefined;
-          this.roles = [];
-          this.logoutPending = false;
+          // Same semantics as the probes, but only for the credential this request used:
+          // a late 401 from an old request must not clear a newer session.
+          if (this.token === token) {
+            this.token = undefined;
+            this.roles = [];
+            this.logoutPending = false;
+          }
           return { outcome: 'unauthenticated', status };
         }
         if (status !== 200 && status !== 201) return { outcome: 'response', status };

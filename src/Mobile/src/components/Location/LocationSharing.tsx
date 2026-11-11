@@ -105,6 +105,7 @@ export function LocationSharing({ session, service }: {
     watchPositionAsync(
       { accuracy: Accuracy.High, distanceInterval: 0, timeInterval: 5000 },
       position => {
+        if (!active) return; // an event after cleanup must not publish
         const sample: Sample = {
           latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: position.coords.accuracy,
         };
@@ -160,8 +161,19 @@ export function LocationSharing({ session, service }: {
   }
 
   function retry() {
-    if (latest.current) void publish(latest.current);
-    else setNotice('Todavía no hay una lectura de ubicación; esperá unos segundos.');
+    if (publishing || inFlight.current) return;
+    if (!latest.current) {
+      setNotice('Todavía no hay una lectura de ubicación; esperá unos segundos.');
+      return;
+    }
+    // Manual retry still respects the at-most-once-per-period rule.
+    const remaining = Math.ceil((lastAttemptAt.current + periodSeconds.current * 1000 - Date.now()) / 1000);
+    if (remaining > 0) {
+      setNotice(`Se reintenta como máximo una vez cada ${periodSeconds.current} s: esperá ${remaining} s.`);
+      return;
+    }
+    setNotice(undefined);
+    void publish(latest.current);
   }
 
   if (!authenticated) {
@@ -224,6 +236,9 @@ export function LocationSharing({ session, service }: {
         )}
         {permission.state === 'askable' && (
           <>
+            {permission.denied && (
+              <Notice kind="warning">Permiso denegado: sin la ubicación no se puede compartir la posición. Podés volver a intentarlo cuando quieras.</Notice>
+            )}
             <Text style={parts.text}>
               Para compartir la posición necesitamos tu ubicación solo mientras la app está abierta. No se usa en segundo plano y podés detener el envío cuando quieras.
             </Text>
