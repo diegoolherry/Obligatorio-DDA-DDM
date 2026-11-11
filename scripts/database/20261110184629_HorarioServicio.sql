@@ -21,4 +21,3 @@ INSERT INTO `__EFMigrationsHistory` (`MigrationId`, `ProductVersion`)
 VALUES ('20261110184629_HorarioServicio', '10.0.11');
 
 COMMIT;
-

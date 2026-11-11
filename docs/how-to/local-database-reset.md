@@ -60,7 +60,7 @@ dotnet ef migrations script <anterior> <nueva> --project src/Api/API-Berruti/API
 ```
 
 3. Si la migración cambia columnas con datos, ajustá el `.cs` de la migración para convertirlos (por ejemplo `HorarioServicio` convierte `fecha`/`hora_salida`/`hora_llegada` en `salida`/`llegada`) antes de generar el SQL. Se genera un script por migración; `scripts/database/migrations.sql` es histórico y solo contiene `EsquemaAutenticacion`.
-4. Conserva el SQL generado por EF sin retoques manuales y versionado según la convención de scripts por migración del repositorio.
+4. Conserva el SQL generado por EF sin retoques manuales y versionado según la convención de scripts por migración del repositorio. Única normalización permitida: quitar la línea en blanco final que agrega EF, porque `git diff --check` del CI la rechaza; el SQL no cambia.
 5. Para revisar el estado sin modificar datos, ejecuta `scripts/update-local-db.ps1 -Diagnose` (o sin argumentos). Solo con autorización explícita y después de revisar historial/esquema, usa `scripts/update-local-db.ps1 -Apply`; reserva el procedimiento destructivo de arriba para recrear expresamente una base descartable.
 
 ## Probar el ingreso de las cuentas demo
