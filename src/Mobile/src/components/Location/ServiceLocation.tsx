@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import type { ConsultaUbicacionResponse, ServicioUbicacionDto } from '../../contracts/location';
 import type { IAuthenticationService } from '../../services/Authentication/IAuthenticationService';
 import type { ILocationService } from '../../services/Location/ILocationService';
@@ -70,8 +70,8 @@ export function ServiceLocation({ session, service }: {
 
   if (!authenticated || !isPassenger) {
     return (
-      <View style={styles.container}>
-        <Text style={parts.title} accessibilityRole="header">Ubicación del servicio</Text>
+      <View className={parts.container}>
+        <Text className={parts.title} accessibilityRole="header">Ubicación del servicio</Text>
         <Notice kind="warning">
           {!authenticated ? 'Ingresá como pasajero en la pestaña «Ingreso» para ver la ubicación de un servicio.'
             : 'Esta pantalla es para cuentas de pasajero. Para compartir la ubicación usá «Compartir ubicación».'}
@@ -81,16 +81,16 @@ export function ServiceLocation({ session, service }: {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={parts.title} accessibilityRole="header">Ubicación del servicio</Text>
-      <Text style={parts.muted}>Datos ficticios y aproximados: demostración académica, no es información operativa real.</Text>
+    <ScrollView contentContainerClassName={parts.container}>
+      <Text className={parts.title} accessibilityRole="header">Ubicación del servicio</Text>
+      <Text className={parts.muted}>Ubicación aproximada: puede no coincidir con la posición exacta del ómnibus.</Text>
 
-      <View style={parts.section}>
-        <Text style={parts.subtitle} accessibilityRole="header">Servicios</Text>
+      <View className={parts.section}>
+        <Text className={parts.subtitle} accessibilityRole="header">Servicios</Text>
         {services.status === 'loading' && (
-          <View style={parts.row} accessibilityLiveRegion="polite">
-            <ActivityIndicator accessibilityLabel="Cargando servicios" color="#222" />
-            <Text style={parts.text}>Cargando servicios…</Text>
+          <View className={parts.row} accessibilityLiveRegion="polite">
+            <ActivityIndicator accessibilityLabel="Cargando servicios" color="#141414" />
+            <Text className={parts.text}>Cargando servicios…</Text>
           </View>
         )}
         {services.status === 'error' && (
@@ -108,15 +108,15 @@ export function ServiceLocation({ session, service }: {
         {services.status === 'ready' && (
           <ServiceChooser services={services.services} selectedId={selectedId} onSelect={select} />
         )}
-        {services.status === 'ready' && !selectedId && <Text style={parts.muted}>Elegí un servicio para ver dónde está.</Text>}
+        {services.status === 'ready' && !selectedId && <Text className={parts.muted}>Elegí un servicio para ver dónde está.</Text>}
       </View>
 
       {selectedId && (
-        <View style={parts.section}>
+        <View className={parts.section}>
           {detail.status === 'loading' && (
-            <View style={parts.row} accessibilityLiveRegion="polite">
-              <ActivityIndicator accessibilityLabel="Consultando ubicación" color="#222" />
-              <Text style={parts.text}>Consultando ubicación…</Text>
+            <View className={parts.row} accessibilityLiveRegion="polite">
+              <ActivityIndicator accessibilityLabel="Consultando ubicación" color="#141414" />
+              <Text className={parts.text}>Consultando ubicación…</Text>
             </View>
           )}
           {detail.status === 'error' && (
@@ -140,20 +140,20 @@ function Detail({ data }: { data: ConsultaUbicacionResponse }) {
   const updated = position ? formatUruguayDateTime(position.recibidaUtc) : undefined;
   const hasArrival = data.llegadaAproximada !== null && data.estadoDemora !== 'sinDatos';
   return (
-    <View style={parts.section}>
-      <Text style={parts.subtitle} accessibilityRole="header">{data.servicio.origen} → {data.servicio.destino}</Text>
-      <Text style={parts.text}>
+    <View className={parts.section}>
+      <Text className={parts.subtitle} accessibilityRole="header">{data.servicio.origen} → {data.servicio.destino}</Text>
+      <Text className={parts.text}>
         Programado: sale {localHour(data.servicio.salida)} · llega {localHour(data.servicio.llegada)} (hora de Uruguay)
       </Text>
 
-      <Text style={parts.subtitle} accessibilityRole="header">Última posición</Text>
+      <Text className={parts.subtitle} accessibilityRole="header">Última posición</Text>
       {position === null ? (
         <Notice kind="info">Todavía no se recibieron posiciones de este servicio.</Notice>
       ) : (
         <>
-          <Text style={parts.text}>Latitud {position.latitud.toFixed(6)} · longitud {position.longitud.toFixed(6)}</Text>
-          <Text style={parts.text}>Actualizada: {updated ?? 'fecha no disponible'} (hora de Uruguay)</Text>
-          <Text style={parts.text}>Antigüedad: {formatAge(position.antiguedadSegundos)}</Text>
+          <Text className={parts.text}>Latitud {position.latitud.toFixed(6)} · longitud {position.longitud.toFixed(6)}</Text>
+          <Text className={parts.text}>Actualizada: {updated ?? 'fecha no disponible'} (hora de Uruguay)</Text>
+          <Text className={parts.text}>Antigüedad: {formatAge(position.antiguedadSegundos)}</Text>
           {data.desactualizada && (
             <Notice kind="warning">
               {`Desactualizada: la última posición supera el umbral de ${data.parametros.umbralDesactualizacionSegundos} s. No la tomes como la ubicación actual.`}
@@ -162,11 +162,11 @@ function Detail({ data }: { data: ConsultaUbicacionResponse }) {
         </>
       )}
 
-      <Text style={parts.subtitle} accessibilityRole="header">Llegada y demora</Text>
+      <Text className={parts.subtitle} accessibilityRole="header">Llegada y demora</Text>
       {hasArrival && data.llegadaAproximada !== null ? (
         <>
-          <Text style={parts.text}>Llegada aproximada: {localHour(data.llegadaAproximada)} (hora de Uruguay)</Text>
-          <Text style={parts.text}>
+          <Text className={parts.text}>Llegada aproximada: {localHour(data.llegadaAproximada)} (hora de Uruguay)</Text>
+          <Text className={parts.text}>
             Estado: {data.estadoDemora === 'conDemora' ? 'con demora' : 'en horario'} (tolerancia {data.parametros.toleranciaDemoraMinutos} min)
           </Text>
         </>
@@ -174,18 +174,14 @@ function Detail({ data }: { data: ConsultaUbicacionResponse }) {
         <Notice kind="info">{`Llegada y demora no disponibles. Motivo: ${data.motivo ?? 'sin datos suficientes.'}`}</Notice>
       )}
 
-      <Text style={parts.subtitle} accessibilityRole="header">Parámetros académicos</Text>
-      <Text style={parts.text}>Periodicidad de publicación: {data.parametros.periodicidadSegundos} s</Text>
-      <Text style={parts.text}>Umbral de desactualización: {data.parametros.umbralDesactualizacionSegundos} s</Text>
-      <Text style={parts.text}>Velocidad promedio: {data.parametros.velocidadPromedioKmH} km/h</Text>
-      <Text style={parts.text}>Tolerancia de demora: {data.parametros.toleranciaDemoraMinutos} min</Text>
-      <Text style={parts.muted}>
-        {data.datosFicticios ? 'Datos ficticios y aproximados: demostración académica.' : 'Datos aproximados: demostración académica.'}
+      <Text className={parts.subtitle} accessibilityRole="header">Parámetros del servicio</Text>
+      <Text className={parts.text}>Periodicidad de publicación: {data.parametros.periodicidadSegundos} s</Text>
+      <Text className={parts.text}>Umbral de desactualización: {data.parametros.umbralDesactualizacionSegundos} s</Text>
+      <Text className={parts.text}>Velocidad promedio: {data.parametros.velocidadPromedioKmH} km/h</Text>
+      <Text className={parts.text}>Tolerancia de demora: {data.parametros.toleranciaDemoraMinutos} min</Text>
+      <Text className={parts.muted}>
+        Datos aproximados.
       </Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 24, gap: 16 },
-});

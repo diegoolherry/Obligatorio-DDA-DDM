@@ -1,7 +1,9 @@
+import './global.css';
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { AppHeader } from './src/components/ui/AppHeader';
 import { PassengerLogin } from './src/components/Authentication/PassengerLogin';
 import { ItinerarySearch } from './src/components/Itinerary/ItinerarySearch';
 import { LocationSharing } from './src/components/Location/LocationSharing';
@@ -29,22 +31,26 @@ export default function App() {
   useEffect(() => () => authentication.discard(), [authentication]);
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.tabs} accessibilityRole="tablist">
-          <Tab label="Buscar viaje" selected={screen === 'buscar'} onPress={() => setScreen('buscar')} />
-          <Tab label="Ingreso" selected={screen === 'ingreso'} onPress={() => setScreen('ingreso')} />
-          <Tab label="Compartir ubicación" selected={screen === 'compartir'} onPress={() => setScreen('compartir')} />
-          <Tab label="Ubicación del servicio" selected={screen === 'ubicacion'} onPress={() => setScreen('ubicacion')} />
-        </View>
-        {screen === 'buscar' && <ItinerarySearch service={itineraries} />}
-        {screen === 'ingreso' && <PassengerLogin service={authentication} />}
-        {/* Stays mounted while hidden so the collector keeps sharing from any tab (foreground only). */}
-        <View style={screen === 'compartir' ? styles.screen : styles.hidden}>
-          <LocationSharing session={authentication} service={location} />
-        </View>
-        {screen === 'ubicacion' && <ServiceLocation session={authentication} service={location} />}
-        <StatusBar style="dark" />
-      </SafeAreaView>
+      <View className="flex-1 bg-surface-50">
+        <AppHeader />
+        {/* style, not className: NativeWind did not apply className to this third-party SafeAreaView on device (empty tabs). */}
+        <SafeAreaView style={{ flex: 1 }} edges={['left', 'right', 'bottom']}>
+          <View className="flex-row border-b border-border-200 bg-surface-0 p-1" accessibilityRole="tablist">
+            <Tab label="Buscar viaje" selected={screen === 'buscar'} onPress={() => setScreen('buscar')} />
+            <Tab label="Ingreso" selected={screen === 'ingreso'} onPress={() => setScreen('ingreso')} />
+            <Tab label="Compartir ubicación" selected={screen === 'compartir'} onPress={() => setScreen('compartir')} />
+            <Tab label="Ubicación del servicio" selected={screen === 'ubicacion'} onPress={() => setScreen('ubicacion')} />
+          </View>
+          {screen === 'buscar' && <ItinerarySearch service={itineraries} />}
+          {screen === 'ingreso' && <PassengerLogin service={authentication} />}
+          {/* Stays mounted while hidden so the collector keeps sharing from any tab (foreground only). */}
+          <View className={screen === 'compartir' ? 'flex-1' : 'hidden'}>
+            <LocationSharing session={authentication} service={location} />
+          </View>
+          {screen === 'ubicacion' && <ServiceLocation session={authentication} service={location} />}
+        </SafeAreaView>
+        <StatusBar style="light" />
+      </View>
     </SafeAreaProvider>
   );
 }
@@ -53,21 +59,11 @@ function Tab({ label, selected, onPress }: { label: string; selected: boolean; o
   return (
     <Pressable
       accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{ selected }} onPress={onPress}
-      style={({ pressed }) => [styles.tab, selected && styles.tabSelected, pressed && styles.tabPressed]}
+      className={selected
+        ? 'min-h-12 flex-1 items-center justify-center rounded-full bg-accent-500 px-1'
+        : 'min-h-12 flex-1 items-center justify-center rounded-full bg-surface-0 px-1 active:bg-surface-100'}
     >
-      <Text style={[styles.tabLabel, selected && styles.tabLabelSelected]}>{label}</Text>
+      <Text className={selected ? 'text-center text-xs font-bold text-ink-900' : 'text-center text-xs font-semibold text-ink-700'}>{label}</Text>
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff' },
-  screen: { flex: 1 },
-  hidden: { display: 'none' },
-  tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#999' },
-  tab: { flex: 1, minHeight: 48, paddingHorizontal: 2, justifyContent: 'center', alignItems: 'center', borderBottomWidth: 3, borderBottomColor: 'transparent' },
-  tabSelected: { borderBottomColor: '#111' },
-  tabPressed: { opacity: 0.6 },
-  tabLabel: { color: '#333', fontSize: 12, textAlign: 'center' },
-  tabLabelSelected: { color: '#111', fontWeight: '700' },
-});

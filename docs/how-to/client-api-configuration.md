@@ -23,7 +23,23 @@ API expone OpenAPI solo en Development. Ambos servidores incluyen redirección H
 | Celular físico | El propio celular, **no** la computadora que ejecuta la API. |
 | Emulador | El entorno emulado; el acceso al host depende del emulador y su red. No se verificó uno en este proyecto. |
 
-Para una futura prueba desde un celular, será necesario acordar una dirección LAN alcanzable del host, una escucha que admita esa interfaz y las reglas de firewall/red correspondientes. No basta con sustituir `localhost`: los perfiles actuales son locales. No se verificó aquí exposición LAN, CORS, certificados de dispositivo ni conexión cliente/API. Un túnel Expo sirve al desarrollo de Mobile/Metro; **no convierte automáticamente la API local en una API pública**.
+Un túnel Expo sirve al desarrollo de Mobile/Metro; **no convierte automáticamente la API local en una API pública**. No se verificaron exposición LAN ni reglas de firewall.
+
+### Probar en el celular con un túnel de Cloudflare
+
+Las pruebas en iPhone usan un túnel temporal de `cloudflared` hacia la API local. **El túnel debe apuntar al perfil `https`**: el ingreso y las operaciones con sesión exigen HTTPS en la API ([`LimiteAutenticacion`](../../src/Api/API-Berruti/API-Berruti/Security/Authentication/LimiteAutenticacion.cs), [`SesionBearerHandler`](../../src/Api/API-Berruti/API-Berruti/Security/Authentication/SesionBearerHandler.cs)). Con el perfil `http`, la búsqueda anónima funciona pero el ingreso responde `400 httpsRequerido` y la app muestra «Respuesta inválida del servidor» (observado el 2026-11-12).
+
+```powershell
+.\scripts\start-api-local.ps1 -Profile https                      # terminal 1: https://localhost:7053
+cloudflared tunnel --no-tls-verify --url https://localhost:7053   # terminal 2: copiar la URL https://….trycloudflare.com
+cd src\Mobile                                                    # terminal 3
+$env:EXPO_PUBLIC_API_URL = "https://<subdominio>.trycloudflare.com"
+npx expo start --tunnel -c
+```
+
+- `--no-tls-verify` solo afecta el tramo local entre `cloudflared` y la API, que usa el certificado de desarrollo; el iPhone recibe el certificado público de Cloudflare.
+- La URL del túnel cambia en cada arranque: volvé a configurar `EXPO_PUBLIC_API_URL` y reiniciá Metro con `-c`.
+- La URL es pública mientras el túnel está abierto: cerralo con Ctrl+C al terminar y usá solo cuentas ficticias.
 
 ## Opciones consumidas por los clientes
 

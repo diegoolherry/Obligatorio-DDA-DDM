@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, ScrollView, Text, View } from 'react-native';
 import { Accuracy, watchPositionAsync } from 'expo-location';
 import type { LocationSubscription } from 'expo-location';
 import type {
@@ -183,16 +183,16 @@ export function LocationSharing({ session, service }: {
 
   if (!authenticated) {
     return (
-      <View style={styles.container}>
-        <Text style={parts.title} accessibilityRole="header">Compartir ubicación</Text>
+      <View className={parts.container}>
+        <Text className={parts.title} accessibilityRole="header">Compartir ubicación</Text>
         <Notice kind="warning">Ingresá como cobrador en la pestaña «Ingreso» para compartir la ubicación.</Notice>
       </View>
     );
   }
   if (!isCollector) {
     return (
-      <View style={styles.container}>
-        <Text style={parts.title} accessibilityRole="header">Compartir ubicación</Text>
+      <View className={parts.container}>
+        <Text className={parts.title} accessibilityRole="header">Compartir ubicación</Text>
         <Notice kind="warning">Esta pantalla es solo para cuentas de cobrador. Para ver la ubicación de un servicio usá «Ubicación del servicio».</Notice>
       </View>
     );
@@ -202,16 +202,16 @@ export function LocationSharing({ session, service }: {
   const lastTime = last ? formatUruguayDateTime(last.response.recibidaUtc) : undefined;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={parts.title} accessibilityRole="header">Compartir ubicación</Text>
-      <Text style={parts.muted}>Demostración académica: se envía la posición de este teléfono como la del ómnibus del servicio elegido.</Text>
+    <ScrollView contentContainerClassName={parts.container}>
+      <Text className={parts.title} accessibilityRole="header">Compartir ubicación</Text>
+      <Text className={parts.muted}>Se envía la posición de este teléfono como la del ómnibus del servicio elegido.</Text>
 
-      <View style={parts.section}>
-        <Text style={parts.subtitle} accessibilityRole="header">1. Elegí el servicio</Text>
+      <View className={parts.section}>
+        <Text className={parts.subtitle} accessibilityRole="header">1. Elegí el servicio</Text>
         {services.status === 'loading' && (
-          <View style={parts.row} accessibilityLiveRegion="polite">
-            <ActivityIndicator accessibilityLabel="Cargando servicios" color="#222" />
-            <Text style={parts.text}>Cargando tus servicios…</Text>
+          <View className={parts.row} accessibilityLiveRegion="polite">
+            <ActivityIndicator accessibilityLabel="Cargando servicios" color="#141414" />
+            <Text className={parts.text}>Cargando tus servicios…</Text>
           </View>
         )}
         {services.status === 'error' && (
@@ -231,12 +231,12 @@ export function LocationSharing({ session, service }: {
         )}
       </View>
 
-      <View style={parts.section}>
-        <Text style={parts.subtitle} accessibilityRole="header">2. Permiso de ubicación</Text>
+      <View className={parts.section}>
+        <Text className={parts.subtitle} accessibilityRole="header">2. Permiso de ubicación</Text>
         {permission.state === 'checking' && (
-          <View style={parts.row} accessibilityLiveRegion="polite">
-            <ActivityIndicator accessibilityLabel="Comprobando permiso" color="#222" />
-            <Text style={parts.text}>Comprobando el permiso de ubicación…</Text>
+          <View className={parts.row} accessibilityLiveRegion="polite">
+            <ActivityIndicator accessibilityLabel="Comprobando permiso" color="#141414" />
+            <Text className={parts.text}>Comprobando el permiso de ubicación…</Text>
           </View>
         )}
         {permission.state === 'askable' && (
@@ -244,7 +244,7 @@ export function LocationSharing({ session, service }: {
             {permission.denied && (
               <Notice kind="warning">Permiso denegado: sin la ubicación no se puede compartir la posición. Podés volver a intentarlo cuando quieras.</Notice>
             )}
-            <Text style={parts.text}>
+            <Text className={parts.text}>
               Para compartir la posición necesitamos tu ubicación solo mientras la app está abierta. No se usa en segundo plano y podés detener el envío cuando quieras.
             </Text>
             <Action label="Permitir ubicación" onPress={() => { void permission.request(); }} />
@@ -256,21 +256,21 @@ export function LocationSharing({ session, service }: {
             <Action label="Abrir Ajustes" onPress={permission.openSettings} />
           </>
         )}
-        {permission.state === 'granted' && <Text style={parts.text}>Permiso concedido (ubicación mientras se usa la app).</Text>}
+        {permission.state === 'granted' && <Text className={parts.text}>Permiso concedido (ubicación mientras se usa la app).</Text>}
       </View>
 
-      <View style={parts.section}>
-        <Text style={parts.subtitle} accessibilityRole="header">3. Envío</Text>
+      <View className={parts.section}>
+        <Text className={parts.subtitle} accessibilityRole="header">3. Envío</Text>
         {!sharing ? (
           <Action label="Compartir" disabled={!selected || permission.state !== 'granted'} onPress={() => { void start(); }} />
         ) : (
           <Action label="Detener" onPress={stop} />
         )}
-        {!selected && permission.state === 'granted' && <Text style={parts.muted}>Elegí un servicio para poder compartir.</Text>}
+        {!selected && permission.state === 'granted' && <Text className={parts.muted}>Elegí un servicio para poder compartir.</Text>}
         {sharing && (
-          <View style={parts.row} accessibilityLiveRegion="polite">
-            <ActivityIndicator accessibilityLabel="Compartiendo" color="#222" />
-            <Text style={parts.text}>
+          <View className={parts.row} accessibilityLiveRegion="polite">
+            <ActivityIndicator accessibilityLabel="Compartiendo" color="#141414" />
+            <Text className={parts.text}>
               {publishing ? 'Enviando posición…'
                 : `Compartiendo para ${selected ? `${selected.origen} → ${selected.destino}` : 'el servicio'}. Se envía como máximo cada ${periodSeconds.current} s.`}
             </Text>
@@ -286,21 +286,17 @@ export function LocationSharing({ session, service }: {
           </>
         )}
         {last && (
-          <View style={parts.section} accessibilityLiveRegion="polite">
-            <Text style={parts.subtitle}>Última publicación aceptada</Text>
-            <Text style={parts.text}>Hora de recepción: {lastTime ?? 'no disponible'} (hora de Uruguay)</Text>
-            <Text style={parts.text}>
+          <View className={parts.section} accessibilityLiveRegion="polite">
+            <Text className={parts.subtitle}>Última publicación aceptada</Text>
+            <Text className={parts.text}>Hora de recepción: {lastTime ?? 'no disponible'} (hora de Uruguay)</Text>
+            <Text className={parts.text}>
               Precisión de la lectura: {last.accuracy === null ? 'no informada' : `±${Math.round(last.accuracy)} m`}
             </Text>
-            <Text style={parts.text}>{periodicityText(last)}</Text>
+            <Text className={parts.text}>{periodicityText(last)}</Text>
           </View>
         )}
-        {!last && !problem && sharing && <Text style={parts.muted}>Esperando la primera lectura de ubicación…</Text>}
+        {!last && !problem && sharing && <Text className={parts.muted}>Esperando la primera lectura de ubicación…</Text>}
       </View>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 24, gap: 16 },
-});
