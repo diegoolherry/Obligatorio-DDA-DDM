@@ -33,7 +33,8 @@ export default function App() {
     <SafeAreaProvider>
       <View className="flex-1 bg-surface-50">
         <AppHeader />
-        <SafeAreaView className="flex-1 bg-surface-50" edges={['left', 'right', 'bottom']}>
+        {/* style, not className: NativeWind did not apply className to this third-party SafeAreaView on device (empty tabs). */}
+        <SafeAreaView style={{ flex: 1 }} edges={['left', 'right', 'bottom']}>
           <View className="flex-row border-b border-border-200 bg-surface-0 p-1" accessibilityRole="tablist">
             <Tab label="Buscar viaje" selected={screen === 'buscar'} onPress={() => setScreen('buscar')} />
             <Tab label="Ingreso" selected={screen === 'ingreso'} onPress={() => setScreen('ingreso')} />
