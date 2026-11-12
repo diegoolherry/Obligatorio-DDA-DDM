@@ -888,6 +888,105 @@
         "Las pantallas que dependen de la API distinguen «Sin conexión» de otros errores y ofrecen reintento; no se guardan tokens ni datos de pago en el dispositivo."
       ],
       "evidence": "Creada a partir de FIN-006. Dependencias AsyncStorage y NetInfo aprobadas para este alcance; sus versiones se resuelven con npx expo install. Responsables sin asignar."
+    },
+    {
+      "id": "FIN-010",
+      "name": "Diseño profesional del producto en Mobile y Web",
+      "description": "Pedido de Diego (2026-11-12): pasar de pantallas funcionales a un frontend profesional en React Native y Blazor, con un sistema de diseño compartido. Decisiones de Diego (2026-11-12): nombre Berrutti y paleta basada en su identidad, sin logo ni fotografías; diseñar primero en OpenPencil, empezando por Mobile; migrar Mobile a NativeWind si se verifica su compatibilidad con Expo 58. Las pantallas que todavía no existen (tickets, QR, abonos) se construyen con el diseño nuevo dentro de sus propias tareas.",
+      "priority": "alta",
+      "area": [
+        "Mobile",
+        "Web",
+        "Docs"
+      ],
+      "status": "in_progress",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-11-12T18:20:46-03:00",
+      "startedAt": "2026-11-12T18:20:46-03:00",
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "Existe un sistema de diseño aprobado (colores con contraste verificado, tipografía, espaciado, componentes y estados) usado por Mobile y Web.",
+        "Las pantallas existentes de Mobile y Web aplican el sistema de diseño sin perder estados de carga, vacío, error, sin conexión y éxito.",
+        "La identidad respeta la decisión de nombre y paleta, sin logo ni fotografías de la empresa."
+      ],
+      "evidence": "Coordina FIN-010-01, FIN-010-02 y FIN-010-03."
+    },
+    {
+      "id": "FIN-010-01",
+      "parentId": "FIN-010",
+      "name": "Sistema de diseño y mockups en OpenPencil",
+      "description": "Definir en OpenPencil los tokens (paleta basada en Berrutti, tipografía, espaciado), los componentes base y los mockups de las pantallas Mobile clave, y documentarlos en docs/explanation/ux-design.md.",
+      "priority": "alta",
+      "area": [
+        "Docs"
+      ],
+      "status": "in_progress",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-11-12T18:20:46-03:00",
+      "startedAt": "2026-11-12T18:20:46-03:00",
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "El archivo de OpenPencil versionado contiene los tokens, los componentes base con sus estados y los mockups de las pantallas Mobile clave (acceso, búsqueda, tickets con QR, validación del cobrador y ubicación).",
+        "Cada combinación de texto y fondo cumple contraste WCAG AA (4,5:1 normal, 3:1 grande) y el estado nunca se comunica solo con color.",
+        "ux-design.md registra la identidad decidida y los tokens definitivos, y Enzo confirma el cambio de identidad en la revisión."
+      ],
+      "evidence": "Rama feature/fin-010-design-system."
+    },
+    {
+      "id": "FIN-010-02",
+      "parentId": "FIN-010",
+      "name": "Migrar Mobile a NativeWind y aplicar el sistema de diseño",
+      "description": "Verificar la compatibilidad de NativeWind con Expo 58, configurar los tokens de FIN-010-01 y aplicar el diseño a las pantallas Mobile existentes.",
+      "priority": "alta",
+      "area": [
+        "Mobile"
+      ],
+      "status": "pending",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-11-12T18:20:46-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [
+        "FIN-010-01"
+      ],
+      "acceptanceCriteria": [
+        "NativeWind funciona en Expo 58 con los tokens del sistema de diseño; si no es compatible, se documenta y se decide la alternativa antes de migrar.",
+        "Las pantallas Mobile existentes aplican el diseño y conservan su comportamiento y sus estados."
+      ],
+      "evidence": "Pendiente de FIN-010-01."
+    },
+    {
+      "id": "FIN-010-03",
+      "parentId": "FIN-010",
+      "name": "Aplicar el sistema de diseño a la Web Blazor",
+      "description": "Trasladar los tokens y componentes de FIN-010-01 a la Web Blazor y aplicarlos a las páginas existentes.",
+      "priority": "alta",
+      "area": [
+        "Web"
+      ],
+      "status": "pending",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-11-12T18:20:46-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [
+        "FIN-010-01"
+      ],
+      "acceptanceCriteria": [
+        "Las páginas Web existentes aplican los tokens y componentes del sistema de diseño, con foco visible y navegación por teclado.",
+        "Las páginas conservan su comportamiento y sus estados de carga, vacío, error y éxito."
+      ],
+      "evidence": "Pendiente de FIN-010-01."
     }
   ]
 }

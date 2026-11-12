@@ -1,6 +1,6 @@
 # Obligatorio Berruti — Guía visual y de experiencia de usuario — MVP académico
 
-> **Estado:** propuesta para revisión del equipo, anterior a la consigna oficial. Producto académico ficticio inspirado en un contexto público de transporte; no es un canal de Berrutti ni representa un servicio afiliado, sus datos u operación real.
+> **Estado:** propuesta para revisión del equipo. La identidad visible se decidió el 2026-11-12 (§2): la app usa el nombre Berrutti y una paleta basada en su identidad, sin su logo ni sus fotografías. Las cuentas, pagos y operaciones siguen siendo ficticios: la app no opera servicios ni cobros reales de la empresa. El sistema de diseño definitivo se trabaja en `FIN-010`.
 
 ## 1. Propósito y límites
 
@@ -15,23 +15,34 @@ Esta guía define decisiones **propuestas** de interfaz para el portal Blazor y 
 | [Inicio — index.html](http://www.berruttiturismo.com.uy/index.html) | Imagen de ómnibus, encabezado, navegación superior y acceso a horarios. | Priorizar una entrada clara a búsqueda y viajes; sin reutilizar fotografía, logo ni composición. |
 | [Historia — historia.html](http://www.berruttiturismo.com.uy/historia.html) | Relato histórico en forma de cronología. | No crear sección histórica: no ayuda a completar la tarea principal. |
 | [Servicios — servicios.html](http://www.berruttiturismo.com.uy/servicios.html) | Presenta líneas, pasajes, abonos y otros servicios. | Distinguir «Tickets» y «Abonos»; los demás servicios quedan fuera de alcance. |
-| [Horarios — horarios.html](http://www.berruttiturismo.com.uy/horarios.html) | Horarios publicados como imagen. | Mostrar itinerarios ficticios como información legible y adaptable, no transcribir horarios reales ni depender de una imagen. |
+| [Horarios — horarios.html](http://www.berruttiturismo.com.uy/horarios.html) | Horarios publicados como imagen. | Mostrar los horarios como información legible y adaptable, sin depender de una imagen. `FIN-001` transcribió los horarios de invierno 2026 con su fuente. |
 | [Presupuesto — presupuesto.html](http://www.berruttiturismo.com.uy/presupuesto.html) | Canal para consultar presupuestos. | No incluir solicitudes de presupuesto: precio y pago simulados pertenecen al flujo académico de compra. |
 | [Contacto — contacto.html](http://www.berruttiturismo.com.uy/contacto.html) | Formulario de contacto/reserva. | No copiar formulario, detalles de contacto ni prometer reservas oficiales. |
 
-**Límite de identidad:** el logo observado combina rojo, naranja, negro y blanco; eso no autoriza su uso ni demuestra una paleta oficial. Una variante naranja en `skin.css` tampoco acredita que esté activa. No copiar marca, fotografías, textos extensos, horarios, teléfonos, direcciones ni datos de contacto. Usar rótulos y datos ficticios identificados como tales.
+**Identidad (decisión de Diego, 2026-11-12, pendiente de confirmación de Enzo en `FIN-010-01`):**
 
-## 3. Lenguaje visual propuesto, sujeto a aprobación
+- **Nombre:** la app se presenta como **Berrutti**.
+- **Paleta:** basada en la identidad observada de Berrutti (rojo, naranja, negro y blanco), con los tonos ajustados para cumplir contraste (§3).
+- **No se usan** el logo ni las fotografías de la empresa: el repositorio es público y son material con derechos de terceros. En su lugar, el nombre se muestra como texto con tipografía propia.
+- **No se copian** textos extensos, teléfonos, direcciones ni datos de contacto del sitio. Las cuentas, pagos y validaciones son ficticios.
 
-| Token propuesto | Valor / uso previsto | Contraste de texto sobre fondo indicado |
-| --- | --- | --- |
-| Fondo base / superficie | `#F7F4EF` / `#FFFFFF`; paneles sin textura | — |
-| Texto principal | `#14324A` sobre blanco o fondo base; títulos, cuerpo y navegación | 13,25:1 / 12,08:1 |
-| Acento de acción | `#A74220` sobre blanco; enlaces y acción primaria con texto legible | 6,10:1 |
-| Confirmación | `#245746` sobre blanco; mensaje de validación confirmada | 8,31:1 |
-| Error | `#A5272B` sobre blanco; rechazo y aviso de fallo | 7,18:1 |
+## 3. Lenguaje visual
 
-Son **tokens propuestos**, no colores oficiales: pares calculados con el algoritmo de contraste WCAG, pendientes de revisión con la identidad elegida. `#E77723` sobre blanco alcanza solo 2,97:1: **no usar para texto**. Mantener contraste de texto normal ≥4,5:1 y grande ≥3:1; verificar también texto dentro de botones, estados de foco, iconos informativos y superficies adicionales antes de aprobarlas. Color nunca reemplaza texto, icono o descripción de estado.
+Tokens definidos en `FIN-010-01`. La fuente completa (escalas, espaciado, radios, sombras y los 23 pares de texto verificados) es [design/fin-010/README.md](../../design/fin-010/README.md); el archivo editable es `design/fin-010/berrutti.op` (OpenPencil). Los nombres son compatibles con un tema de Tailwind/NativeWind.
+
+| Token | Valor | Uso | Contraste del par de texto |
+| --- | --- | --- | --- |
+| `primary-600` | `#C41E24` | Acción principal, con texto blanco | 5,90:1 |
+| `ink-900` | `#141414` | Texto principal y encabezado (texto blanco encima) | 17,01:1 sobre `surface-50`; 18,42:1 blanco sobre él |
+| `accent-500` | `#E77723` | Acento y relleno, siempre con texto `ink-900` | 6,19:1. Sobre blanco da 2,97:1: **nunca como texto** |
+| `surface-50` / `surface-0` | `#F6F6F3` / `#FFFFFF` | Fondo de pantalla / tarjetas | — |
+| `ink-500` | `#5E5E59` | Texto secundario | 6,02:1 sobre `surface-50` |
+| `success-700` / `success-100` | `#1B6B38` / `#E2F3E7` | «Sin usar», «Ticket válido» | 5,68:1 |
+| `error-700` / `error-100` | `#B3261E` / `#FCE8E6` | Rechazos y errores | 5,55:1 |
+| `warning-800` / `warning-100` | `#6E4400` / `#FFF0C2` | «Información desactualizada» | 7,43:1 |
+| `info-700` / `info-100` | `#1D4F91` / `#E3EEFB` | Avisos informativos | 6,94:1 |
+
+Todos los pares de texto usados cumplen WCAG AA (≥4,5:1; el más bajo, 5,22:1). Color nunca reemplaza texto, icono o descripción de estado.
 
 Tipografía: fuente de sistema legible, jerarquía de título, subtítulo, cuerpo y ayuda; evitar tamaños fijos que impidan ampliación. Espaciado base propuesto de 8 unidades (subdivisión 4), paneles con márgenes constantes y jerarquía por espacio antes que decoración. Iconos acompañan etiquetas; QR y datos críticos deben conservar suficiente tamaño y claridad al mostrarse en pantalla.
 
@@ -83,6 +94,8 @@ Después del inicio de sesión, mostrar solo navegación pertinente al rol. Un a
 
 ## 8. Decisiones pendientes y criterios de aprobación
 
-- **Pendiente de aprobación del equipo:** identidad propia, nombre visible, derechos de logo e imágenes, tokens definitivos y consigna oficial del curso. Hasta entonces, usar recursos originales o neutrales; no reutilizar material del sitio público.
+- **Decidido (2026-11-12, Diego; Enzo confirma en `FIN-010-01`):** nombre Berrutti y paleta basada en su identidad, sin logo ni fotografías. Diseño primero en OpenPencil y después en código, empezando por Mobile; Mobile migra a NativeWind si su compatibilidad con Expo 58 se verifica.
+- **Hecho en `FIN-010-01`:** tokens (§3) y 13 mockups Mobile en `design/fin-010/`, aprobados por Diego el 2026-11-12.
+- **Pendiente:** confirmación de Enzo; mockups de Mis abonos, Cuenta, confirmación de pago, permiso de cámara denegado y listas vacías o cargando; revisión contra la consigna oficial del curso.
 - Confirmar con la consigna los límites de cada pantalla, parámetros académicos de publicación/desactualización y datos ficticios. No incorporar servicios, horarios, reservas ni información de contacto reales.
 - Para aprobar wireframes: cada rol debe completar su tarea principal, cada QR debe tener tramo explícito, cada validación no confirmada debe ser distinguible del éxito y la ubicación desactualizada no debe aparentar tiempo real. Revisar contraste de las combinaciones finales y el recorrido con teclado/tacto antes de implementar UI.
