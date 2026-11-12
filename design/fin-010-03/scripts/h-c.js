@@ -1,0 +1,27 @@
+// Home C · salidas de hoy
+const { root, main } = DeskPage("H-C-salidas-de-hoy", 2800, "inicio", "visitante");
+const row = H(main, { gap: 32, alignItems: "start" });
+const left = V(row, { name: "Columna principal", gap: 24 });
+Title(left, "Salidas de hoy", "viernes 13/11/2026. Las demás horas de cada salida son aproximadas y van marcadas con ≈.", { s: 40, ss: 16 });
+const dc = H(left, { gap: 16, alignItems: "end" });
+FW(dc, 240, "Salidas del día", "13/11/2026", { trail: "calendar" });
+Btn(dc, "Consultar", { width: 160, v: "secondary", icon: "refresh-cw" });
+const c = Card(left, { name: "Línea Nueva Palmira / Colonia", gap: 8 });
+T(c, "Línea Nueva Palmira / Colonia", { s: 20, w: 700, lh: 1.25, fill: true, name: "H2" });
+[SALIDAS_HOY[0], SALIDAS_HOY[1], SALIDAS_HOY[2]].forEach((s) => { Sep(c); SalidaRow(c, s[0], s[1], s[2], s[3], s[4]); });
+const c2 = Card(left, { name: "Línea Carmelo / Mercedes", gap: 8 });
+T(c2, "Línea Carmelo / Mercedes", { s: 20, w: 700, lh: 1.25, fill: true, name: "H2" });
+Sep(c2); SalidaRow(c2, "13:00", "Carmelo → Mercedes", "Carmelo 13:00 → Nueva Palmira ≈13:30 → Dolores ≈14:15 → Mercedes ≈15:00", null, "Combina desde Colonia");
+LinkRow(left, "Ver el catálogo completo");
+const rail = V(row, { name: "Columna lateral", width: 360, gap: 24 });
+const bc = Card(rail, { name: "Buscar viaje", gap: 16, effects: SH.md });
+T(bc, "Buscar viaje", { s: 20, w: 700, lh: 1.25, fill: true, name: "H2" });
+Field(bc, "Origen", "Carmelo", { trail: "chevron-down" });
+Field(bc, "Destino", "Colonia", { trail: "chevron-down" });
+Field(bc, "Fecha", "13/11/2026", { trail: "calendar" });
+Btn(bc, "Buscar", { icon: "search" });
+const av = Card(rail, { name: "Avisos del catálogo", gap: 12 });
+T(av, "Avisos", { s: 20, w: 700, lh: 1.25, fill: true, name: "H2" });
+StateBox(av, "warn", "25/12/2026: no hay servicios", "Fuente: excepciones del horario publicado.");
+StateBox(av, "info", "Línea Nueva Palmira / Colonia", "Horario de invierno vigente hasta el 20/12/2026.");
+Footer(root, false);
