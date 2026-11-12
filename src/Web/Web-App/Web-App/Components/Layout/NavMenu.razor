@@ -1,44 +1,65 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">Web-App</a>
+@implements IDisposable
+@inject ISesionCliente Sesion
+@inject NavigationManager Navegacion
+@using Web_App.Services.Authentication
+
+<button type="button" class="menu-toggle btn btn-light" aria-expanded="@(_abierto ? "true" : "false")"
+        aria-controls="menu-principal" @onclick="AlternarMenu" @onkeydown="AlTeclear">@(_abierto ? "Cerrar" : "Menú")</button>
+
+<nav id="menu-principal" class="site-nav @(_abierto ? "abierto" : null)" aria-label="Principal" @onkeydown="AlTeclear">
+    <ul class="nav-list">
+        <li><NavLink class="nav-link" href="" Match="NavLinkMatch.All">Inicio</NavLink></li>
+        <li><NavLink class="nav-link" href="itinerarios">Buscar viaje</NavLink></li>
+        <li><NavLink class="nav-link" href="horarios">Horarios</NavLink></li>
+        @* Se muestran todos los enlaces, como antes del rediseño: ocultarlos no autoriza nada; la API comprueba cada permiso. *@
+        <li><NavLink class="nav-link" href="pasajero/ubicacion">Ubicación del servicio</NavLink></li>
+        <li><NavLink class="nav-link" href="admin/operativa">Administración operativa</NavLink></li>
+    </ul>
+    <div class="nav-session">
+        @if (Autenticada)
+        {
+            <button type="button" class="btn btn-light" disabled="@_saliendo" @onclick="SalirAsync">@(_saliendo ? "Saliendo…" : "Salir")</button>
+        }
+        else
+        {
+            <a class="btn btn-primary" href="ingreso">Ingresar</a>
+        }
     </div>
-</div>
+</nav>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+@code {
+    [Parameter] public bool Autenticada { get; set; }
+    [Parameter] public EventCallback AlCambiarSesion { get; set; }
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
+    private bool _abierto;
+    private bool _saliendo;
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
+    protected override void OnInitialized() => Navegacion.LocationChanged += AlNavegar;
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="itinerarios">Buscar viaje</NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="horarios">Horarios</NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="ingreso">Ingreso</NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="pasajero/ubicacion">Ubicación del servicio</NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="admin/operativa">Administración operativa</NavLink>
-        </div>
-    </nav>
-</div>
+    private void AlNavegar(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs args)
+    {
+        _abierto = false;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void AlternarMenu() => _abierto = !_abierto;
+
+    private void AlTeclear(KeyboardEventArgs tecla)
+    {
+        if (tecla.Code == "Escape") _abierto = false;
+    }
+
+    private async Task SalirAsync()
+    {
+        if (_saliendo) return;
+        _saliendo = true;
+        try { await Sesion.SalirAsync(); }
+        finally { _saliendo = false; }
+        _abierto = false;
+        await AlCambiarSesion.InvokeAsync();
+        // La página de ingreso muestra si la sesión quedó cerrada o si hay que reintentar el cierre.
+        Navegacion.NavigateTo("ingreso");
+    }
+
+    public void Dispose() => Navegacion.LocationChanged -= AlNavegar;
+}

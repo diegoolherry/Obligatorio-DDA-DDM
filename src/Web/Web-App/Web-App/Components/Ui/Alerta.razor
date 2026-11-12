@@ -1,0 +1,21 @@
+@* Aviso con texto. Error y advertencia usan role="alert"; el resto, role="status". *@
+<div class="alert alert-@Clase" role="@Rol" @attributes="AdditionalAttributes">
+    @if (!string.IsNullOrEmpty(Titulo)) { <p class="alert-title">@Titulo</p> }
+    @ChildContent
+</div>
+
+@code {
+    [Parameter] public TipoAviso Tipo { get; set; } = TipoAviso.Info;
+    [Parameter] public string? Titulo { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string Rol => Tipo is TipoAviso.Error or TipoAviso.Advertencia ? "alert" : "status";
+    private string Clase => Tipo switch
+    {
+        TipoAviso.Exito => "success",
+        TipoAviso.Advertencia => "warning",
+        TipoAviso.Error => "error",
+        _ => "info"
+    };
+}
