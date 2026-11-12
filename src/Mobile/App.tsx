@@ -1,3 +1,4 @@
+import './global.css';
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -29,7 +30,7 @@ export default function App() {
   useEffect(() => () => authentication.discard(), [authentication]);
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView className="bg-surface-50" style={styles.safeArea}>
         <View style={styles.tabs} accessibilityRole="tablist">
           <Tab label="Buscar viaje" selected={screen === 'buscar'} onPress={() => setScreen('buscar')} />
           <Tab label="Ingreso" selected={screen === 'ingreso'} onPress={() => setScreen('ingreso')} />
@@ -61,7 +62,7 @@ function Tab({ label, selected, onPress }: { label: string; selected: boolean; o
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff' },
+  safeArea: { flex: 1 },
   screen: { flex: 1 },
   hidden: { display: 'none' },
   tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#999' },
