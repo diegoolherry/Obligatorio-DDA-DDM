@@ -947,13 +947,13 @@
       "area": [
         "Mobile"
       ],
-      "status": "in_progress",
+      "status": "done",
       "assignee": "Diego",
       "reviewer": "Enzo",
       "createdAt": "2026-11-12T18:20:46-03:00",
       "startedAt": "2026-11-12T18:55:18-03:00",
-      "completedAt": null,
-      "completedBy": null,
+      "completedAt": "2026-11-12T20:15:58-03:00",
+      "completedBy": "Diego",
       "dependencies": [
         "FIN-010-01"
       ],
@@ -961,7 +961,7 @@
         "NativeWind funciona en Expo 58 con los tokens del sistema de diseño; si no es compatible, se documenta y se decide la alternativa antes de migrar.",
         "Las pantallas Mobile existentes aplican el diseño y conservan su comportamiento y sus estados."
       ],
-      "evidence": "Rama feature/fin-010-02-nativewind. Prueba de compatibilidad de NativeWind con Expo 58 antes de migrar."
+      "evidence": "PR #79 (commits d10a4f2..386d686; merge ce15f50): NativeWind 5.0.0-rc.1 con los tokens de FIN-010-01, componentes ui/ y diseño en login, búsqueda y ubicación.\nnpm run typecheck OK, export:android OK, tests Mobile 39/39; recorrido en el iPhone de Diego (Expo Go + túnel cloudflared contra la API https) el 2026-11-12.\nRevisor Enzo: aprobó el PR según el reporte de Diego; sin review registrada en GitHub."
     },
     {
       "id": "FIN-010-03",
