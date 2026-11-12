@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable,
-  ScrollView, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, ScrollView, Text, View,
 } from 'react-native';
 import type { TextInputInstance } from 'react-native';
+import { Button } from '../ui/Button';
+import { TextField } from '../ui/TextField';
 import type { IAuthenticationService } from '../../services/Authentication/IAuthenticationService';
 import type { AuthenticationResult } from '../../contracts/session';
 
@@ -12,7 +13,7 @@ export function PassengerLogin({ service }: { service: IAuthenticationService })
   const [contrasena, setContrasena] = useState('');
   const [session, setSession] = useState(() => service.getState());
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('Ingresá con una cuenta ficticia.');
+  const [message, setMessage] = useState('Ingresá con tu cuenta.');
   const mounted = useRef(false);
   const submitting = useRef(false);
   const passwordInput = useRef<TextInputInstance>(null);
@@ -51,48 +52,43 @@ export function PassengerLogin({ service }: { service: IAuthenticationService })
   }
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title} accessibilityRole="header">Acceso de pasajero y cobrador</Text>
-        <Text>Demostración académica · cuentas ficticias</Text>
-        <Text>La sesión se conserva solo en memoria, sin recordar el ingreso al reabrir.</Text>
+    <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView contentContainerClassName="flex-grow justify-center gap-4 p-6" keyboardShouldPersistTaps="handled">
+        <Text className="text-2xl font-bold text-ink-900" accessibilityRole="header">Acceso de pasajero y cobrador</Text>
+        <Text className="text-base text-ink-500">La sesión se conserva solo en memoria, sin recordar el ingreso al reabrir.</Text>
         {!session.authenticated && !session.logoutPending ? (
-          <View style={styles.form}>
-            <Text nativeID="correoLabel">Correo</Text>
-            <TextInput
-              style={styles.input} value={correo} onChangeText={setCorreo}
-              accessibilityLabel="Correo" accessibilityLabelledBy="correoLabel"
+          <View className="gap-2">
+            <TextField
+              label="Correo" labelId="correoLabel" value={correo} onChangeText={setCorreo}
               keyboardType="email-address" autoCapitalize="none" autoCorrect={false}
-              autoComplete="off" textContentType="none" editable={!busy}
+              autoComplete="off" textContentType="none" disabled={busy}
               returnKeyType="next" onSubmitEditing={() => passwordInput.current?.focus()}
             />
-            <Text nativeID="passwordLabel">Contraseña</Text>
-            <TextInput
-              ref={passwordInput} style={styles.input} value={contrasena} onChangeText={setContrasena}
-              accessibilityLabel="Contraseña" accessibilityLabelledBy="passwordLabel"
+            <TextField
+              ref={passwordInput} label="Contraseña" labelId="passwordLabel" value={contrasena} onChangeText={setContrasena}
               secureTextEntry autoCapitalize="none" autoCorrect={false}
-              autoComplete="off" textContentType="none" editable={!busy}
+              autoComplete="off" textContentType="none" disabled={busy}
               returnKeyType="go" onSubmitEditing={login}
             />
-            <Action label={busy ? 'Ingresando…' : 'Ingresar'} disabled={busy} onPress={login} />
+            <Button label={busy ? 'Ingresando…' : 'Ingresar'} loading={busy} onPress={login} />
           </View>
         ) : (
-          <View style={styles.form}>
-            <Text>{session.logoutPending ? 'Cierre remoto no confirmado.' : 'Sesión iniciada con respuesta válida de la API.'}</Text>
-            <Action
+          <View className="gap-2">
+            <Text className="text-base text-ink-900">{session.logoutPending ? 'Cierre remoto no confirmado.' : 'Sesión iniciada con respuesta válida de la API.'}</Text>
+            <Button
               label={busy ? 'Procesando…' : session.logoutPending ? 'Reintentar cierre de sesión' : 'Cerrar sesión'}
-              disabled={busy} onPress={() => { void run(() => service.logout(), 'Cerrando sesión…'); }}
+              variant="destructive" loading={busy} onPress={() => { void run(() => service.logout(), 'Cerrando sesión…'); }}
             />
             {session.authenticated && (
-              <Action label="Comprobar acceso de pasajero" secondary disabled={busy}
+              <Button label="Comprobar acceso de pasajero" variant="secondary" disabled={busy}
                 onPress={() => { void run(() => service.checkPassenger(), 'Consultando permiso en la API…'); }} />
             )}
             {session.authenticated && (
-              <Action label="Comprobar acceso de cobrador" secondary disabled={busy}
+              <Button label="Comprobar acceso de cobrador" variant="secondary" disabled={busy}
                 onPress={() => { void run(() => service.checkCollector(), 'Consultando permiso en la API…'); }} />
             )}
             {session.logoutPending && (
-              <Action label="Descartar solo la sesión local" secondary disabled={busy} onPress={() => {
+              <Button label="Descartar solo la sesión local" variant="secondary" disabled={busy} onPress={() => {
                 service.discard();
                 setSession(service.getState());
                 setMessage('Memoria local borrada. No se confirmó la revocación remota; la sesión del servidor puede seguir vigente hasta vencer.');
@@ -100,34 +96,10 @@ export function PassengerLogin({ service }: { service: IAuthenticationService })
             )}
           </View>
         )}
-        {busy && <ActivityIndicator accessibilityLabel="Solicitud en curso" color="#222" />}
-        <Text accessibilityRole="text" accessibilityLiveRegion="polite">{message}</Text>
-        <Text>Los permisos los verifica la API, no esta pantalla.</Text>
+        {busy && <ActivityIndicator accessibilityLabel="Solicitud en curso" color="#141414" />}
+        <Text className="text-base font-semibold text-ink-900" accessibilityRole="text" accessibilityLiveRegion="polite">{message}</Text>
+        <Text className="text-sm text-ink-500">Los permisos los verifica la API, no esta pantalla.</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
-
-function Action({ label, disabled, secondary = false, onPress }: {
-  label: string; disabled: boolean; secondary?: boolean; onPress: () => void;
-}) {
-  return (
-    <Pressable accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
-      style={({ pressed }) => [styles.button, secondary && styles.secondary, (disabled || pressed) && styles.dimmed]}>
-      <Text style={secondary ? styles.secondaryLabel : styles.buttonLabel}>{label}</Text>
-    </Pressable>
-  );
-}
-
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  container: { flexGrow: 1, padding: 24, gap: 16, justifyContent: 'center' },
-  title: { color: '#111', fontSize: 24, fontWeight: '600' },
-  form: { gap: 8 },
-  input: { minHeight: 48, borderWidth: 1, borderColor: '#666', borderRadius: 4, padding: 12, color: '#111', backgroundColor: '#fff' },
-  button: { minHeight: 48, padding: 12, borderRadius: 4, justifyContent: 'center', alignItems: 'center', backgroundColor: '#222', marginTop: 8 },
-  secondary: { backgroundColor: '#eee', borderColor: '#666', borderWidth: 1 },
-  buttonLabel: { color: '#fff', fontWeight: '600' },
-  secondaryLabel: { color: '#111' },
-  dimmed: { opacity: 0.6 },
-});

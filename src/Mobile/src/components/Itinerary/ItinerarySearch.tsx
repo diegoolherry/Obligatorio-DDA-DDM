@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable,
-  StyleSheet, Text, TextInput, View,
+  ActivityIndicator, FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, Text, View,
 } from 'react-native';
 import type {
   BusquedaItinerarioRequest, ItinerarioDto, ParadaDto, PoliticaAsiento, TramoItinerarioDto,
 } from '../../contracts/itinerary';
 import type { IItinerarySearchService } from '../../services/Itinerary/IItinerarySearchService';
+import { Banner } from '../ui/Banner';
+import { Button } from '../ui/Button';
+import { StatusBadge } from '../ui/StatusBadge';
+import { TextField } from '../ui/TextField';
 
 type StopsState =
   | { status: 'loading' }
@@ -114,54 +117,44 @@ export function ItinerarySearch({ service }: { service: IItinerarySearchService 
   }
 
   const header = (
-    <View style={styles.form}>
-      <Text style={styles.title} accessibilityRole="header">Buscar viaje</Text>
+    <View className="mb-2 gap-2">
+      <Text className="text-2xl font-bold text-ink-900" accessibilityRole="header">Buscar viaje</Text>
       {stops.status === 'loading' && (
-        <View style={styles.row} accessibilityLiveRegion="polite">
-          <ActivityIndicator accessibilityLabel="Cargando paradas" color="#222" />
-          <Text style={styles.text}>Cargando paradas…</Text>
+        <View className="min-h-12 flex-row items-center gap-2" accessibilityLiveRegion="polite">
+          <ActivityIndicator accessibilityLabel="Cargando paradas" color="#141414" />
+          <Text className="text-base text-ink-900">Cargando paradas…</Text>
         </View>
       )}
       {stops.status === 'error' && (
-        <View style={styles.box} accessibilityLiveRegion="polite">
-          <Text style={styles.error}>{stops.message}</Text>
-          <Action label="Reintentar" secondary onPress={() => { loadStops(); }} />
-        </View>
+        <Banner kind="error" actionLabel="Reintentar" onAction={() => { loadStops(); }}>{stops.message}</Banner>
       )}
       {stops.status === 'ready' && (
         <>
           <StopChooser label="Origen" stops={stops.stops} selected={originId} onSelect={setOriginId} />
-          {submitted && originId === undefined && <Text style={styles.error}>Elegí una parada de origen.</Text>}
+          {submitted && originId === undefined && <FieldError>Elegí una parada de origen.</FieldError>}
           <StopChooser label="Destino" stops={stops.stops} selected={destinationId} onSelect={setDestinationId} />
-          {submitted && destinationId === undefined && <Text style={styles.error}>Elegí una parada de destino.</Text>}
-          {sameStops && <Text style={styles.error} accessibilityLiveRegion="polite">El origen y el destino deben ser distintos.</Text>}
-          <Text style={styles.label} nativeID="fechaLabel">Fecha (AAAA-MM-DD)</Text>
-          <TextInput
-            style={styles.input} value={date} onChangeText={setDate}
-            accessibilityLabel="Fecha (AAAA-MM-DD)" accessibilityLabelledBy="fechaLabel"
+          {submitted && destinationId === undefined && <FieldError>Elegí una parada de destino.</FieldError>}
+          {sameStops && <FieldError>El origen y el destino deben ser distintos.</FieldError>}
+          <TextField
+            label="Fecha (AAAA-MM-DD)" labelId="fechaLabel" value={date} onChangeText={setDate}
             keyboardType="numbers-and-punctuation" autoCapitalize="none" autoCorrect={false}
-            maxLength={10} editable={!searching} returnKeyType="search" onSubmitEditing={submit}
+            maxLength={10} disabled={searching} returnKeyType="search" onSubmitEditing={submit}
+            error={(submitted || date.length === 10) && dateError ? dateError : undefined}
           />
-          {(submitted || date.length === 10) && dateError && (
-            <Text style={styles.error} accessibilityLiveRegion="polite">{dateError}</Text>
-          )}
-          <Action label={searching ? 'Buscando…' : 'Buscar'} disabled={searching} onPress={submit} />
+          <Button label={searching ? 'Buscando…' : 'Buscar'} loading={searching} onPress={submit} />
         </>
       )}
       {searching && (
-        <View style={styles.row} accessibilityLiveRegion="polite">
-          <ActivityIndicator accessibilityLabel="Buscando viajes" color="#222" />
-          <Text style={styles.text}>Buscando viajes…</Text>
+        <View className="min-h-12 flex-row items-center gap-2" accessibilityLiveRegion="polite">
+          <ActivityIndicator accessibilityLabel="Buscando viajes" color="#141414" />
+          <Text className="text-base text-ink-900">Buscando viajes…</Text>
         </View>
       )}
       {search.status === 'error' && (
-        <View style={styles.box} accessibilityLiveRegion="polite">
-          <Text style={styles.error}>{search.message}</Text>
-          <Action label="Reintentar" secondary onPress={retry} />
-        </View>
+        <Banner kind="error" actionLabel="Reintentar" onAction={retry}>{search.message}</Banner>
       )}
       {search.status === 'empty' && (
-        <Text style={styles.text} accessibilityLiveRegion="polite">
+        <Text className="text-base text-ink-900" accessibilityLiveRegion="polite">
           No hay viajes para esa fecha y esas paradas. Probá con otra fecha u otras paradas.
         </Text>
       )}
@@ -170,16 +163,24 @@ export function ItinerarySearch({ service }: { service: IItinerarySearchService 
 
   const results = search.status === 'success' ? search.results : [];
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <FlatList
         data={results}
         keyExtractor={(item, index) => `${item.salida}-${item.tramos.map(leg => leg.servicioId).join('-')}-${index}`}
         renderItem={({ item }) => <ItineraryCard itinerary={item} />}
         ListHeaderComponent={header}
-        contentContainerStyle={styles.container}
+        contentContainerClassName="gap-4 p-6"
         keyboardShouldPersistTaps="handled"
       />
     </KeyboardAvoidingView>
+  );
+}
+
+function FieldError({ children }: { children: string }) {
+  return (
+    <View className="rounded-sm bg-error-100 px-3 py-2" accessibilityLiveRegion="polite">
+      <Text className="text-sm text-error-700">{children}</Text>
+    </View>
   );
 }
 
@@ -187,9 +188,9 @@ function StopChooser({ label, stops, selected, onSelect }: {
   label: string; stops: ParadaDto[]; selected: number | undefined; onSelect: (id: number) => void;
 }) {
   return (
-    <View style={styles.group} accessibilityRole="radiogroup" accessibilityLabel={label}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.chips}>
+    <View className="gap-1" accessibilityRole="radiogroup" accessibilityLabel={label}>
+      <Text className="mt-2 text-base font-semibold text-ink-900">{label}</Text>
+      <View className="flex-row flex-wrap gap-2">
         {stops.map(stop => {
           const isSelected = stop.id === selected;
           return (
@@ -197,9 +198,11 @@ function StopChooser({ label, stops, selected, onSelect }: {
               key={stop.id} accessibilityRole="radio" accessibilityLabel={`${label}: ${stop.nombre}`}
               accessibilityState={{ selected: isSelected, checked: isSelected }}
               onPress={() => onSelect(stop.id)}
-              style={({ pressed }) => [styles.chip, isSelected && styles.chipSelected, pressed && styles.dimmed]}
+              className={isSelected
+                ? 'min-h-12 justify-center rounded-full border-2 border-ink-900 bg-ink-900 px-4 active:opacity-80'
+                : 'min-h-12 justify-center rounded-full border-2 border-ink-300 bg-surface-0 px-4 active:bg-surface-100'}
             >
-              <Text style={[styles.chipLabel, isSelected && styles.chipLabelSelected]}>
+              <Text className={isSelected ? 'text-base font-bold text-surface-0' : 'text-base text-ink-900'}>
                 {isSelected ? `✓ ${stop.nombre}` : stop.nombre}
               </Text>
             </Pressable>
@@ -212,18 +215,18 @@ function StopChooser({ label, stops, selected, onSelect }: {
 
 function ItineraryCard({ itinerary }: { itinerary: ItinerarioDto }) {
   const legs = [...itinerary.tramos].sort((a, b) => a.orden - b.orden);
-  const kind = legs.length === 1 ? 'Directo' : `${legs.length} tramos`;
+  const direct = legs.length === 1;
   return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>{hour(itinerary.salida)} → {hour(itinerary.llegada)}</Text>
-        <Text style={styles.cardTotal}>{money(itinerary.precioTotal)}</Text>
+    <View className="gap-2 rounded-lg border border-border-200 bg-surface-0 p-4">
+      <View className="flex-row items-center justify-between gap-2">
+        <StatusBadge kind={direct ? 'success' : 'accent'} label={direct ? 'Directo' : `${legs.length} tramos`} />
+        <Text className="text-lg font-bold text-ink-900">{money(itinerary.precioTotal)}</Text>
       </View>
-      <Text style={styles.text}>{kind}</Text>
+      <Text className="text-xl font-bold text-ink-900">{hour(itinerary.salida)} → {hour(itinerary.llegada)}</Text>
       {legs.map((leg, index) => (
         <View key={`${leg.servicioId}-${leg.tramoId}-${leg.orden}`}>
           {index > 0 && itinerary.transbordo && (
-            <Text style={styles.transfer}>
+            <Text className="my-1 rounded-md bg-surface-50 px-3 py-2 text-sm text-ink-900">
               Transbordo en {itinerary.transbordo.parada.nombre}: {itinerary.transbordo.minutos} min de espera
             </Text>
           )}
@@ -236,52 +239,10 @@ function ItineraryCard({ itinerary }: { itinerary: ItinerarioDto }) {
 
 function Leg({ leg }: { leg: TramoItinerarioDto }) {
   return (
-    <View style={styles.leg}>
-      <Text style={styles.legRoute}>{leg.orden}. {leg.origen.nombre} → {leg.destino.nombre}</Text>
-      <Text style={styles.text}>Sale {hour(leg.salida)} · Llega {hour(leg.llegada)} · {money(leg.importe)}</Text>
-      <Text style={styles.text}>Asiento: {seatText[leg.politicaAsiento]}</Text>
+    <View className="gap-1 py-1">
+      <Text className="text-base font-semibold text-ink-900">{leg.orden}. {leg.origen.nombre} → {leg.destino.nombre}</Text>
+      <Text className="text-base text-ink-700">Sale {hour(leg.salida)} · Llega {hour(leg.llegada)} · {money(leg.importe)}</Text>
+      <Text className="text-base text-ink-700">Asiento: {seatText[leg.politicaAsiento]}</Text>
     </View>
   );
 }
-
-function Action({ label, disabled = false, secondary = false, onPress }: {
-  label: string; disabled?: boolean; secondary?: boolean; onPress: () => void;
-}) {
-  return (
-    <Pressable accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
-      style={({ pressed }) => [styles.button, secondary && styles.secondary, (disabled || pressed) && styles.dimmed]}>
-      <Text style={secondary ? styles.secondaryLabel : styles.buttonLabel}>{label}</Text>
-    </Pressable>
-  );
-}
-
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  container: { padding: 24, gap: 16 },
-  form: { gap: 8, marginBottom: 8 },
-  title: { color: '#111', fontSize: 24, fontWeight: '600' },
-  group: { gap: 4 },
-  label: { color: '#111', fontWeight: '600', marginTop: 8 },
-  text: { color: '#222' },
-  error: { color: '#8a1c1c', fontWeight: '600' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 48 },
-  box: { gap: 8 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { minHeight: 48, paddingHorizontal: 16, justifyContent: 'center', borderWidth: 1, borderColor: '#666', borderRadius: 24, backgroundColor: '#fff' },
-  chipSelected: { borderWidth: 3, borderColor: '#111', backgroundColor: '#e6e6e6' },
-  chipLabel: { color: '#111' },
-  chipLabelSelected: { fontWeight: '700' },
-  input: { minHeight: 48, borderWidth: 1, borderColor: '#666', borderRadius: 4, padding: 12, color: '#111', backgroundColor: '#fff' },
-  button: { minHeight: 48, padding: 12, borderRadius: 4, justifyContent: 'center', alignItems: 'center', backgroundColor: '#222', marginTop: 8 },
-  secondary: { backgroundColor: '#eee', borderColor: '#666', borderWidth: 1 },
-  buttonLabel: { color: '#fff', fontWeight: '600' },
-  secondaryLabel: { color: '#111', fontWeight: '600' },
-  dimmed: { opacity: 0.6 },
-  card: { borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 16, gap: 8, backgroundColor: '#fafafa' },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  cardTitle: { color: '#111', fontSize: 20, fontWeight: '700' },
-  cardTotal: { color: '#111', fontSize: 18, fontWeight: '700' },
-  leg: { gap: 2, paddingVertical: 4 },
-  legRoute: { color: '#111', fontWeight: '600' },
-  transfer: { color: '#333', fontStyle: 'italic', paddingVertical: 4 },
-});

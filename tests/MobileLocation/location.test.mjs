@@ -187,6 +187,6 @@ test('sharing keeps running across tabs and stops without a collector session (s
   const app = await readFile(new URL('../../src/Mobile/App.tsx', import.meta.url), 'utf8');
   const sharing = await readFile(new URL('../../src/Mobile/src/components/Location/LocationSharing.tsx', import.meta.url), 'utf8');
   assert.doesNotMatch(app, /screen === 'compartir' && <LocationSharing/, 'the sharing screen must not unmount when changing tabs');
-  assert.match(app, /<View style=\{screen === 'compartir' \? styles\.screen : styles\.hidden\}>\s*<LocationSharing/, 'the sharing screen stays mounted and is only hidden');
+  assert.match(app, /<View className=\{screen === 'compartir' \? 'flex-1' : 'hidden'\}>\s*<LocationSharing/, 'the sharing screen stays mounted and is only hidden');
   assert.match(sharing, /if \(!allowed\) setSharing\(false\);/, 'sharing stops when there is no collector session');
 });
