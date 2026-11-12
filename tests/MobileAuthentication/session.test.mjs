@@ -91,7 +91,7 @@ test('collector probe: exact GET, denial preserves session, retry and confirmed 
 
 test('shared Mobile form exposes both permission checks without a role selector', async () => {
   const screen = await readFile(new URL('../../src/Mobile/src/components/Authentication/PassengerLogin.tsx', import.meta.url), 'utf8');
-  assert.match(screen, />Acceso de pasajero y cobrador<\/Text>/);
+  assert.match(screen, /'Ingresá a tu cuenta'/);
   assert.match(screen, /service\.checkPassenger\(\)/);
   assert.match(screen, /service\.checkCollector\(\)/);
   assert.match(screen, /label="Comprobar acceso de cobrador"/);
