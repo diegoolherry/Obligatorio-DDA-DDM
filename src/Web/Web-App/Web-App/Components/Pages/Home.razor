@@ -1,7 +1,86 @@
-﻿@page "/"
+@page "/"
+@using Web_App.Models.Catalogo
+@using Web_App.Services.Catalogo
+@inject CatalogoCliente Cliente
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Berrutti · Inicio</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="page-header">
+    <h1 class="home-title">¿Qué necesitás hoy?</h1>
+    <p>Buscá un viaje, consultá los horarios o seguí un servicio en camino.</p>
+</div>
 
-Welcome to your new app.
+<div class="split split-home">
+    <Tarjeta Acento="true">
+        <h2>Buscar viaje</h2>
+        <p class="lead">Elegí origen, destino y fecha. Te mostramos los itinerarios directos y los que tienen transbordo, con el importe de cada tramo.</p>
+        <a class="btn btn-primary btn-lg" href="itinerarios">Buscar viaje</a>
+    </Tarjeta>
+
+    <div class="stack">
+        <Tarjeta>
+            <h2 class="h3">Horarios</h2>
+            <p>Salidas de un día y catálogo completo del horario de invierno 2026.</p>
+            <a href="horarios">Ver horarios</a>
+        </Tarjeta>
+        <Tarjeta>
+            <h2 class="h3">Ubicación del servicio</h2>
+            <p>Última posición conocida de un servicio y su llegada aproximada.</p>
+            <p class="card-soft small">Requiere ingresar como pasajero.</p>
+            <a href="pasajero/ubicacion">Ver ubicación</a>
+        </Tarjeta>
+    </div>
+</div>
+
+<section class="card lineas" aria-labelledby="titulo-lineas" aria-busy="@_cargando.ToString().ToLowerInvariant()">
+    <h2 id="titulo-lineas">Líneas y paradas</h2>
+    @if (_cargando)
+    {
+        <Alerta>Cargando líneas y paradas…</Alerta>
+    }
+    else if (_error != null)
+    {
+        <Alerta Tipo="TipoAviso.Error" Titulo="No pudimos cargar las líneas">
+            @_error
+            <br /><button type="button" class="btn btn-secondary" @onclick="CargarAsync">Reintentar</button>
+        </Alerta>
+    }
+    else if (_catalogo is null || _catalogo.Bloques.All(b => b.Rutas.Count == 0))
+    {
+        <Alerta>Todavía no hay líneas cargadas.</Alerta>
+    }
+    else
+    {
+        @foreach (var bloque in _catalogo.Bloques.Where(b => b.Rutas.Count > 0))
+        {
+            @if (_catalogo.Bloques.Count > 1) { <h3 class="h4">@bloque.Nombre</h3> }
+            <ul class="list-plain list-rows">
+                @foreach (var ruta in bloque.Rutas)
+                {
+                    <li class="linea">
+                        <strong>@ruta.Nombre</strong>
+                        <span class="text-secondary">@string.Join(" · ", ruta.Paradas.OrderBy(p => p.Orden).Select(p => p.Nombre))</span>
+                    </li>
+                }
+            </ul>
+        }
+    }
+</section>
+
+@code {
+    private CatalogoDto? _catalogo;
+    private bool _cargando = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync() => await CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        _error = null;
+        var (item, error) = await Cliente.ObtenerAsync();
+        _catalogo = item;
+        _error = error;
+        _cargando = false;
+    }
+}

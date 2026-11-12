@@ -32,7 +32,7 @@ dotnet build Web-App.slnx --nologo
 dotnet run --project Web-App/Web-App.csproj --no-build --launch-profile http
 ```
 
-Esperá escucha en `http://localhost:5025`. El perfil puede abrir el navegador; si no lo hace, abrí esa dirección. Las rutas `/`, `/counter` y `/weather` son páginas de plantilla: Counter declara InteractiveServer por página, no global; Weather genera datos aleatorios locales, no consume la API. `/ingreso` también declara interactividad por página, pero exige HTTPS: por HTTP devuelve `400`, sin renderizar el formulario. Recibir HTML no prueba la interactividad de Blazor ni consumo de la API.
+Esperá escucha en `http://localhost:5025`. El perfil puede abrir el navegador; si no lo hace, abrí esa dirección. La ruta `/` es la página de inicio, que lista las líneas del catálogo de la API (sin la API muestra un error con «Reintentar»). Las páginas de plantilla Counter y Weather se eliminaron en FIN-010-03. `/ingreso` también declara interactividad por página, pero exige HTTPS: por HTTP devuelve `400`, sin renderizar el formulario. Recibir HTML no prueba la interactividad de Blazor ni consumo de la API.
 
 ### Para el ingreso: HTTPS en ambos servicios
 
@@ -89,7 +89,7 @@ Si necesitás túnel o aparece el error de ngrok de Windows, seguí [resolución
 
 `npm run android` / `npm run ios` requieren un entorno compatible; `npm run export:android` exporta JavaScript, no compila una aplicación Android nativa.
 
-Web conserva solo Bootstrap CSS `5.3.3` y su LICENSE del PR #20, no las 43 variantes/scripts/mapas excluidos. El trailer `sourceMappingURL` se mantiene, pero no se distribuye el mapa ni se promete depuración con sourcemaps en DevTools.
+Desde FIN-010-03, Web ya no enlaza Bootstrap: los estilos son los tokens del sistema de diseño en `wwwroot/app.css`. Los archivos de Bootstrap CSS `5.3.3` del PR #20 siguen en `wwwroot/lib`, sin uso.
 
 ## 4. Cerrá lo que iniciaste
 

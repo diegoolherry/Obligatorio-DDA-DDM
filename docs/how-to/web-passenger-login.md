@@ -14,13 +14,13 @@ Una acción principal por estado; etiquetas persistentes y estados accesibles. S
 
 El navegador debe abrir `/ingreso` por **HTTPS de Web**: el perfil existente `https` declara `https://localhost:7054` (además de HTTP en 5025). No alcanza con configurar HTTPS para la API. El guard previo a la redirección rechaza HTTP en `/ingreso`, sin distinguir mayúsculas e incluyendo segmentos posteriores, con `400`, texto plano y `Cache-Control: no-store`, sin redirigir ni procesar/renderizar el formulario. Esto también falla cerrado cuando no se conoce un puerto HTTPS; el perfil `http` no habilita el ingreso. No se cambian perfiles, puertos ni certificados.
 
-Home, Counter, Weather y el hub compartido `/_blazor` conservan su comportamiento previo: no hay bloqueo HTTP global ni cambio de transporte SignalR. Cargar el formulario por HTTPS debe usar el transporte seguro normal de InteractiveServer; su comportamiento real en navegador/circuito y la confianza TLS siguen pendientes. No desactivar validación TLS.
+Las demás páginas y el hub compartido `/_blazor` conservan su comportamiento previo: no hay bloqueo HTTP global ni cambio de transporte SignalR. Cargar el formulario por HTTPS debe usar el transporte seguro normal de InteractiveServer; su comportamiento real en navegador/circuito y la confianza TLS siguen pendientes. No desactivar validación TLS.
 
 El cliente consume `Api:BaseUrl` (variable pública `Api__BaseUrl`). Debe ser una URL HTTPS absoluta sin credenciales, query ni fragmento. Ausencia o valor inválido produce un error local accionable, sin enviar solicitudes. Ejemplo configurable del perfil existente: `https://localhost:7053/`; no demuestra certificado confiable ni API disponible. No colocar tokens, contraseñas ni datos de DB en esa opción.
 
 El servicio es scoped por circuito InteractiveServer; una instancia/circuito nuevos son anónimos. Una reconexión del mismo circuito puede conservar memoria. No usa cookies ni almacenamiento persistente, encabezados Authorization globales ni redirecciones automáticas. El token viaja únicamente en cada solicitud protegida. La pérdida del circuito no confirma revocación remota.
 
-`/ingreso` usa Bootstrap del scaffold y declara InteractiveServer solo por página. Home, Counter y Weather se conservan. Usar únicamente cuentas ficticias locales; no es un servicio oficial.
+`/ingreso` usa los estilos del sistema de diseño (`wwwroot/app.css`) y declara InteractiveServer solo por página. Usar únicamente cuentas ficticias locales.
 
 ## Verificación desde la raíz
 

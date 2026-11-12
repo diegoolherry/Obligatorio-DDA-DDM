@@ -7,136 +7,204 @@
 @inject ISesionCliente Sesion
 @inject AdministracionOperativaCliente Cliente
 
-<PageTitle>Administración operativa</PageTitle>
-<h1>Paradas y tramos</h1>
+<PageTitle>Administración operativa · Berrutti</PageTitle>
+<div class="page-header">
+    <h1>Paradas y tramos</h1>
+    <p>Configuración operativa: paradas, tramos, servicios y tarifas.</p>
+</div>
 @if (!Sesion.Estado.Autenticada)
 {
-    <p>Ingresá con la cuenta de administrador para continuar.</p>
-    <a href="/ingreso">Ir al ingreso</a>
+    <Alerta Tipo="TipoAviso.Advertencia" Titulo="Necesitás ingresar">
+        Ingresá con la cuenta de administrador para continuar.
+        <br /><a class="btn btn-primary" href="/ingreso">Ir al ingreso</a>
+    </Alerta>
 }
 else if (!Autorizado)
 {
-    <p role="alert">@Mensaje</p>
-    <button class="btn btn-primary" @onclick="ComprobarAccesoAsync" disabled="@Ocupado">Comprobar acceso</button>
+    <Alerta Tipo="TipoAviso.Advertencia" Titulo="Acceso no confirmado">
+        @Mensaje
+        <br /><button type="button" class="btn btn-secondary" @onclick="ComprobarAccesoAsync" disabled="@Ocupado">Comprobar acceso</button>
+    </Alerta>
 }
 else
 {
-    <p role="status">@Mensaje</p>
-    <section class="mb-4">
-        <h2>Paradas</h2>
+    <Alerta>@Mensaje</Alerta>
+    <section class="card mb-section" aria-labelledby="titulo-paradas">
+        <h2 id="titulo-paradas">Paradas</h2>
         <EditForm Model="ParadaForm" OnValidSubmit="GuardarParadaAsync">
             <DataAnnotationsValidator />
             <ValidationSummary />
-            <label for="nombre-parada">Nombre</label>
-            <InputText id="nombre-parada" class="form-control" @bind-Value="ParadaForm.Nombre" />
-            <button class="btn btn-primary mt-2" disabled="@Ocupado">@(ParadaForm.Id == null ? "Crear parada" : "Guardar parada")</button>
-            @if (ParadaForm.Id != null) { <button type="button" class="btn btn-secondary mt-2" @onclick="LimpiarParada">Cancelar edición</button> }
+            <div class="field">
+                <label for="nombre-parada">Nombre</label>
+                <InputText id="nombre-parada" @bind-Value="ParadaForm.Nombre" />
+                <ValidationMessage For="() => ParadaForm.Nombre" />
+            </div>
+            <div class="cluster">
+                <button class="btn btn-primary" disabled="@Ocupado">@(ParadaForm.Id == null ? "Crear parada" : "Guardar parada")</button>
+                @if (ParadaForm.Id != null) { <button type="button" class="btn btn-secondary" @onclick="LimpiarParada">Cancelar edición</button> }
+            </div>
         </EditForm>
-        <ul>
+        <ul class="list-plain list-rows">
             @foreach (var parada in Paradas)
             {
-                <li>@parada.Nombre <button class="btn btn-link" disabled="@Ocupado" @onclick="() => EditarParada(parada)">Editar</button>
-                    <button class="btn btn-link text-danger" disabled="@Ocupado" @onclick="() => SolicitarEliminarParada(parada)">Eliminar</button></li>
+                <li class="row-actions"><span>@parada.Nombre</span>
+                    <span><button type="button" class="btn btn-link" disabled="@Ocupado" @onclick="() => EditarParada(parada)">Editar</button>
+                    <button type="button" class="btn btn-link btn-danger-text" disabled="@Ocupado" @onclick="() => SolicitarEliminarParada(parada)">Eliminar</button></span></li>
             }
         </ul>
     </section>
-    <section>
-        <h2>Tramos</h2>
+    <section class="card mb-section" aria-labelledby="titulo-tramos">
+        <h2 id="titulo-tramos">Tramos</h2>
         <EditForm Model="TramoForm" OnValidSubmit="GuardarTramoAsync">
             <DataAnnotationsValidator />
             <ValidationSummary />
-            <label for="origen">Origen</label>
-            <InputSelect id="origen" class="form-select" @bind-Value="TramoForm.OrigenId"><option value="">Seleccioná una parada</option>@foreach (var p in Paradas) { <option value="@p.Id">@p.Nombre</option> }</InputSelect>
-            <label for="destino">Destino</label>
-            <InputSelect id="destino" class="form-select" @bind-Value="TramoForm.DestinoId"><option value="">Seleccioná una parada</option>@foreach (var p in Paradas) { <option value="@p.Id">@p.Nombre</option> }</InputSelect>
-            <button class="btn btn-primary mt-2" disabled="@Ocupado">@(TramoForm.Id == null ? "Crear tramo" : "Guardar tramo")</button>
-            @if (TramoForm.Id != null) { <button type="button" class="btn btn-secondary mt-2" @onclick="LimpiarTramo">Cancelar edición</button> }
+            <div class="grid-form">
+                <div class="field">
+                    <label for="origen">Origen</label>
+                    <InputSelect id="origen" @bind-Value="TramoForm.OrigenId"><option value="">Seleccioná una parada</option>@foreach (var p in Paradas) { <option value="@p.Id">@p.Nombre</option> }</InputSelect>
+                    <ValidationMessage For="() => TramoForm.OrigenId" />
+                </div>
+                <div class="field">
+                    <label for="destino">Destino</label>
+                    <InputSelect id="destino" @bind-Value="TramoForm.DestinoId"><option value="">Seleccioná una parada</option>@foreach (var p in Paradas) { <option value="@p.Id">@p.Nombre</option> }</InputSelect>
+                    <ValidationMessage For="() => TramoForm.DestinoId" />
+                </div>
+            </div>
+            <div class="cluster">
+                <button class="btn btn-primary" disabled="@Ocupado">@(TramoForm.Id == null ? "Crear tramo" : "Guardar tramo")</button>
+                @if (TramoForm.Id != null) { <button type="button" class="btn btn-secondary" @onclick="LimpiarTramo">Cancelar edición</button> }
+            </div>
         </EditForm>
-        <ul>
+        <ul class="list-plain list-rows">
             @foreach (var tramo in Tramos)
             {
-                <li>@tramo.OrigenNombre → @tramo.DestinoNombre <button class="btn btn-link" disabled="@Ocupado" @onclick="() => EditarTramo(tramo)">Editar</button>
-                    <button class="btn btn-link text-danger" disabled="@Ocupado" @onclick="() => SolicitarEliminarTramo(tramo)">Eliminar</button></li>
+                <li class="row-actions"><span>@tramo.OrigenNombre → @tramo.DestinoNombre</span>
+                    <span><button type="button" class="btn btn-link" disabled="@Ocupado" @onclick="() => EditarTramo(tramo)">Editar</button>
+                    <button type="button" class="btn btn-link btn-danger-text" disabled="@Ocupado" @onclick="() => SolicitarEliminarTramo(tramo)">Eliminar</button></span></li>
             }
         </ul>
     </section>
-    <section class="mt-4">
-        <h2>Servicios</h2>
+    <section class="card mb-section" aria-labelledby="titulo-servicios">
+        <h2 id="titulo-servicios">Servicios</h2>
         <EditForm Model="ServicioForm" OnValidSubmit="GuardarServicioAsync">
             <DataAnnotationsValidator />
             <ValidationSummary />
-            <label for="servicio-tramo">Tramo</label>
-            <InputSelect id="servicio-tramo" class="form-select" @bind-Value="ServicioForm.TramoId">
-                <option value="">Seleccioná un tramo</option>
-                @foreach (var tramo in Tramos) { <option value="@tramo.Id">@tramo.OrigenNombre → @tramo.DestinoNombre</option> }
-            </InputSelect>
-            <label for="servicio-salida">Salida</label>
-            <InputDate id="servicio-salida" Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="ServicioForm.Salida" />
-            <label for="servicio-llegada">Llegada</label>
-            <InputDate id="servicio-llegada" Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="ServicioForm.Llegada" />
-            <label for="servicio-capacidad">Capacidad</label>
-            <InputNumber id="servicio-capacidad" class="form-control" @bind-Value="ServicioForm.Capacidad" />
-            <label for="servicio-politica">Política de asiento</label>
-            <InputSelect id="servicio-politica" class="form-select" @bind-Value="ServicioForm.PoliticaAsiento">
-                <option value="@PoliticaAsiento.SinAsiento">Sin asiento</option>
-                <option value="@PoliticaAsiento.AsignacionAutomatica">Asignación automática</option>
-            </InputSelect>
-            <button class="btn btn-primary mt-2" disabled="@Ocupado">@(ServicioForm.Id == null ? "Crear servicio" : "Guardar servicio")</button>
-            @if (ServicioForm.Id != null) { <button type="button" class="btn btn-secondary mt-2" @onclick="LimpiarServicio">Cancelar edición</button> }
+            <div class="grid-form">
+                <div class="field">
+                    <label for="servicio-tramo">Tramo</label>
+                    <InputSelect id="servicio-tramo" @bind-Value="ServicioForm.TramoId">
+                        <option value="">Seleccioná un tramo</option>
+                        @foreach (var tramo in Tramos) { <option value="@tramo.Id">@tramo.OrigenNombre → @tramo.DestinoNombre</option> }
+                    </InputSelect>
+                    <ValidationMessage For="() => ServicioForm.TramoId" />
+                </div>
+                <div class="field">
+                    <label for="servicio-politica">Política de asiento</label>
+                    <InputSelect id="servicio-politica" @bind-Value="ServicioForm.PoliticaAsiento">
+                        <option value="@PoliticaAsiento.SinAsiento">Sin asiento</option>
+                        <option value="@PoliticaAsiento.AsignacionAutomatica">Asignación automática</option>
+                    </InputSelect>
+                </div>
+                <div class="field">
+                    <label for="servicio-salida">Salida</label>
+                    <InputDate id="servicio-salida" Type="InputDateType.DateTimeLocal" @bind-Value="ServicioForm.Salida" />
+                    <ValidationMessage For="() => ServicioForm.Salida" />
+                </div>
+                <div class="field">
+                    <label for="servicio-llegada">Llegada</label>
+                    <InputDate id="servicio-llegada" Type="InputDateType.DateTimeLocal" @bind-Value="ServicioForm.Llegada" />
+                    <ValidationMessage For="() => ServicioForm.Llegada" />
+                </div>
+                <div class="field">
+                    <label for="servicio-capacidad">Capacidad</label>
+                    <InputNumber id="servicio-capacidad" @bind-Value="ServicioForm.Capacidad" />
+                    <ValidationMessage For="() => ServicioForm.Capacidad" />
+                </div>
+            </div>
+            <div class="cluster">
+                <button class="btn btn-primary" disabled="@Ocupado">@(ServicioForm.Id == null ? "Crear servicio" : "Guardar servicio")</button>
+                @if (ServicioForm.Id != null) { <button type="button" class="btn btn-secondary" @onclick="LimpiarServicio">Cancelar edición</button> }
+            </div>
         </EditForm>
-        <ul>
+        <ul class="list-plain list-rows">
             @foreach (var servicio in Servicios)
             {
                 var tramo = Tramos.FirstOrDefault(t => t.Id == servicio.TramoId);
-                <li>
-                    @(tramo == null ? "Tramo no disponible" : $"{tramo.OrigenNombre} → {tramo.DestinoNombre}") —
-                    Salida @servicio.Salida.ToString("yyyy-MM-dd HH:mm") – Llegada @servicio.Llegada.ToString("yyyy-MM-dd HH:mm"),
-                    capacidad @servicio.Capacidad, @EtiquetaPolitica(servicio.PoliticaAsiento)
-                    <button class="btn btn-link" disabled="@Ocupado" @onclick="() => EditarServicio(servicio)">Editar</button>
-                    <button class="btn btn-link text-danger" disabled="@Ocupado" @onclick="() => SolicitarEliminarServicio(servicio)">Eliminar</button>
+                <li class="row-actions">
+                    <span>
+                        @(tramo == null ? "Tramo no disponible" : $"{tramo.OrigenNombre} → {tramo.DestinoNombre}") ·
+                        Salida @servicio.Salida.ToString("yyyy-MM-dd HH:mm") – Llegada @servicio.Llegada.ToString("yyyy-MM-dd HH:mm"),
+                        capacidad @servicio.Capacidad, @EtiquetaPolitica(servicio.PoliticaAsiento)
+                    </span>
+                    <span>
+                        <button type="button" class="btn btn-link" disabled="@Ocupado" @onclick="() => EditarServicio(servicio)">Editar</button>
+                        <button type="button" class="btn btn-link btn-danger-text" disabled="@Ocupado" @onclick="() => SolicitarEliminarServicio(servicio)">Eliminar</button>
+                    </span>
                 </li>
             }
         </ul>
     </section>
-    <section class="mt-4">
-        <h2>Tarifas</h2>
+    <section class="card mb-section" aria-labelledby="titulo-tarifas">
+        <h2 id="titulo-tarifas">Tarifas</h2>
         <EditForm Model="TarifaForm" OnValidSubmit="GuardarTarifaAsync">
             <DataAnnotationsValidator />
             <ValidationSummary />
-            <label for="tarifa-tramo">Tramo</label>
-            <InputSelect id="tarifa-tramo" class="form-select" @bind-Value="TarifaForm.TramoId">
-                <option value="">Seleccioná un tramo</option>
-                @foreach (var tramo in Tramos) { <option value="@tramo.Id">@tramo.OrigenNombre → @tramo.DestinoNombre</option> }
-            </InputSelect>
-            <label for="tarifa-importe">Importe</label>
-            <InputNumber id="tarifa-importe" class="form-control" min="0" step="0.01" @bind-Value="TarifaForm.Importe" />
-            <label for="tarifa-desde">Vigente desde</label>
-            <InputDate id="tarifa-desde" class="form-control" @bind-Value="TarifaForm.VigenteDesde" />
-            <label for="tarifa-hasta">Vigente hasta</label>
-            <InputDate id="tarifa-hasta" class="form-control" @bind-Value="TarifaForm.VigenteHasta" />
-            <button class="btn btn-primary mt-2" disabled="@Ocupado">@(TarifaForm.Id == null ? "Crear tarifa" : "Guardar tarifa")</button>
-            @if (TarifaForm.Id != null) { <button type="button" class="btn btn-secondary mt-2" @onclick="LimpiarTarifa">Cancelar edición</button> }
+            <div class="grid-form">
+                <div class="field">
+                    <label for="tarifa-tramo">Tramo</label>
+                    <InputSelect id="tarifa-tramo" @bind-Value="TarifaForm.TramoId">
+                        <option value="">Seleccioná un tramo</option>
+                        @foreach (var tramo in Tramos) { <option value="@tramo.Id">@tramo.OrigenNombre → @tramo.DestinoNombre</option> }
+                    </InputSelect>
+                    <ValidationMessage For="() => TarifaForm.TramoId" />
+                </div>
+                <div class="field">
+                    <label for="tarifa-importe">Importe</label>
+                    <InputNumber id="tarifa-importe" min="0" step="0.01" @bind-Value="TarifaForm.Importe" />
+                    <ValidationMessage For="() => TarifaForm.Importe" />
+                </div>
+                <div class="field">
+                    <label for="tarifa-desde">Vigente desde</label>
+                    <InputDate id="tarifa-desde" @bind-Value="TarifaForm.VigenteDesde" />
+                    <ValidationMessage For="() => TarifaForm.VigenteDesde" />
+                </div>
+                <div class="field">
+                    <label for="tarifa-hasta">Vigente hasta</label>
+                    <InputDate id="tarifa-hasta" @bind-Value="TarifaForm.VigenteHasta" />
+                    <ValidationMessage For="() => TarifaForm.VigenteHasta" />
+                </div>
+            </div>
+            <div class="cluster">
+                <button class="btn btn-primary" disabled="@Ocupado">@(TarifaForm.Id == null ? "Crear tarifa" : "Guardar tarifa")</button>
+                @if (TarifaForm.Id != null) { <button type="button" class="btn btn-secondary" @onclick="LimpiarTarifa">Cancelar edición</button> }
+            </div>
         </EditForm>
-        <ul>
+        <ul class="list-plain list-rows">
             @foreach (var tarifa in Tarifas)
             {
                 var tramo = Tramos.FirstOrDefault(t => t.Id == tarifa.TramoId);
-                <li>
-                    @(tramo == null ? "Tramo no disponible" : $"{tramo.OrigenNombre} → {tramo.DestinoNombre}") —
-                    @tarifa.Importe.ToString("0.00") (vigente @tarifa.VigenteDesde.ToString("yyyy-MM-dd") a @tarifa.VigenteHasta.ToString("yyyy-MM-dd"))
-                    <button class="btn btn-link" disabled="@Ocupado" @onclick="() => EditarTarifa(tarifa)">Editar</button>
-                    <button class="btn btn-link text-danger" disabled="@Ocupado" @onclick="() => SolicitarEliminarTarifa(tarifa)">Eliminar</button>
+                <li class="row-actions">
+                    <span>
+                        @(tramo == null ? "Tramo no disponible" : $"{tramo.OrigenNombre} → {tramo.DestinoNombre}") ·
+                        @tarifa.Importe.ToString("0.00") (vigente @tarifa.VigenteDesde.ToString("yyyy-MM-dd") a @tarifa.VigenteHasta.ToString("yyyy-MM-dd"))
+                    </span>
+                    <span>
+                        <button type="button" class="btn btn-link" disabled="@Ocupado" @onclick="() => EditarTarifa(tarifa)">Editar</button>
+                        <button type="button" class="btn btn-link btn-danger-text" disabled="@Ocupado" @onclick="() => SolicitarEliminarTarifa(tarifa)">Eliminar</button>
+                    </span>
                 </li>
             }
         </ul>
     </section>
     @if (_eliminacionPendiente is { } pendiente)
     {
-        <section class="alert alert-warning mt-4" aria-label="Confirmar eliminación" aria-busy="@Ocupado.ToString().ToLowerInvariant()">
-            <p>Eliminar pendiente: ¿confirmás eliminar la @pendiente.Nombre seleccionada?</p>
-            <button type="button" class="btn btn-danger" disabled="@Ocupado" @onclick="ConfirmarEliminarAsync">Confirmar</button>
-            <button type="button" class="btn btn-secondary" disabled="@Ocupado" @onclick="CancelarEliminar">Cancelar</button>
-        </section>
+        <Alerta Tipo="TipoAviso.Advertencia" Titulo="Eliminar pendiente" aria-label="Confirmar eliminación" aria-busy="@Ocupado.ToString().ToLowerInvariant()">
+            <p>¿Confirmás eliminar la @pendiente.Nombre seleccionada?</p>
+            <div class="cluster">
+                <button type="button" class="btn btn-danger" disabled="@Ocupado" @onclick="ConfirmarEliminarAsync">Confirmar</button>
+                <button type="button" class="btn btn-secondary" disabled="@Ocupado" @onclick="CancelarEliminar">Cancelar</button>
+            </div>
+        </Alerta>
     }
 }
 
@@ -150,7 +218,7 @@ else
     private List<ServicioDto> Servicios = [];
     private List<TarifaDto> Tarifas = [];
     private bool Autorizado, Ocupado;
-    private string Mensaje = "Verificando permiso de administrador…";
+    private string Mensaje = "Verificando tus permisos…";
 
     protected override async Task OnInitializedAsync() => await ComprobarAccesoAsync();
     private async Task ComprobarAccesoAsync()
@@ -257,24 +325,24 @@ else
         }
         finally { Ocupado = false; }
     }
-    private sealed class FormularioParada { public string? Id { get; set; } [Required, StringLength(100, MinimumLength = 1)] public string Nombre { get; set; } = string.Empty; }
-    private sealed class FormularioTramo { public string? Id { get; set; } [Required] public string OrigenId { get; set; } = string.Empty; [Required] public string DestinoId { get; set; } = string.Empty; }
+    private sealed class FormularioParada { public string? Id { get; set; } [Required(ErrorMessage = "Ingresá el nombre de la parada."), StringLength(100, MinimumLength = 1, ErrorMessage = "El nombre no puede superar los 100 caracteres.")] public string Nombre { get; set; } = string.Empty; }
+    private sealed class FormularioTramo { public string? Id { get; set; } [Required(ErrorMessage = "Elegí el origen.")] public string OrigenId { get; set; } = string.Empty; [Required(ErrorMessage = "Elegí el destino.")] public string DestinoId { get; set; } = string.Empty; }
     private static string EtiquetaPolitica(PoliticaAsiento politica) => politica == PoliticaAsiento.SinAsiento ? "Sin asiento" : "Asignación automática";
     private sealed class FormularioServicio
     {
         public string? Id { get; set; }
-        [Required] public string TramoId { get; set; } = string.Empty;
-        [Required] public DateTime? Salida { get; set; }
-        [Required] public DateTime? Llegada { get; set; }
-        [Range(1, int.MaxValue)] public int Capacidad { get; set; } = 1;
+        [Required(ErrorMessage = "Elegí el tramo.")] public string TramoId { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Ingresá la fecha y hora de salida.")] public DateTime? Salida { get; set; }
+        [Required(ErrorMessage = "Ingresá la fecha y hora de llegada.")] public DateTime? Llegada { get; set; }
+        [Range(1, int.MaxValue, ErrorMessage = "La capacidad debe ser al menos 1.")] public int Capacidad { get; set; } = 1;
         public PoliticaAsiento PoliticaAsiento { get; set; }
     }
     private sealed class FormularioTarifa
     {
         public string? Id { get; set; }
-        [Required] public string TramoId { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Elegí el tramo.")] public string TramoId { get; set; } = string.Empty;
         [Range(typeof(decimal), "0", "9999999999999999.99", ParseLimitsInInvariantCulture = true)] public decimal Importe { get; set; }
-        [Required] public DateTime? VigenteDesde { get; set; }
-        [Required] public DateTime? VigenteHasta { get; set; }
+        [Required(ErrorMessage = "Ingresá la fecha de inicio de vigencia.")] public DateTime? VigenteDesde { get; set; }
+        [Required(ErrorMessage = "Ingresá la fecha de fin de vigencia.")] public DateTime? VigenteHasta { get; set; }
     }
 }
