@@ -607,20 +607,20 @@
         "Mobile",
         "Docs"
       ],
-      "status": "in_progress",
+      "status": "done",
       "assignee": "Diego",
       "reviewer": "Enzo",
       "createdAt": "2026-10-15T20:01:40.910221-03:00",
       "startedAt": "2026-11-12T14:48:56-03:00",
-      "completedAt": null,
-      "completedBy": null,
+      "completedAt": "2026-11-12T18:05:48-03:00",
+      "completedBy": "Diego",
       "dependencies": [],
       "acceptanceCriteria": [
         "Las presentaciones aportadas se analizan con referencias a archivos y páginas o diapositivas, distinguiendo contenido demostrado, mencionado y no verificado.",
         "El análisis explica offline-first según el material y contrasta su aplicación con los requisitos y la arquitectura Mobile vigentes; identifica conflictos y decisiones pendientes sin asumir que el proyecto ya tiene capacidades offline implementadas.",
         "Se documenta una propuesta mínima de aplicación al proyecto y sus límites, separando el análisis de cualquier implementación posterior que requiera aprobación del equipo."
       ],
-      "evidence": "Material recibido el 2026-11-12 (5 presentaciones y 3 manuales sobre offline-first; Diego confirmó que el tema es offline-first, no online-first). Análisis en docs/explanation/offline-first-mobile.md, rama feature/fin-006-offline-first-analysis. Sin aprobación de una implementación, librerías, caché, sincronización o soporte offline. Responsable Diego y revisor Enzo. Registro independiente de análisis, sin modificar dependencias ni estados de tareas existentes."
+      "evidence": "PR #77 (commit ee3edea, merge 78406bb): docs/explanation/offline-first-mobile.md y FIN-009 para la propuesta mínima aprobada.\npython -m json.tool docs/tasks.json, git diff --check y enlaces relativos: OK; sin código ni ejemplos ejecutados.\nRevisor Enzo: confirmó criterios y decisiones D-1 a D-5 según el reporte de Diego; PR mergeado sin review registrada en GitHub."
     },
     {
       "id": "MVP-002-01",

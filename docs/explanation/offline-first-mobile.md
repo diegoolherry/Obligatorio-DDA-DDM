@@ -121,4 +121,3 @@ Todas las tomó Diego el 2026-11-12. Enzo las confirma en la revisión cruzada.
 
 - No se implementó nada ni se instalaron dependencias.
 - No se ejecutaron los ejemplos del material.
-- El [informe académico](../project-report.md) todavía menciona «online-first». Se corrige en la actualización semanal, según la regla del repositorio.
