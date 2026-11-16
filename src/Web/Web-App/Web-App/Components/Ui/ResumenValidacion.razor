@@ -1,0 +1,6 @@
+@* Resumen de errores del formulario. La región role="alert" existe desde el primer render,
+   así los lectores de pantalla anuncian los errores una sola vez cuando aparecen.
+   Los ValidationMessage por campo quedan fuera de la región para no repetir el aviso. *@
+<div class="resumen-validacion" role="alert">
+    <ValidationSummary />
+</div>
