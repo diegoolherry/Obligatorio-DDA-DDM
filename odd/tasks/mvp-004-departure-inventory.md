@@ -12,8 +12,8 @@ Prepare the approved operational `Salida` identity and demonstration seat invent
 - Preserve existing capacity46 edits and previous Mobile correction; Mobile is outside this unit.
 
 ## Tasks
-- [ ] DI-01: Test-first models, relationships, demo inventory, reused SA counter support and generated offline migration/SQL.
-- [ ] DI-02: Independent verification, parent spot check and scoped local work-unit commit after delivery-strategy decision if required.
+- [x] DI-01: Test-first models, relationships, demo inventory, reused SA counter support and generated offline migration/SQL; implementation commit `9754cbc`.
+- [x] DI-02: Independent verification, parent spot check and local work-unit commit; granted native review closed by exact acknowledgement.
 
 ## Routing
 - DI-01 delegated direct: multi-file implementation, migration generation and tests.
@@ -39,20 +39,20 @@ Prepare the approved operational `Salida` identity and demonstration seat invent
 
   | Position | Branch / base | Contents and status |
   | --- | --- | --- |
-  | Tracker | `feat/mvp-004`, from `main` at `1e152af` | Final integration branch; parent will create locally. |
+  | Tracker | `feat/mvp-004`, from `main` at `1e152af` | Created locally; final integration branch. |
   | Cut 1 | `feat/mvp-004-purchase-contracts`, based on tracker | Commits `d64b610`, `ceabbd9`, `a757bf9`; current HEAD `a757bf9`. |
-  | Cut 2 | `feat/mvp-004-departure-inventory`, based on cut 1 at `a757bf9` | Current verified inventory work; commit and branch creation pending parent. |
+  | Cut 2 | `feat/mvp-004-departure-inventory`, based on cut 1 at `a757bf9` | Created locally; implementation `9754cbc`, verified and reviewed. |
   | Planned follow-up cuts | Not created | Attempt/hold → TEST provider → ticket confirmation → clients, in that order; these are responsibility boundaries only, not implementation, schema, or provider approvals. |
 
   ```text
   main@1e152af
-    └── feat/mvp-004 (tracker, pending local creation)
+    └── feat/mvp-004 (local tracker)
          └── feat/mvp-004-purchase-contracts@a757bf9 (d64b610 → ceabbd9 → a757bf9)
-              └── feat/mvp-004-departure-inventory (current work; pending local branch/commit)
+              └── feat/mvp-004-departure-inventory@9754cbc (reviewed inventory)
                    └── planned: attempt/hold → TEST provider → ticket confirmation → clients
   ```
 
-- No branches were created or switched and no files were staged or committed by this worker. No push, remote operation, or PR is authorized here. Any future tracker PR must be draft/no-merge and requires explicit remote authorization. The existing dirty Mobile itinerary string correction is preserved and excluded from this inventory cut; keep it for a later appropriate Mobile slice.
+- The parent created the local branches and scoped implementation commit without rewriting existing commits. No push, remote operation, or PR was performed. Any future tracker PR must be draft/no-merge and requires explicit remote authorization. The existing dirty Mobile itinerary string correction is preserved and excluded from this inventory cut; keep it for a later appropriate Mobile slice.
 - No task marked complete without observed checks and its work-unit commit.
 - Engram mirror pending because host-session identity hook has rejected writes.
 - Backlog task states and weekly report remain unchanged; no human cross-review or full MVP completion inferred.
@@ -60,9 +60,14 @@ Prepare the approved operational `Salida` identity and demonstration seat invent
 ## Progress
 - Local tracker `feat/mvp-004` and inventory branch `feat/mvp-004-departure-inventory` were created without rewriting existing commits; inventory is based on cut 1 at `a757bf9`.
 - Staged checking detected EF's generated SQL final blank line. The byte-identical generated script is preserved rather than manually edited; source whitespace is checked normally and only the generated script's EOF-blank warning is exempted using a command-local check option.
-- DI-01 source and offline artifacts prepared; DI-01/DI-02 remain unchecked until independent verification and the authorized work-unit commit.
+- DI-01/DI-02 verified and committed in `9754cbc`; this closes only the offline inventory cut, not MVP-004 or MySQL integration.
 - Test-first evidence: new scenario/allocator/metadata assertions failed at runtime before implementation (5 RED checks); after implementation, OperationalAdministration passed 130 structural checks and AuthenticationSessions passed 48/48 unit checks, including SA range and EF metadata checks. PaymentContracts passed 27 checks; API build passed with 0 errors.
 - Generated offline EF migration `20261116181813_InventarioSalidaDemo` from base `20261111163728_CatalogoHorarios` and SQL `scripts/database/inventario-salida-demo.sql`. Migration inspection found only new inventory tables, nullable `servicio.salida_id`, and the necessary counter allowlist check replacement. No database was connected to, migrated, seeded, reset, or modified.
 - Known environment warning: NU1900 vulnerability-index access unavailable; EF tool `10.0.9` is older than runtime `10.0.11`. New generated/source files passed UTF-8, LF-at-EOF and U+FFFD checks; `git diff --check` passed.
-- Existing dirty `seed46`/`test46` and Mobile itinerary string correction were preserved. No task is complete without its work-unit commit; local branch/commit operations remain with the parent under the selected chain.
-- Independent verification passed without blocking findings: 130 operational, 48/48 authentication unit and 27 payment checks; API build exit 0. EF reported no pending model changes, regenerated SQL was byte-identical, and 17 changed/new files passed direct encoding/whitespace inspection. Parent repeated 48/48 authentication checks successfully. MySQL execution remains unverified and expressly out of scope. Commit and native review remain pending parent local branch/commit operations under the selected feature-branch chain.
+- Existing `seed46`/`test46` changes were retained in the implementation commit; the earlier Mobile itinerary correction remains preserved and uncommitted.
+- Independent verification passed without blocking findings: 130 operational, 48/48 authentication unit and 27 payment checks; API build exit 0. EF reported no pending model changes, regenerated SQL was byte-identical, and 17 changed/new files passed direct encoding/whitespace inspection. Parent repeated 48/48 authentication checks successfully. MySQL execution remains unverified and expressly out of scope.
+- Native review `review-b90dab6203aa07ee` was granted for `9754cbc` against `a757bf9`. The reliability review returned approved with non-blocking advisory `R3-001`; the exact acknowledgement returned `gentle-ai.review-acknowledged/v1`, `action: acknowledged`, `authority: burned`. No further lifecycle operation is required for this consumed target.
+
+## Separate follow-up: downgrade safety
+- Advisory `R3-001` identifies a future rollback issue: after the reset seed inserts the `SA-` counter, migration `Down` restores the old US-/RO-only prefix check without resolving the SA row. A downgrade may therefore fail after earlier DDL has already run.
+- No downgrade, seed or MySQL operation was executed. The finding is non-blocking for the reviewed cut and does not reopen it. A safe downgrade design remains separate later work; do not blindly delete a durable counter or alter existing data. No correction was authorized or implemented by this review.
