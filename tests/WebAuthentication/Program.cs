@@ -363,6 +363,15 @@ Check(locationPage.Contains("@page \"/pasajero/ubicacion\"") && locationPage.Con
     && locationPage.Contains("Actualizar") && locationPage.Contains("desactualizada") && locationPage.Contains("Datos ficticios y aproximados")
     && locationPage.Contains("Parámetros académicos usados") && locationPage.Contains("d.LlegadaAproximada is { } llegada"),
     "passenger location page states session, retry, stale, fictitious data and parameters (source check)");
+string WebSource(string relative) => ancestor == null ? "" : File.ReadAllText(Path.Combine(ancestor.FullName, "src/Web/Web-App/Web-App", relative));
+string layoutSource = WebSource("Components/Layout/MainLayout.razor");
+Check(layoutSource.Contains("@onclick=\"IrAlContenidoAsync\"") && layoutSource.Contains("contenido.FocusAsync()") && layoutSource.Contains("@ref=\"contenido\""),
+    "skip link moves focus to main#contenido (source check)");
+string sessionSource = WebSource("Services/Authentication/SesionCliente.cs");
+Check(sessionSource.Contains("client.MaxResponseContentBufferSize = LimiteRespuestaListados"),
+    "authenticated list requests raise the 64 KB auth buffer (source check)");
+string adminSource = WebSource("Components/Pages/Admin/AdministracionOperativa.razor");
+Check(adminSource.Contains("HayError ? TipoAviso.Error : TipoAviso.Info"), "admin load failure uses the error alert (source check)");
 Console.WriteLine($"{checks - failures}/{checks} PASS");
 return failures == 0 ? 0 : 1;
 

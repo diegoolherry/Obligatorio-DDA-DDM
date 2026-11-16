@@ -28,7 +28,7 @@ else if (!Autorizado)
 }
 else
 {
-    <Alerta>@Mensaje</Alerta>
+    <Alerta Tipo="@(HayError ? TipoAviso.Error : TipoAviso.Info)">@Mensaje</Alerta>
     <section class="card mb-section" aria-labelledby="titulo-paradas">
         <h2 id="titulo-paradas">Paradas</h2>
         <EditForm Model="ParadaForm" OnValidSubmit="GuardarParadaAsync">
@@ -217,7 +217,7 @@ else
     private List<TramoDto> Tramos = [];
     private List<ServicioDto> Servicios = [];
     private List<TarifaDto> Tarifas = [];
-    private bool Autorizado, Ocupado;
+    private bool Autorizado, Ocupado, HayError;
     private string Mensaje = "Verificando tus permisos…";
 
     protected override async Task OnInitializedAsync() => await ComprobarAccesoAsync();
@@ -231,6 +231,7 @@ else
         Ocupado = false;
         if (Autorizado) await RecargarAsync();
     }
+    private void Informar(string? error, string exito) { HayError = error != null; Mensaje = error ?? exito; }
     private async Task RecargarAsync()
     {
         var paradas = await Cliente.ListarParadasAsync();
@@ -238,21 +239,21 @@ else
         var servicios = await Cliente.ListarServiciosAsync();
         var tarifas = await Cliente.ListarTarifasAsync();
         Paradas = paradas.Items.ToList(); Tramos = tramos.Items.ToList(); Servicios = servicios.Items.ToList(); Tarifas = tarifas.Items.ToList();
-        Mensaje = paradas.Error ?? tramos.Error ?? servicios.Error ?? tarifas.Error ?? "Datos actualizados.";
+        Informar(paradas.Error ?? tramos.Error ?? servicios.Error ?? tarifas.Error, "Datos actualizados.");
     }
     private async Task GuardarParadaAsync()
     {
         Ocupado = true;
         var error = await Cliente.GuardarParadaAsync(new() { Id = ParadaForm.Id, Nombre = ParadaForm.Nombre });
         if (error == null) { ParadaForm.Id = null; ParadaForm.Nombre = string.Empty; }
-        await RecargarAsync(); Mensaje = error ?? "Parada guardada."; Ocupado = false;
+        await RecargarAsync(); Informar(error, "Parada guardada."); Ocupado = false;
     }
     private async Task GuardarTramoAsync()
     {
         Ocupado = true;
         var error = await Cliente.GuardarTramoAsync(new() { Id = TramoForm.Id, OrigenId = TramoForm.OrigenId, DestinoId = TramoForm.DestinoId });
         if (error == null) LimpiarTramo();
-        await RecargarAsync(); Mensaje = error ?? "Tramo guardado."; Ocupado = false;
+        await RecargarAsync(); Informar(error, "Tramo guardado."); Ocupado = false;
     }
     private void EditarParada(ParadaDto p) { ParadaForm.Id = p.Id; ParadaForm.Nombre = p.Nombre; }
     private void EditarTramo(TramoDto t) { TramoForm.Id = t.Id; TramoForm.OrigenId = t.OrigenId; TramoForm.DestinoId = t.DestinoId; }
@@ -261,13 +262,13 @@ else
     private async Task GuardarServicioAsync()
     {
         if (ServicioForm.Llegada <= ServicioForm.Salida)
-        { Mensaje = "La llegada debe ser posterior a la salida."; return; }
+        { Mensaje = "La llegada debe ser posterior a la salida."; HayError = true; return; }
         Ocupado = true;
         var error = await Cliente.GuardarServicioAsync(new() { Id = ServicioForm.Id, TramoId = ServicioForm.TramoId,
             Salida = ServicioForm.Salida!.Value, Llegada = ServicioForm.Llegada!.Value,
             Capacidad = ServicioForm.Capacidad, PoliticaAsiento = ServicioForm.PoliticaAsiento });
         if (error == null) LimpiarServicio();
-        await RecargarAsync(); Mensaje = error ?? "Servicio guardado."; Ocupado = false;
+        await RecargarAsync(); Informar(error, "Servicio guardado."); Ocupado = false;
     }
     private void EditarServicio(ServicioDto servicio)
     {
@@ -287,7 +288,7 @@ else
             Importe = TarifaForm.Importe, VigenteDesde = TarifaForm.VigenteDesde!.Value.Date,
             VigenteHasta = TarifaForm.VigenteHasta!.Value.Date });
         if (error == null) LimpiarTarifa();
-        await RecargarAsync(); Mensaje = error ?? "Tarifa guardada."; Ocupado = false;
+        await RecargarAsync(); Informar(error, "Tarifa guardada."); Ocupado = false;
     }
     private void EditarTarifa(TarifaDto tarifa)
     {
@@ -320,7 +321,7 @@ else
         try
         {
             var error = await Cliente.EliminarAsync(pending.Tipo, pending.Id);
-            await RecargarAsync(); Mensaje = error ?? $"{pending.Nombre} eliminado.";
+            await RecargarAsync(); Informar(error, $"{pending.Nombre} eliminado.");
             _eliminacionPendiente = null;
         }
         finally { Ocupado = false; }

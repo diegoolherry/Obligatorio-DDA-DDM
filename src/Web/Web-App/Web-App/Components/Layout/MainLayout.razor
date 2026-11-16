@@ -5,7 +5,7 @@
 @using Web_App.Services.Authentication
 
 <CascadingValue Value="this">
-    <a class="skip-link" href="@EnlaceContenido">Saltar al contenido</a>
+    <a class="skip-link" href="@EnlaceContenido" @onclick="IrAlContenidoAsync" @onclick:preventDefault>Saltar al contenido</a>
 
     <header class="site-header">
         <div class="container header-inner">
@@ -14,7 +14,7 @@
         </div>
     </header>
 
-    <main id="contenido" tabindex="-1">
+    <main id="contenido" tabindex="-1" @ref="contenido">
         <div class="container">
             @Body
         </div>
@@ -37,6 +37,11 @@
 @code {
     // El enlace de salto conserva la ruta actual: con <base href="/">, un "#contenido" suelto llevaría al inicio.
     private string EnlaceContenido => Navegacion.Uri.Split('#')[0] + "#contenido";
+
+    private ElementReference contenido;
+
+    // Blazor intercepta el enlace con hash y no mueve el foco: se enfoca <main> explícitamente (teclado y clic).
+    private async Task IrAlContenidoAsync() => await contenido.FocusAsync();
 
     protected override void OnInitialized() => Navegacion.LocationChanged += AlNavegar;
 
