@@ -115,7 +115,7 @@
         "La aplicación no solicita ni almacena números de tarjeta, CVV ni datos financieros equivalentes; no hay cobros reales ni credenciales de producción.",
         "El ticket del primer tramo no tiene asiento y el segundo tiene un asiento asignado automáticamente."
       ],
-      "evidence": "Aclaración de los criterios originales, sin implementación: rechazo definitivo permite reintentar solo con hold vigente y tiempo restante; no verificado o pendiente/desconocido no emite tickets ni habilita otro pago hasta resolución autoritativa. La cardinalidad conceptual es a lo sumo una compra confirmada por intento durable con pagos conservados; no define cardinalidad física. Rige docs/design/data-model.md §2, base conceptual aprobada por Diego y Enzo según lo informado por el usuario. Soporte de devolución TEST no verificado, sin reemplazo simulado; integración y pruebas del proveedor pendientes."
+      "evidence": "Aclaración de los criterios originales, sin implementación: rechazo definitivo permite reintentar solo con hold vigente y tiempo restante; no verificado o pendiente/desconocido no emite tickets ni habilita otro pago hasta resolución autoritativa. La cardinalidad conceptual es a lo sumo una compra confirmada por intento durable con pagos conservados; no define cardinalidad física. Rige docs/design/data-model.md §2, base conceptual aprobada por Diego y Enzo según lo informado por el usuario. Soporte de devolución TEST no verificado, sin reemplazo simulado; integración y pruebas del proveedor pendientes. Antes de implementar, diseñar los mockups de sus pantallas (pago, Cuenta) en OpenPencil con el sistema de diseño de FIN-010 (design/fin-010, decisión de Diego del 2026-11-16)."
     },
     {
       "id": "MVP-005",
@@ -143,7 +143,7 @@
         "El primer escaneo válido marca el ticket como utilizado y un segundo escaneo del mismo ticket es rechazado.",
         "Un ticket de otro tramo no se consume."
       ],
-      "evidence": null
+      "evidence": "Antes de implementar, diseñar los mockups de sus pantallas (incluido el permiso de cámara denegado) en OpenPencil con el sistema de diseño de FIN-010 (design/fin-010, decisión de Diego del 2026-11-16)."
     },
     {
       "id": "MVP-006",
@@ -172,7 +172,7 @@
         "Una validación válida descuenta exactamente una unidad solo del abono del tramo actual.",
         "Los abonos sin saldo, vencidos o suspendidos son rechazados sin permitir saldo negativo."
       ],
-      "evidence": null
+      "evidence": "Antes de implementar, diseñar los mockups de sus pantallas (Mis abonos) en OpenPencil con el sistema de diseño de FIN-010 (design/fin-010, decisión de Diego del 2026-11-16)."
     },
     {
       "id": "MVP-007",
@@ -987,6 +987,31 @@
         "Las páginas conservan su comportamiento y sus estados de carga, vacío, error y éxito."
       ],
       "evidence": "PR #80 (commits d9962e8..0e5b813; merge 4b3139e): mockups Web (Home B), diseño Berrutti en Blazor, foco del enlace de salto, límite de 16 MB en consultas con sesión y filtro opcional ?fecha= en GET /api/administracion/servicios.\ndotnet build API y Web sin errores; WebAuthentication 111/111, OperationalAdministration 137, OperationalControllerValidation 4/4; E2E en ego-browser con MySQL local (MySqlPersistence no corrido).\nRevisor Enzo: aprobó el PR según el reporte de Diego; sin review registrada en GitHub."
+    },
+    {
+      "id": "FIN-011",
+      "name": "Pulido de accesibilidad y textos de la Web",
+      "description": "Pendientes detectados en la revisión E2E de FIN-010-03 (PR #80), pedido de Diego del 2026-11-16: anunciar los errores de validación de campo a lectores de pantalla, ocultar del menú sin sesión los enlaces que requieren ingresar, y reemplazar textos heredados que hoy exigen tests existentes.",
+      "priority": "baja",
+      "area": [
+        "Web"
+      ],
+      "status": "pending",
+      "assignee": null,
+      "reviewer": null,
+      "createdAt": "2026-11-16T17:37:11-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [
+        "FIN-010"
+      ],
+      "acceptanceCriteria": [
+        "Los errores de validación de los formularios Web se anuncian a lectores de pantalla (por ejemplo, con role=\"alert\" o una región aria-live) sin duplicar el aviso.",
+        "Sin sesión, el menú no muestra enlaces que requieren ingresar; la autorización sigue decidiéndola la API.",
+        "Los textos «Datos ficticios y aproximados», «Parámetros académicos usados» y el mensaje en inglés del importe de tarifa se reemplazan por textos neutros en español, y los tests que los exigían verifican el comportamiento en lugar del texto anterior."
+      ],
+      "evidence": "Registrada tras el cierre de FIN-010; responsables sin asignar."
     }
   ]
 }
