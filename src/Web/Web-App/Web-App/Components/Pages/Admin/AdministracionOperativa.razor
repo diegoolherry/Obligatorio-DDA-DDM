@@ -6,6 +6,7 @@
 @using Web_App.Services.Operational
 @inject ISesionCliente Sesion
 @inject AdministracionOperativaCliente Cliente
+@inject TimeProvider Reloj
 
 <PageTitle>Administración operativa · Berrutti</PageTitle>
 <div class="page-header">
@@ -126,6 +127,28 @@ else
                 @if (ServicioForm.Id != null) { <button type="button" class="btn btn-secondary" @onclick="LimpiarServicio">Cancelar edición</button> }
             </div>
         </EditForm>
+        <div class="field">
+            <label for="servicios-fecha">Fecha</label>
+            <input id="servicios-fecha" type="date" value="@FechaServicios.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)"
+                   @onchange="CambiarFechaServiciosAsync" disabled="@(Ocupado || CargandoServicios)" />
+        </div>
+        @if (CargandoServicios)
+        {
+            <p role="status">Cargando servicios…</p>
+        }
+        else if (ErrorServicios != null)
+        {
+            <Alerta Tipo="TipoAviso.Error">
+                @ErrorServicios
+                <br /><button type="button" class="btn btn-secondary" disabled="@Ocupado" @onclick="CargarServiciosAsync">Reintentar</button>
+            </Alerta>
+        }
+        else if (Servicios.Count == 0)
+        {
+            <Alerta>No hay servicios el @FechaServicios.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture).</Alerta>
+        }
+        else
+        {
         <ul class="list-plain list-rows">
             @foreach (var servicio in Servicios)
             {
@@ -143,6 +166,7 @@ else
                 </li>
             }
         </ul>
+        }
     </section>
     <section class="card mb-section" aria-labelledby="titulo-tarifas">
         <h2 id="titulo-tarifas">Tarifas</h2>
@@ -217,10 +241,16 @@ else
     private List<TramoDto> Tramos = [];
     private List<ServicioDto> Servicios = [];
     private List<TarifaDto> Tarifas = [];
-    private bool Autorizado, Ocupado, HayError;
+    private bool Autorizado, Ocupado, HayError, CargandoServicios;
+    private DateOnly FechaServicios;
+    private string? ErrorServicios;
     private string Mensaje = "Verificando tus permisos…";
 
-    protected override async Task OnInitializedAsync() => await ComprobarAccesoAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        FechaServicios = DateOnly.FromDateTime(Reloj.GetLocalNow().DateTime);
+        await ComprobarAccesoAsync();
+    }
     private async Task ComprobarAccesoAsync()
     {
         if (!Sesion.Estado.Autenticada) { Mensaje = "Ingresá con una sesión activa."; return; }
@@ -236,10 +266,25 @@ else
     {
         var paradas = await Cliente.ListarParadasAsync();
         var tramos = await Cliente.ListarTramosAsync();
-        var servicios = await Cliente.ListarServiciosAsync();
         var tarifas = await Cliente.ListarTarifasAsync();
-        Paradas = paradas.Items.ToList(); Tramos = tramos.Items.ToList(); Servicios = servicios.Items.ToList(); Tarifas = tarifas.Items.ToList();
-        Informar(paradas.Error ?? tramos.Error ?? servicios.Error ?? tarifas.Error, "Datos actualizados.");
+        Paradas = paradas.Items.ToList(); Tramos = tramos.Items.ToList(); Tarifas = tarifas.Items.ToList();
+        await CargarServiciosAsync();
+        Informar(paradas.Error ?? tramos.Error ?? tarifas.Error, "Datos actualizados.");
+    }
+    // Los servicios se piden de a un día: el listado completo (miles de filas) bloquea el navegador.
+    private async Task CargarServiciosAsync()
+    {
+        CargandoServicios = true; ErrorServicios = null;
+        var servicios = await Cliente.ListarServiciosAsync(FechaServicios);
+        Servicios = servicios.Items.ToList(); ErrorServicios = servicios.Error;
+        CargandoServicios = false;
+    }
+    private async Task CambiarFechaServiciosAsync(ChangeEventArgs e)
+    {
+        if (!DateOnly.TryParseExact(e.Value as string, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var fecha))
+        { Servicios = []; ErrorServicios = "Elegí una fecha para ver los servicios."; return; }
+        FechaServicios = fecha;
+        await CargarServiciosAsync();
     }
     private async Task GuardarParadaAsync()
     {
@@ -264,10 +309,11 @@ else
         if (ServicioForm.Llegada <= ServicioForm.Salida)
         { Mensaje = "La llegada debe ser posterior a la salida."; HayError = true; return; }
         Ocupado = true;
+        var salidaGuardada = ServicioForm.Salida!.Value;
         var error = await Cliente.GuardarServicioAsync(new() { Id = ServicioForm.Id, TramoId = ServicioForm.TramoId,
-            Salida = ServicioForm.Salida!.Value, Llegada = ServicioForm.Llegada!.Value,
+            Salida = salidaGuardada, Llegada = ServicioForm.Llegada!.Value,
             Capacidad = ServicioForm.Capacidad, PoliticaAsiento = ServicioForm.PoliticaAsiento });
-        if (error == null) LimpiarServicio();
+        if (error == null) { LimpiarServicio(); FechaServicios = DateOnly.FromDateTime(salidaGuardada); }
         await RecargarAsync(); Informar(error, "Servicio guardado."); Ocupado = false;
     }
     private void EditarServicio(ServicioDto servicio)

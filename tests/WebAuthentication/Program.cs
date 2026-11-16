@@ -372,6 +372,38 @@ Check(sessionSource.Contains("client.MaxResponseContentBufferSize = LimiteRespue
     "authenticated list requests raise the 64 KB auth buffer (source check)");
 string adminSource = WebSource("Components/Pages/Admin/AdministracionOperativa.razor");
 Check(adminSource.Contains("HayError ? TipoAviso.Error : TipoAviso.Info"), "admin load failure uses the error alert (source check)");
+// FIN-010-03 / S7: the services list is requested one local day at a time.
+{
+    var dayTransport = new FakeHandler();
+    var dayServices = new ServiceCollection();
+    dayServices.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Api:BaseUrl"] = "https://api.example.invalid/" }).Build());
+    dayServices.AddLogging();
+    dayServices.AddSingleton<TimeProvider>(new TestClock());
+    dayServices.AddHttpClient("Autenticacion").ConfigurePrimaryHttpMessageHandler(() => dayTransport);
+    dayServices.AddScoped<ISesionCliente, SesionCliente>();
+    dayServices.AddScoped<Web_App.Services.Operational.AdministracionOperativaCliente>();
+    using var dayProvider = dayServices.BuildServiceProvider();
+    using var dayScope = dayProvider.CreateScope();
+    dayTransport.Reply = _ => Task.FromResult(Response(200, Success().Replace("pasajero", "administrador")));
+    await dayScope.ServiceProvider.GetRequiredService<ISesionCliente>().IngresarAsync(Input());
+    var dayClient = dayScope.ServiceProvider.GetRequiredService<Web_App.Services.Operational.AdministracionOperativaCliente>();
+    dayTransport.Reply = _ => Task.FromResult(Response(200, "[{\"id\":\"SE-1\",\"tramoId\":\"TR-1\",\"salida\":\"2026-11-16T08:00:00\",\"llegada\":\"2026-11-16T09:00:00\",\"capacidad\":30,\"politicaAsiento\":\"sinAsiento\"}]"));
+    var (dayItems, dayError) = await dayClient.ListarServiciosAsync(new DateOnly(2026, 11, 16));
+    Check(dayError == null && dayItems.Count == 1 && dayTransport.LastMethod == "GET" && dayTransport.LastPath == "/api/administracion/servicios"
+        && dayTransport.LastQuery == "?fecha=2026-11-16" && dayTransport.LastBearer == "Bearer " + token,
+        "admin services list requests one invariant yyyy-MM-dd day with the administrator bearer");
+    dayTransport.Reply = _ => Task.FromResult(Response(400, "\"La fecha debe tener el formato yyyy-MM-dd.\""));
+    var (_, rejectedDay) = await dayClient.ListarServiciosAsync(new DateOnly(2026, 11, 16));
+    Check(rejectedDay != null, "admin services list surfaces an API rejection as an error");
+}
+string adminPageDay = WebSource("Components/Pages/Admin/AdministracionOperativa.razor");
+Check(adminPageDay.Contains("<label for=\"servicios-fecha\">Fecha</label>") && adminPageDay.Contains("type=\"date\"")
+    && adminPageDay.Contains("@onchange=\"CambiarFechaServiciosAsync\"") && adminPageDay.Contains("Cliente.ListarServiciosAsync(FechaServicios)")
+    && adminPageDay.Contains("@inject TimeProvider Reloj") && adminPageDay.Contains("Reloj.GetLocalNow()")
+    && adminPageDay.Contains("No hay servicios el @FechaServicios.ToString(\"dd/MM/yyyy\"")
+    && adminPageDay.Contains("CargandoServicios") && adminPageDay.Contains("ErrorServicios")
+    && adminPageDay.Contains("FechaServicios = DateOnly.FromDateTime(salidaGuardada)"),
+    "admin services section: «Fecha» input (default today), loading/empty/error states, reload on change, shows saved service's day (source check)");
 Console.WriteLine($"{checks - failures}/{checks} PASS");
 return failures == 0 ? 0 : 1;
 

@@ -6,7 +6,7 @@ namespace API_Berruti.Services.Operational;
 
 public class ServiciosService(IServiciosRepository repository) : IServiciosService
 {
-    public async Task<IReadOnlyList<ServicioDto>> ListarAsync() => (await repository.ListarAsync()).Select(ToDto).ToArray();
+    public async Task<IReadOnlyList<ServicioDto>> ListarAsync(DateOnly? dia = null) => (await repository.ListarAsync(dia)).Select(ToDto).ToArray();
     public async Task<ServicioDto> CrearAsync(ServicioDto dto)
     {
         await ValidarAsync(dto);
