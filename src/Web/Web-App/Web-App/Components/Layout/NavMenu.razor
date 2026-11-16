@@ -11,9 +11,12 @@
         <li><NavLink class="nav-link" href="" Match="NavLinkMatch.All">Inicio</NavLink></li>
         <li><NavLink class="nav-link" href="itinerarios">Buscar viaje</NavLink></li>
         <li><NavLink class="nav-link" href="horarios">Horarios</NavLink></li>
-        @* Se muestran todos los enlaces, como antes del rediseño: ocultarlos no autoriza nada; la API comprueba cada permiso. *@
-        <li><NavLink class="nav-link" href="pasajero/ubicacion">Ubicación del servicio</NavLink></li>
-        <li><NavLink class="nav-link" href="admin/operativa">Administración operativa</NavLink></li>
+        @* Sin sesión se ocultan los enlaces que requieren ingresar. Ocultarlos no autoriza nada: la API comprueba cada permiso. *@
+        @if (Autenticada)
+        {
+            <li><NavLink class="nav-link" href="pasajero/ubicacion">Ubicación del servicio</NavLink></li>
+            <li><NavLink class="nav-link" href="admin/operativa">Administración operativa</NavLink></li>
+        }
     </ul>
     <div class="nav-session">
         @if (Autenticada)

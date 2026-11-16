@@ -35,7 +35,9 @@ else
                         <option value="">Seleccioná una parada</option>
                         @foreach (var p in Paradas) { <option value="@p.Id">@p.Nombre</option> }
                     </InputSelect>
-                    <ValidationMessage For="() => Form.OrigenId" />
+                    <div role="alert">
+                        <ValidationMessage For="() => Form.OrigenId" />
+                    </div>
                 </div>
                 <div class="field">
                     <label for="destino">Destino</label>
@@ -43,8 +45,10 @@ else
                         <option value="">Seleccioná una parada</option>
                         @foreach (var p in Paradas) { <option value="@p.Id">@p.Nombre</option> }
                     </InputSelect>
-                    <ValidationMessage For="() => Form.DestinoId" />
-                    @if (ParadasIguales) { <div class="validation-message">El destino debe ser distinto del origen.</div> }
+                    <div role="alert">
+                        <ValidationMessage For="() => Form.DestinoId" />
+                        @if (ParadasIguales) { <div class="validation-message">El destino debe ser distinto del origen.</div> }
+                    </div>
                 </div>
                 <div class="field">
                     <label for="fecha">Fecha</label>

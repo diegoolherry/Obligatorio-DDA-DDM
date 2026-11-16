@@ -360,9 +360,74 @@ using (var searchProvider = searchServices.BuildServiceProvider())
 
 string locationPage = ancestor == null ? "" : File.ReadAllText(Path.Combine(ancestor.FullName, "src/Web/Web-App/Web-App/Components/Pages/Pasajero/UbicacionServicio.razor"));
 Check(locationPage.Contains("@page \"/pasajero/ubicacion\"") && locationPage.Contains("href=\"/ingreso\"") && locationPage.Contains("Reintentar")
-    && locationPage.Contains("Actualizar") && locationPage.Contains("desactualizada") && locationPage.Contains("Datos ficticios y aproximados")
-    && locationPage.Contains("Parámetros académicos usados") && locationPage.Contains("d.LlegadaAproximada is { } llegada"),
-    "passenger location page states session, retry, stale, fictitious data and parameters (source check)");
+    && locationPage.Contains("Actualizar") && locationPage.Contains("desactualizada") && locationPage.Contains("d.LlegadaAproximada is { } llegada"),
+    "passenger location page states session, retry, stale and arrival (source check)");
+Check(System.Text.RegularExpressions.Regex.IsMatch(locationPage, @"@if \(d\.DatosFicticios\) \{ <p><small>[^<]+</small></p> \}")
+    && locationPage.Contains("@d.Parametros.PeriodicidadSegundos") && locationPage.Contains("@d.Parametros.UmbralDesactualizacionSegundos")
+    && locationPage.Contains("@d.Parametros.VelocidadPromedioKmH") && locationPage.Contains("@d.Parametros.ToleranciaDemoraMinutos"),
+    "passenger location page shows the sample-data notice only when the API flags it and lists the calculation parameters (source check)");
+Check(!locationPage.Contains("Datos ficticios y aproximados") && !locationPage.Contains("académicos"),
+    "passenger location page uses neutral Spanish wording (source check)");
+
+string navSource = ancestor == null ? "" : File.ReadAllText(Path.Combine(ancestor.FullName, "src/Web/Web-App/Web-App/Components/Layout/NavMenu.razor"));
+var guardedLinks = System.Text.RegularExpressions.Regex.Match(navSource, @"@if \(Autenticada\)\s*\{(?<links>[^}]*)\}\s*</ul>");
+Check(guardedLinks.Success && guardedLinks.Groups["links"].Value.Contains("href=\"pasajero/ubicacion\"") && guardedLinks.Groups["links"].Value.Contains("href=\"admin/operativa\"")
+    && System.Text.RegularExpressions.Regex.Matches(navSource, "href=\"(pasajero/ubicacion|admin/operativa)\"").Count == 2,
+    "menu shows session-only links only while signed in (source check)");
+
+string ValidationSource(string relative) => ancestor == null || !File.Exists(Path.Combine(ancestor.FullName, "src/Web/Web-App/Web-App", relative))
+    ? "" : File.ReadAllText(Path.Combine(ancestor.FullName, "src/Web/Web-App/Web-App", relative));
+string summarySource = ValidationSource("Components/Ui/ResumenValidacion.razor");
+Check(System.Text.RegularExpressions.Regex.IsMatch(summarySource, @"<div[^>]*role=""alert""[^>]*>\s*<ValidationSummary />\s*</div>"),
+    "validation summary sits inside a persistent alert region (source check)");
+foreach (var page in new[] { "Components/Pages/Login.razor", "Components/Pages/Admin/AdministracionOperativa.razor" })
+{
+    var pageSource = ValidationSource(page);
+    var forms = System.Text.RegularExpressions.Regex.Matches(pageSource, "<EditForm").Count;
+    Check(forms > 0 && System.Text.RegularExpressions.Regex.Matches(pageSource, "<ResumenValidacion />").Count == forms
+        && !pageSource.Contains("<ValidationSummary") && !pageSource.Contains("role=\"alert\""),
+        $"{page} announces each form's errors once through the alert summary (source check)");
+}
+string searchSource = ValidationSource("Components/Pages/BuscarItinerario.razor");
+Check(System.Text.RegularExpressions.Regex.Matches(searchSource, @"<div role=""alert"">\s*<ValidationMessage").Count == 2
+    && System.Text.RegularExpressions.Regex.IsMatch(searchSource, @"<div role=""alert"">\s*<ValidationMessage For=""\(\) => Form\.DestinoId"" />\s*@if \(ParadasIguales\)")
+    && !searchSource.Contains("ValidationSummary"),
+    "itinerary search announces each field error, including equal stops, from persistent alert regions (source check)");
+
+var tariffForm = typeof(Web_App.Components.Pages.Admin.AdministracionOperativa)
+    .GetNestedType("FormularioTarifa", System.Reflection.BindingFlags.NonPublic);
+var originalCulture = System.Globalization.CultureInfo.CurrentCulture;
+var originalUiCulture = System.Globalization.CultureInfo.CurrentUICulture;
+try
+{
+    foreach (var cultureName in new[] { "es-UY", "en-US" })
+    {
+        var culture = System.Globalization.CultureInfo.GetCultureInfo(cultureName);
+        System.Globalization.CultureInfo.CurrentCulture = culture;
+        System.Globalization.CultureInfo.CurrentUICulture = culture;
+        foreach (var (amount, valid) in new[] { (0m, true), (9999999999999999.99m, true), (-0.01m, false), (10000000000000000m, false) })
+        {
+            var form = tariffForm == null ? null : Activator.CreateInstance(tariffForm, nonPublic: true);
+            if (form == null) { Check(false, "tariff form type is available"); break; }
+            tariffForm!.GetProperty("TramoId")!.SetValue(form, "tramo-test");
+            tariffForm.GetProperty("VigenteDesde")!.SetValue(form, new DateTime(2031, 1, 1));
+            tariffForm.GetProperty("VigenteHasta")!.SetValue(form, new DateTime(2031, 12, 31));
+            tariffForm.GetProperty("Importe")!.SetValue(form, amount);
+            var results = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
+            var ok = System.ComponentModel.DataAnnotations.Validator.TryValidateObject(form,
+                new System.ComponentModel.DataAnnotations.ValidationContext(form), results, validateAllProperties: true);
+            Check(ok == valid && (valid ? results.Count == 0 : results.Count == 1
+                    && results[0].ErrorMessage == "Ingresá un importe válido, de 0 o más."
+                    && results[0].MemberNames.SequenceEqual(["Importe"])),
+                $"tariff amount {amount} under {cultureName} is {(valid ? "accepted" : "rejected with the Spanish message")}");
+        }
+    }
+}
+finally
+{
+    System.Globalization.CultureInfo.CurrentCulture = originalCulture;
+    System.Globalization.CultureInfo.CurrentUICulture = originalUiCulture;
+}
 string WebSource(string relative) => ancestor == null ? "" : File.ReadAllText(Path.Combine(ancestor.FullName, "src/Web/Web-App/Web-App", relative));
 string layoutSource = WebSource("Components/Layout/MainLayout.razor");
 Check(layoutSource.Contains("@onclick=\"IrAlContenidoAsync\"") && layoutSource.Contains("contenido.FocusAsync()") && layoutSource.Contains("@ref=\"contenido\""),

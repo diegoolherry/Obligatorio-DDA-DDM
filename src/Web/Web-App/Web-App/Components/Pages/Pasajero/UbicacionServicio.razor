@@ -95,15 +95,14 @@ else
                 {
                     <Alerta>Llegada y demora no disponibles: @(string.IsNullOrWhiteSpace(d.Motivo) ? "no se informó el motivo." : d.Motivo)</Alerta>
                 }
-                @* El título se conserva tal cual: tests/WebAuthentication lo exige (ver informe de T2). *@
-                <h3>Parámetros académicos usados</h3>
+                <h3>Parámetros del cálculo</h3>
                 <ul>
                     <li>Periodicidad de publicación: @d.Parametros.PeriodicidadSegundos s</li>
                     <li>Umbral de desactualización: @d.Parametros.UmbralDesactualizacionSegundos s</li>
                     <li>Velocidad promedio: @d.Parametros.VelocidadPromedioKmH.ToString(Cultura) km/h</li>
                     <li>Tolerancia de demora: @d.Parametros.ToleranciaDemoraMinutos min</li>
                 </ul>
-                @if (d.DatosFicticios) { <p><small>Datos ficticios y aproximados.</small></p> }
+                @if (d.DatosFicticios) { <p><small>Datos de prueba; la llegada es una estimación.</small></p> }
                 <button type="button" class="btn btn-secondary" disabled="@Ocupado" @onclick="() => ConsultarAsync()">Actualizar</button>
             }
         </section>

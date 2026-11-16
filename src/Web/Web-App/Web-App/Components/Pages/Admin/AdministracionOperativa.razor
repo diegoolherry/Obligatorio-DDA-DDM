@@ -34,7 +34,7 @@ else
         <h2 id="titulo-paradas">Paradas</h2>
         <EditForm Model="ParadaForm" OnValidSubmit="GuardarParadaAsync">
             <DataAnnotationsValidator />
-            <ValidationSummary />
+            <ResumenValidacion />
             <div class="field">
                 <label for="nombre-parada">Nombre</label>
                 <InputText id="nombre-parada" @bind-Value="ParadaForm.Nombre" />
@@ -58,7 +58,7 @@ else
         <h2 id="titulo-tramos">Tramos</h2>
         <EditForm Model="TramoForm" OnValidSubmit="GuardarTramoAsync">
             <DataAnnotationsValidator />
-            <ValidationSummary />
+            <ResumenValidacion />
             <div class="grid-form">
                 <div class="field">
                     <label for="origen">Origen</label>
@@ -89,7 +89,7 @@ else
         <h2 id="titulo-servicios">Servicios</h2>
         <EditForm Model="ServicioForm" OnValidSubmit="GuardarServicioAsync">
             <DataAnnotationsValidator />
-            <ValidationSummary />
+            <ResumenValidacion />
             <div class="grid-form">
                 <div class="field">
                     <label for="servicio-tramo">Tramo</label>
@@ -172,7 +172,7 @@ else
         <h2 id="titulo-tarifas">Tarifas</h2>
         <EditForm Model="TarifaForm" OnValidSubmit="GuardarTarifaAsync">
             <DataAnnotationsValidator />
-            <ValidationSummary />
+            <ResumenValidacion />
             <div class="grid-form">
                 <div class="field">
                     <label for="tarifa-tramo">Tramo</label>
@@ -388,7 +388,7 @@ else
     {
         public string? Id { get; set; }
         [Required(ErrorMessage = "Elegí el tramo.")] public string TramoId { get; set; } = string.Empty;
-        [Range(typeof(decimal), "0", "9999999999999999.99", ParseLimitsInInvariantCulture = true)] public decimal Importe { get; set; }
+        [Range(typeof(decimal), "0", "9999999999999999.99", ParseLimitsInInvariantCulture = true, ErrorMessage = "Ingresá un importe válido, de 0 o más.")] public decimal Importe { get; set; }
         [Required(ErrorMessage = "Ingresá la fecha de inicio de vigencia.")] public DateTime? VigenteDesde { get; set; }
         [Required(ErrorMessage = "Ingresá la fecha de fin de vigencia.")] public DateTime? VigenteHasta { get; set; }
     }
