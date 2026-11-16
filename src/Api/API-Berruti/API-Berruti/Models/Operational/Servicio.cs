@@ -11,4 +11,6 @@ public class Servicio
     public PoliticaAsiento PoliticaAsiento { get; set; }
     // FIN-001: salida del catálogo que lo generó; nulo para servicios cargados a mano.
     public string? SalidaCatalogoId { get; set; }
+    // MVP-004: instancia operativa fechada; opcional mientras el inventario no se cargue.
+    public string? SalidaId { get; set; }
 }

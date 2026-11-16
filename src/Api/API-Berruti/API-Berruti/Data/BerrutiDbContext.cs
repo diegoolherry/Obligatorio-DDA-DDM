@@ -19,6 +19,8 @@ public class BerrutiDbContext : DbContext
     public DbSet<Parada> Paradas => Set<Parada>();
     public DbSet<Tramo> Tramos => Set<Tramo>();
     public DbSet<Servicio> Servicios => Set<Servicio>();
+    public DbSet<Salida> Salidas => Set<Salida>();
+    public DbSet<AsientoSalida> AsientosSalida => Set<AsientoSalida>();
     public DbSet<Tarifa> Tarifas => Set<Tarifa>();
     public DbSet<AsignacionCobrador> AsignacionesCobrador => Set<AsignacionCobrador>();
     public DbSet<PosicionRecibida> PosicionesRecibidas => Set<PosicionRecibida>();
@@ -90,7 +92,7 @@ public class BerrutiDbContext : DbContext
         contador.ToTable("contador_entidad", t =>
         {
             t.HasCheckConstraint("ck_contador_rango", "ultimo BETWEEN 0 AND 50000");
-            t.HasCheckConstraint("ck_contador_prefijo", "prefijo IN ('US-', 'RO-')");
+            t.HasCheckConstraint("ck_contador_prefijo", "prefijo IN ('US-', 'RO-', 'SA-')");
         });
         contador.HasKey(c => c.Prefijo);
         contador.Property(c => c.Prefijo).HasColumnName("prefijo").HasMaxLength(3).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).ValueGeneratedNever();
@@ -122,6 +124,27 @@ public class BerrutiDbContext : DbContext
         servicio.Property(s => s.Capacidad).HasColumnName("capacidad").IsRequired();
         servicio.Property(s => s.PoliticaAsiento).HasColumnName("politica_asiento").HasConversion<string>().HasMaxLength(24).IsRequired();
         servicio.HasOne<Tramo>().WithMany().HasForeignKey(s => s.TramoId).OnDelete(DeleteBehavior.Restrict);
+
+        var salida = modelo.Entity<Salida>();
+        salida.ToTable("salida", t => t.HasCheckConstraint("ck_salida_id", $"salida_id REGEXP '{RangoId("SA-")}'"));
+        salida.HasKey(s => s.Id);
+        salida.Property(s => s.Id).HasColumnName("salida_id").HasMaxLength(8)
+            .ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).ValueGeneratedNever();
+        salida.Property(s => s.Fecha).HasColumnName("fecha").HasColumnType("date").IsRequired();
+
+        var asientoSalida = modelo.Entity<AsientoSalida>();
+        asientoSalida.ToTable("asiento_salida", t => t.HasCheckConstraint("ck_asiento_salida_numero", "numero_asiento >= 1"));
+        asientoSalida.HasKey(a => new { a.SalidaId, a.NumeroAsiento });
+        asientoSalida.Property(a => a.SalidaId).HasColumnName("salida_id").HasMaxLength(8)
+            .ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii);
+        asientoSalida.Property(a => a.NumeroAsiento).HasColumnName("numero_asiento");
+        asientoSalida.HasOne<Salida>().WithMany().HasForeignKey(a => a.SalidaId).OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("fk_asiento_salida_salida");
+        servicio.Property(s => s.SalidaId).HasColumnName("salida_id").HasMaxLength(8)
+            .ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii);
+        servicio.HasOne<Salida>().WithMany().HasForeignKey(s => s.SalidaId).OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("fk_servicio_salida");
+        servicio.HasIndex(s => s.SalidaId).HasDatabaseName("IX_servicio_salida_id");
 
         var tarifa = modelo.Entity<Tarifa>();
         tarifa.ToTable("tarifa");

@@ -143,12 +143,13 @@ erDiagram
 
 ### Identificadores de las entidades
 
-**Formato acordado por el usuario, todavía no implementado:** los IDs propios son valores reales de tipo `string`, no códigos decorativos sobre otra PK. Se usan abreviaturas de dos letras seguidas de un guion y un correlativo, como `PA-1`. Las tres posiciones iniciales son el prefijo completo (`PA-`), por lo que `Substring(3)` extrae el sufijo (`1`).
+**Formato acordado por el usuario:** los IDs propios son valores reales de tipo `string`, no códigos decorativos sobre otra PK. Se usan abreviaturas de dos letras seguidas de un guion y un correlativo, como `PA-1`. Las tres posiciones iniciales son el prefijo completo (`PA-`), por lo que `Substring(3)` extrae el sufijo (`1`). El corte MVP-004 implementa este formato solo para `Salida`; no generaliza la asignación al resto de las identidades candidatas.
 
-**Abreviaturas aprobadas explícitamente por el usuario en el chat, incluida `US-` para Usuario; todavía no implementadas:** esta tabla organiza el modelo existente; no aprueba nuevas tablas, migraciones ni contratos. Los ejemplos con `1` ilustran el formato y coinciden con el inicio aprobado abajo; no definen el mecanismo de generación; el rango aprobado se detalla abajo.
+**Abreviaturas aprobadas explícitamente por el usuario en el chat, incluida `US-` para Usuario:** esta tabla organiza el modelo existente; no aprueba por sí sola nuevas tablas, migraciones ni contratos. Los ejemplos con `1` ilustran el formato y coinciden con el inicio aprobado abajo; no definen el mecanismo de generación; el rango aprobado se detalla abajo.
 
 | Entidad o tabla candidata con identidad propia | Prefijo aprobado | Ejemplo |
 | --- | --- | --- |
+| Salida operativa (MVP-004) | `SA-` | `SA-1` |
 | Usuario | `US-` | `US-1` |
 | Parada | `PA-` | `PA-1` |
 | Tramo | `TR-` | `TR-1` |
@@ -168,6 +169,8 @@ erDiagram
 | `rol` | `RO-` | `RO-1` |
 | `compra_servicio` | `CS-` | `CS-1` |
 | `dispositivo_servicio` | `DS-` | `DS-1` |
+
+**Corte preparado de MVP-004 (2026-11-16):** `salida` usa `salida_id` prefijado `SA-` y una fecha local de viaje (`date`); `asiento_salida` identifica cada plaza mediante la PK compuesta (`salida_id`, `numero_asiento`) y no representa ocupación ni disponibilidad. `servicio.salida_id` es opcional y conserva aparte `salida_catalogo_id`. La fuente incluye inventario de demostración 1..46 para `SA-1`; el 46 es cantidad de ese escenario, no máximo global de la entidad. Se generaron la migración EF `InventarioSalidaDemo` y `scripts/database/inventario-salida-demo.sql`; permanecen preparados, no aplicados a ninguna base de datos. La asignación de IDs operativa queda fuera de este corte.
 
 **No se asigna un ID nuevo a cada concepto:** Itinerario no exige tabla propia; `usuario_rol` conserva la PK compuesta propuesta (`usuario_id`, `rol_id`), sin prefijo adicional. Los prefijos técnicos anteriores solo aplicarían si se mantienen las identidades propias del ER candidato. IntentoCompra y Pago tienen identidad conceptual, pero su representación física continúa pendiente. Usuario queda incluido en la regla con `US-` por confirmación explícita del usuario; esto no implementa autenticación ni incorpora Identity/OpenIddict. La ampliación final no recibe identidades nuevas por esta tabla.
 

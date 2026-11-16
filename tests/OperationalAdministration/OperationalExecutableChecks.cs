@@ -63,6 +63,8 @@ internal static class OperationalExecutableChecks
     {
         var date = new DateTime(2031, 5, 12, 17, 45, 0);
         var scenario = API_Berruti.Data.EscenarioOperativoDemo.Construir(date);
+        check(typeof(API_Berruti.Data.EscenarioOperativo).GetConstructors().Any(constructor => constructor.GetParameters().Length == 4),
+            "demo scenario preserves its original four-argument positional constructor");
         check(scenario.Paradas.Count == 3 && scenario.Tramos.Count == 2 && scenario.Servicios.Count == 2 && scenario.Tarifas.Count == 2,
             "demo scenario has 3 stops, 2 tramos, 2 services, and 2 tariffs");
         check(scenario.Paradas.Select(p => p.Nombre).SequenceEqual(["Ombúes", "Radial de Conchillas", "Colonia"]) &&
@@ -73,8 +75,30 @@ internal static class OperationalExecutableChecks
             scenario.Tarifas[0].TramoId == scenario.Tramos[0].Id && scenario.Tarifas[1].TramoId == scenario.Tramos[1].Id,
             "demo services and tariffs reference their tramo IDs");
         check(scenario.Servicios[0].PoliticaAsiento == PoliticaAsiento.SinAsiento && scenario.Servicios[0].Capacidad == 30 &&
-            scenario.Servicios[1].PoliticaAsiento == PoliticaAsiento.AsignacionAutomatica && scenario.Servicios[1].Capacidad == 40,
+            scenario.Servicios[1].PoliticaAsiento == PoliticaAsiento.AsignacionAutomatica && scenario.Servicios[1].Capacidad == 46,
             "demo services keep capacity and seat policies");
+        var departures = scenario.GetType().GetProperty("Salidas")?.GetValue(scenario) as System.Collections.IEnumerable;
+        var departure = departures?.Cast<object>().SingleOrDefault();
+        var inventory = scenario.GetType().GetProperty("AsientosSalida")?.GetValue(scenario) as System.Collections.IEnumerable;
+        string? DepartureId(object? value) => value?.GetType().GetProperty("Id")?.GetValue(value) as string;
+        object? ServiceDepartureId(Servicio service) => service.GetType().GetProperty("SalidaId")?.GetValue(service);
+        check(departure != null && DepartureId(departure) == "SA-1" &&
+            Equals(departure.GetType().GetProperty("Fecha")?.GetValue(departure), DateOnly.FromDateTime(date)) &&
+            ServiceDepartureId(scenario.Servicios[0]) is null && Equals(ServiceDepartureId(scenario.Servicios[1]), DepartureId(departure)),
+            "demo uses one local-date departure and links only the second service");
+        var seats = inventory?.Cast<object>().ToArray() ?? [];
+        var seatNumbers = seats.Select(a => (int?)a.GetType().GetProperty("NumeroAsiento")?.GetValue(a)).ToArray();
+        var seatDepartureIds = seats.Select(a => a.GetType().GetProperty("SalidaId")?.GetValue(a) as string).ToArray();
+        check(seats.Length == 46 && seatNumbers.Order().SequenceEqual(Enumerable.Range(1, 46).Select(n => (int?)n)) &&
+            seatDepartureIds.All(id => id == "SA-1") && seatDepartureIds.Distinct().Count() == 1,
+            "demo departure inventory contains distinct seats 1 through 46 for the same departure");
+        var secondScenario = API_Berruti.Data.EscenarioOperativoDemo.Construir(date.AddDays(1));
+        var secondDeparture = (secondScenario.GetType().GetProperty("Salidas")?.GetValue(secondScenario) as System.Collections.IEnumerable)?.Cast<object>().SingleOrDefault();
+        var secondSeats = (secondScenario.GetType().GetProperty("AsientosSalida")?.GetValue(secondScenario) as System.Collections.IEnumerable)?.Cast<object>().ToArray() ?? [];
+        check(secondDeparture != null && !ReferenceEquals(secondDeparture, departure) && secondSeats.Length > 0 &&
+            seats.Length > 0 && !ReferenceEquals(secondSeats[0], seats[0]) &&
+            Equals(ServiceDepartureId(secondScenario.Servicios[1]), DepartureId(secondDeparture)),
+            "separate demo fixtures do not share mutable departure or inventory instances");
         check(scenario.Servicios.All(s => s.Llegada > s.Salida && s.Salida.Date == date.Date && s.Llegada.Date == date.Date) &&
             scenario.Servicios[0].Salida == date.Date.AddHours(8) && scenario.Servicios[1].Llegada == date.Date.AddHours(10),
             "demo services run on the given date with arrival after departure");

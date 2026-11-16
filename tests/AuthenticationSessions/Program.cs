@@ -51,6 +51,35 @@ Prueba("S10 contratos específicos implementados y consumidos", () =>
     }
     return true;
 });
+Prueba("SA identifier uses the shared unpadded counter range and rejects exhaustion", () =>
+{
+    var correlativo = new Correlativo();
+    var agotado = false;
+    try { correlativo.Siguiente("SA-", 50000); }
+    catch (InvalidOperationException) { agotado = true; }
+    return correlativo.Siguiente("SA-", 0) == "SA-1" && correlativo.Siguiente("SA-", 8) == "SA-9" &&
+        correlativo.Siguiente("SA-", 9) == "SA-10" && correlativo.Siguiente("SA-", 49999) == "SA-50000" && agotado;
+});
+Prueba("Salida inventory EF metadata maps composite and restrictive optional relationships without opening a connection", () =>
+{
+    var options = new DbContextOptionsBuilder<BerrutiDbContext>()
+        .UseMySQL("Server=127.0.0.1;Database=berrutimodeltests;User ID=model_test;Password=unused-placeholder")
+        .Options;
+    using var context = new BerrutiDbContext(options);
+    var salida = context.Model.FindEntityType("API_Berruti.Models.Operational.Salida");
+    var asiento = context.Model.FindEntityType("API_Berruti.Models.Operational.AsientoSalida");
+    var servicio = context.Model.FindEntityType(typeof(API_Berruti.Models.Operational.Servicio));
+    var serviceForeignKey = servicio?.GetForeignKeys().SingleOrDefault(fk => fk.PrincipalEntityType == salida);
+    var seatForeignKey = asiento?.GetForeignKeys().SingleOrDefault(fk => fk.PrincipalEntityType == salida);
+    var key = asiento?.FindPrimaryKey()?.Properties.Select(p => p.Name).ToArray();
+    return salida?.FindProperty("Fecha")?.GetColumnType() == "date" &&
+        key?.SequenceEqual(new[] { "SalidaId", "NumeroAsiento" }) == true &&
+        serviceForeignKey?.Properties.Single().Name == "SalidaId" &&
+        serviceForeignKey.IsRequired == false && serviceForeignKey.DeleteBehavior == Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict &&
+        seatForeignKey?.Properties.Single().Name == "SalidaId" &&
+        seatForeignKey.DeleteBehavior == Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict &&
+        context.Database.GetDbConnection().State == System.Data.ConnectionState.Closed;
+});
 var ahora = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 var vence = ahora.AddDays(7);
 Prueba("32 bytes Base64url canónicos y distintos", () =>
