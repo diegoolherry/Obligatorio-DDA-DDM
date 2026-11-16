@@ -20,6 +20,7 @@ public class BerrutiDbContext : DbContext
     public DbSet<Tramo> Tramos => Set<Tramo>();
     public DbSet<Servicio> Servicios => Set<Servicio>();
     public DbSet<Salida> Salidas => Set<Salida>();
+    public DbSet<ParadaSalida> ParadasSalida => Set<ParadaSalida>();
     public DbSet<AsientoSalida> AsientosSalida => Set<AsientoSalida>();
     public DbSet<Tarifa> Tarifas => Set<Tarifa>();
     public DbSet<AsignacionCobrador> AsignacionesCobrador => Set<AsignacionCobrador>();
@@ -115,7 +116,13 @@ public class BerrutiDbContext : DbContext
 
         var servicio = modelo.Entity<Servicio>();
         servicio.ToTable("servicio", t =>
-            t.HasCheckConstraint("ck_servicio_llegada", "llegada > salida"));
+        {
+            t.HasCheckConstraint("ck_servicio_llegada", "llegada > salida");
+            t.HasCheckConstraint("ck_servicio_rango_paradas",
+                "((orden_embarque IS NULL AND orden_desembarque IS NULL) OR " +
+                "(salida_id IS NOT NULL AND orden_embarque IS NOT NULL AND orden_desembarque IS NOT NULL " +
+                "AND orden_embarque < orden_desembarque))");
+        });
         servicio.HasKey(s => s.Id);
         servicio.Property(s => s.Id).HasColumnName("servicio_id").HasMaxLength(36).ValueGeneratedNever();
         servicio.Property(s => s.TramoId).HasColumnName("tramo_id").HasMaxLength(36).IsRequired();
@@ -123,6 +130,8 @@ public class BerrutiDbContext : DbContext
         servicio.Property(s => s.Llegada).HasColumnName("llegada").HasColumnType("datetime(6)").IsRequired();
         servicio.Property(s => s.Capacidad).HasColumnName("capacidad").IsRequired();
         servicio.Property(s => s.PoliticaAsiento).HasColumnName("politica_asiento").HasConversion<string>().HasMaxLength(24).IsRequired();
+        servicio.Property(s => s.OrdenEmbarque).HasColumnName("orden_embarque");
+        servicio.Property(s => s.OrdenDesembarque).HasColumnName("orden_desembarque");
         servicio.HasOne<Tramo>().WithMany().HasForeignKey(s => s.TramoId).OnDelete(DeleteBehavior.Restrict);
 
         var salida = modelo.Entity<Salida>();
@@ -145,6 +154,22 @@ public class BerrutiDbContext : DbContext
         servicio.HasOne<Salida>().WithMany().HasForeignKey(s => s.SalidaId).OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("fk_servicio_salida");
         servicio.HasIndex(s => s.SalidaId).HasDatabaseName("IX_servicio_salida_id");
+
+        var paradaSalida = modelo.Entity<ParadaSalida>();
+        paradaSalida.ToTable("parada_salida", t => t.HasCheckConstraint("ck_parada_salida_orden", "orden >= 1"));
+        paradaSalida.HasKey(p => new { p.SalidaId, p.Orden });
+        paradaSalida.Property(p => p.SalidaId).HasColumnName("salida_id").HasMaxLength(8)
+            .ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).IsRequired();
+        paradaSalida.Property(p => p.Orden).HasColumnName("orden").IsRequired();
+        paradaSalida.Property(p => p.ParadaId).HasColumnName("parada_id").HasMaxLength(36).IsRequired();
+        paradaSalida.HasOne<Salida>().WithMany().HasForeignKey(p => p.SalidaId).OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("fk_parada_salida_salida");
+        paradaSalida.HasOne<Parada>().WithMany().HasForeignKey(p => p.ParadaId).OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("fk_parada_salida_parada");
+        servicio.HasOne<ParadaSalida>().WithMany().HasForeignKey(s => new { s.SalidaId, s.OrdenEmbarque })
+            .OnDelete(DeleteBehavior.Restrict).HasConstraintName("fk_servicio_parada_embarque");
+        servicio.HasOne<ParadaSalida>().WithMany().HasForeignKey(s => new { s.SalidaId, s.OrdenDesembarque })
+            .OnDelete(DeleteBehavior.Restrict).HasConstraintName("fk_servicio_parada_desembarque");
 
         var tarifa = modelo.Entity<Tarifa>();
         tarifa.ToTable("tarifa");

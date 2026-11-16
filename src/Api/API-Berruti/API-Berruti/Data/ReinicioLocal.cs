@@ -60,6 +60,7 @@ public static class ReinicioLocal
         contexto.Paradas.AddRange(escenario.Paradas);
         contexto.Tramos.AddRange(escenario.Tramos);
         contexto.Salidas.AddRange(escenario.Salidas);
+        contexto.ParadasSalida.AddRange(escenario.ParadasSalida);
         contexto.AsientosSalida.AddRange(escenario.AsientosSalida);
         contexto.Servicios.AddRange(escenario.Servicios);
         contexto.Tarifas.AddRange(escenario.Tarifas);

@@ -537,6 +537,35 @@ namespace API_Berruti.Data.Migrations
                     b.ToTable("parada", (string)null);
                 });
 
+            modelBuilder.Entity("API_Berruti.Models.Operational.ParadaSalida", b =>
+                {
+                    b.Property<string>("SalidaId")
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("salida_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("int")
+                        .HasColumnName("orden");
+
+                    b.Property<string>("ParadaId")
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("parada_id");
+
+                    b.HasKey("SalidaId", "Orden");
+
+                    b.HasIndex("ParadaId");
+
+                    b.ToTable("parada_salida", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_parada_salida_orden", "orden >= 1");
+                        });
+                });
+
             modelBuilder.Entity("API_Berruti.Models.Operational.Salida", b =>
                 {
                     b.Property<string>("Id")
@@ -573,6 +602,14 @@ namespace API_Berruti.Data.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("llegada");
 
+                    b.Property<int?>("OrdenDesembarque")
+                        .HasColumnType("int")
+                        .HasColumnName("orden_desembarque");
+
+                    b.Property<int?>("OrdenEmbarque")
+                        .HasColumnType("int")
+                        .HasColumnName("orden_embarque");
+
                     b.Property<string>("PoliticaAsiento")
                         .IsRequired()
                         .HasMaxLength(24)
@@ -608,6 +645,10 @@ namespace API_Berruti.Data.Migrations
 
                     b.HasIndex("TramoId");
 
+                    b.HasIndex("SalidaId", "OrdenDesembarque");
+
+                    b.HasIndex("SalidaId", "OrdenEmbarque");
+
                     b.HasIndex("SalidaCatalogoId", "TramoId", "Salida")
                         .IsUnique()
                         .HasDatabaseName("ux_servicio_generado");
@@ -615,6 +656,8 @@ namespace API_Berruti.Data.Migrations
                     b.ToTable("servicio", null, t =>
                         {
                             t.HasCheckConstraint("ck_servicio_llegada", "llegada > salida");
+
+                            t.HasCheckConstraint("ck_servicio_rango_paradas", "((orden_embarque IS NULL AND orden_desembarque IS NULL) OR (salida_id IS NOT NULL AND orden_embarque IS NOT NULL AND orden_desembarque IS NOT NULL AND orden_embarque < orden_desembarque))");
                         });
                 });
 
@@ -793,6 +836,23 @@ namespace API_Berruti.Data.Migrations
                         .HasConstraintName("fk_asiento_salida_salida");
                 });
 
+            modelBuilder.Entity("API_Berruti.Models.Operational.ParadaSalida", b =>
+                {
+                    b.HasOne("API_Berruti.Models.Operational.Parada", null)
+                        .WithMany()
+                        .HasForeignKey("ParadaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_parada_salida_parada");
+
+                    b.HasOne("API_Berruti.Models.Operational.Salida", null)
+                        .WithMany()
+                        .HasForeignKey("SalidaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_parada_salida_salida");
+                });
+
             modelBuilder.Entity("API_Berruti.Models.Operational.Servicio", b =>
                 {
                     b.HasOne("API_Berruti.Models.Catalogo.SalidaCatalogo", null)
@@ -811,6 +871,18 @@ namespace API_Berruti.Data.Migrations
                         .HasForeignKey("TramoId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("API_Berruti.Models.Operational.ParadaSalida", null)
+                        .WithMany()
+                        .HasForeignKey("SalidaId", "OrdenDesembarque")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_servicio_parada_desembarque");
+
+                    b.HasOne("API_Berruti.Models.Operational.ParadaSalida", null)
+                        .WithMany()
+                        .HasForeignKey("SalidaId", "OrdenEmbarque")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_servicio_parada_embarque");
                 });
 
             modelBuilder.Entity("API_Berruti.Models.Operational.Tarifa", b =>

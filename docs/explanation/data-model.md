@@ -141,6 +141,8 @@ erDiagram
 
 **Implementación de MVP-009 (decisión de Diego, 2026-11-10):** el dispositivo embarcado es el celular del cobrador, identificado por su sesión de rol `Cobrador`. Por eso `dispositivo` y `dispositivo_servicio` se implementan como `cobrador_servicio` (PK `usuario_id` + `servicio_id`, sembrada por el reinicio local), y `posicion_recibida` referencia esa asociación con `latitud`/`longitud` `decimal(9,6)` y `recibida_utc`. `configuracion_ubicacion` no se persiste: los parámetros viven en la sección `Ubicacion` de `appsettings.json` de la API. Las claves de las tablas nuevas siguen el GUID de las entidades operativas, no los prefijos `DI-`/`PR-`/`DS-`. Contrato: [API de ubicación](../reference/api.md#ubicación-de-demostración-mvp-009).
 
+**Corte preparado de MVP-004 (secuencia por salida):** `parada_salida` conserva cada ocurrencia de una parada con PK (`salida_id`, `orden`); una misma `ParadaId` puede repetirse en distintos órdenes. `servicio` mantiene `salida_id` opcional y agrega `orden_embarque`/`orden_desembarque` opcionales, ambos nulos para filas legadas sin límites. Cuando se informan, ambos deben estar presentes, requerir una salida y cumplir embarque < desembarque; sus FK compuestas restringen ambos extremos a ocurrencias de esa misma salida con borrado `RESTRICT`. Para `SA-1`, el segundo servicio demo usa `[1,2)` (Radial–Colonia); el primer servicio sin asiento no cambia. Estas FK no prueban que las ocurrencias correspondan a los extremos de `Tramo`, ni disponibilidad u ocupación. La migración `ParadasSalidaServicio` y su SQL se generaron offline y no se aplicaron a una base. Su CHECK figura en el modelo y el SQL generado, pero no se ejecutó contra MySQL; la prueba de metadatos tampoco acredita enforcement en base. No se implementan aquí holds, reservas, endpoints ni asignación concurrente.
+
 ### Identificadores de las entidades
 
 **Formato acordado por el usuario:** los IDs propios son valores reales de tipo `string`, no códigos decorativos sobre otra PK. Se usan abreviaturas de dos letras seguidas de un guion y un correlativo, como `PA-1`. Las tres posiciones iniciales son el prefijo completo (`PA-`), por lo que `Substring(3)` extrae el sufijo (`1`). El corte MVP-004 implementa este formato solo para `Salida`; no generaliza la asignación al resto de las identidades candidatas.
@@ -215,7 +217,7 @@ erDiagram
 
 ### Acuerdo conceptual de compra, hold y reintentos
 
-**Acuerdo conceptual incluido en la base evolutiva aprobada por Diego y Enzo, según lo informado por el usuario; no implementado.** Un intento durable de compra agrupa intentos de pago conservados; es distinto del hold temporal y de una compra confirmada. El hold protege un asiento de una salida para un intervalo de viaje; dura **5 minutos configurables desde su creación en la API**. Recargar o reintentar tras rechazo definitivo no reinicia el plazo.
+**Acuerdo conceptual incluido en la base evolutiva aprobada por Diego y Enzo, según lo informado por el usuario; no implementado.** Un intento durable de compra agrupa intentos de pago conservados; es distinto del hold temporal y de una compra confirmada. El acuerdo conjunto previo definía cinco minutos; por actualización explícita del usuario, la duración vigente es **15 minutos configurables desde su creación en la API**, sin atribuir este cambio a una nueva aprobación conjunta. Recargar o reintentar tras rechazo definitivo no reinicia el plazo.
 
 | Situación | Regla acordada |
 | --- | --- |
@@ -278,7 +280,7 @@ El **dominio** expresa reglas y comportamiento; las tablas son una alternativa d
 | Vehículo / configuración | Vehículo asignado determina plano académico 22/28/42/46; configuración contiene filas, posiciones y números únicos de asiento. |
 | Asiento de salida | Identidad de inventario = salida + asiento de su configuración; reutilizar vehículo no comparte inventario entre salidas. |
 | Ocupación confirmada | Asiento de salida e intervalo de embarque/desembarque válido de esa misma ruta/salida; no permite superposiciones. |
-| Selección / intento de compra | Selección de cliente no es ocupación confirmada. El intento durable agrupa pagos conservados y genera a lo sumo una compra confirmada según §2; hold de 5 minutos configurables acordado, representación física y mecanismos pendientes. |
+| Selección / intento de compra | Selección de cliente no es ocupación confirmada. El intento durable agrupa pagos conservados y genera a lo sumo una compra confirmada según §2; duración vigente del hold: 15 minutos configurables según §2; representación física y mecanismos pendientes. La duración conjunta histórica de 5 minutos se registra allí como antecedente. |
 
 Relaciones propuestas: una ruta dirigida contiene una secuencia de ocurrencias de parada y puede generar múltiples salidas según calendario; una salida usa un vehículo y su configuración, que define los asientos ofrecidos. Un asiento de salida admite múltiples ocupaciones solamente en intervalos no superpuestos. Un itinerario con transbordo refiere varias salidas y requiere selección/asignación independiente en cada una.
 

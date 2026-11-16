@@ -7,6 +7,7 @@ using API_Berruti.DTOs.Operational;
 using API_Berruti.Models.Operational;
 using API_Berruti.Repositories.Operational;
 using API_Berruti.Services.Operational;
+using API_Berruti.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -20,6 +21,7 @@ internal static class OperationalExecutableChecks
         await CheckAuthorizationAsync(check);
         await CheckServiceScheduleAsync(check);
         CheckDemoScenario(check);
+        CheckDepartureStopSequence(check);
         CheckDecimalRangeValidation(check);
         await ItinerarySearchChecks.RunAsync(check);
     }
@@ -57,6 +59,42 @@ internal static class OperationalExecutableChecks
         catch (ArgumentException) { updateRejected = true; }
         check(updateRejected && existing.Services[0].Llegada == salida.AddHours(1) && existing.SaveCount == 0,
             "invalid schedule update leaves the stored service unchanged");
+    }
+
+    private static void CheckDepartureStopSequence(Action<bool, string> check)
+    {
+        var assembly = typeof(Servicio).Assembly;
+        var occurrenceType = assembly.GetType("API_Berruti.Models.Operational.ParadaSalida");
+        check(occurrenceType is not null, "departure stop occurrence model exists");
+        if (occurrenceType is null) return;
+
+        var properties = occurrenceType.GetProperties().ToDictionary(property => property.Name);
+        check(properties.TryGetValue("SalidaId", out var salidaId) && salidaId.PropertyType == typeof(string) &&
+            properties.TryGetValue("Orden", out var order) && order.PropertyType == typeof(int) &&
+            properties.TryGetValue("ParadaId", out var paradaId) && paradaId.PropertyType == typeof(string),
+            "departure stop occurrence has only the approved typed key and stop reference");
+
+        var scenario = EscenarioOperativoDemo.Construir(new DateTime(2031, 5, 12));
+        var stopsProperty = scenario.GetType().GetProperty("ParadasSalida");
+        var stops = (stopsProperty?.GetValue(scenario) as System.Collections.IEnumerable)?.Cast<object>().ToArray() ?? [];
+        check(stops.Length == 2 && stops.All(item => (string?)properties["SalidaId"].GetValue(item) == "SA-1") &&
+            stops.Select(item => (int)properties["Orden"].GetValue(item)!).SequenceEqual(new[] { 1, 2 }),
+            "demo departure has two ordered stop occurrences");
+        check(scenario.Servicios[0].OrdenEmbarque is null && scenario.Servicios[0].OrdenDesembarque is null &&
+            scenario.Servicios[1].OrdenEmbarque == 1 && scenario.Servicios[1].OrdenDesembarque == 2 &&
+            stops.Select(item => (string?)properties["ParadaId"].GetValue(item))
+                .SequenceEqual(new[] { scenario.Paradas[1].Id, scenario.Paradas[2].Id }),
+            "demo leaves first service bounds absent and maps second service to Radial through Colonia");
+        check(scenario.Servicios[0].SalidaId is null && scenario.Servicios[0].Capacidad == 30 &&
+            scenario.Servicios[0].PoliticaAsiento == PoliticaAsiento.SinAsiento &&
+            scenario.Servicios[1].SalidaId == "SA-1" && scenario.Servicios[1].Capacidad == 46 &&
+            scenario.Servicios[1].PoliticaAsiento == PoliticaAsiento.AsignacionAutomatica,
+            "demo keeps first no-seat service unchanged and links second service to departure");
+        check(properties.ContainsKey("Orden") && occurrenceType.GetProperties().Length == 3 &&
+            scenario.GetType().GetConstructor(new[] { typeof(IReadOnlyList<API_Berruti.Models.Operational.Parada>),
+                typeof(IReadOnlyList<API_Berruti.Models.Operational.Tramo>), typeof(IReadOnlyList<Servicio>),
+                typeof(IReadOnlyList<API_Berruti.Models.Operational.Tarifa>) }) is not null,
+            "scenario preserves the four-parameter positional constructor");
     }
 
     private static void CheckDemoScenario(Action<bool, string> check)

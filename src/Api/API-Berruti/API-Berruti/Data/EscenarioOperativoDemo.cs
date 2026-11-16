@@ -10,6 +10,7 @@ public sealed record EscenarioOperativo(
     IReadOnlyList<Tarifa> Tarifas)
 {
     public IReadOnlyList<Salida> Salidas { get; init; } = [];
+    public IReadOnlyList<ParadaSalida> ParadasSalida { get; init; } = [];
     public IReadOnlyList<AsientoSalida> AsientosSalida { get; init; } = [];
 }
 
@@ -36,7 +37,8 @@ public static class EscenarioOperativoDemo
             new Servicio
             {
                 TramoId = radialColonia.Id, Salida = dia.AddHours(8).AddMinutes(45), Llegada = dia.AddHours(10),
-                Capacidad = 46, PoliticaAsiento = PoliticaAsiento.AsignacionAutomatica, SalidaId = salida.Id
+                Capacidad = 46, PoliticaAsiento = PoliticaAsiento.AsignacionAutomatica, SalidaId = salida.Id,
+                OrdenEmbarque = 1, OrdenDesembarque = 2
             },
         };
 
@@ -49,6 +51,11 @@ public static class EscenarioOperativoDemo
         return new EscenarioOperativo([ombues, radial, colonia], [ombuesRadial, radialColonia], servicios, tarifas)
         {
             Salidas = [salida],
+            ParadasSalida =
+            [
+                new ParadaSalida { SalidaId = salida.Id, Orden = 1, ParadaId = radial.Id },
+                new ParadaSalida { SalidaId = salida.Id, Orden = 2, ParadaId = colonia.Id }
+            ],
             AsientosSalida = Enumerable.Range(1, 46)
                 .Select(numeroAsiento => new AsientoSalida { SalidaId = salida.Id, NumeroAsiento = numeroAsiento })
                 .ToArray()

@@ -13,4 +13,6 @@ public class Servicio
     public string? SalidaCatalogoId { get; set; }
     // MVP-004: instancia operativa fechada; opcional mientras el inventario no se cargue.
     public string? SalidaId { get; set; }
+    public int? OrdenEmbarque { get; set; }
+    public int? OrdenDesembarque { get; set; }
 }

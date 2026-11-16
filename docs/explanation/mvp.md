@@ -116,6 +116,7 @@ La aplicación móvil será una sola. Después de iniciar sesión, la navegació
 
 - Gestionar paradas y tramos.
 - Gestionar servicios con fecha, horario, origen, destino y capacidad básica.
+- Mantener el orden de las paradas por salida y asociar a cada servicio sus órdenes de embarque y desembarque; una futura reserva deberá validar que coincidan con los extremos del tramo.
 - Configurar si un servicio requiere asiento.
 - Gestionar tarifas por tramo.
 - Consultar y gestionar usuarios y roles de demostración.
@@ -133,7 +134,7 @@ La aplicación móvil será una sola. Después de iniciar sesión, la navegació
 ### 5.6 Pago de prueba con Mercado Pago
 
 - Integrar la API de Mercado Pago con credenciales TEST como decisión vigente revisable; probar aprobación y rechazo con escenarios del proveedor, sin inventar mecánica determinista local.
-- Registrar importe, fecha, usuario, referencia del intento y estado de dominio. La política conceptual de intento durable, pagos conservados, hold y reintentos ya está acordada en [el modelo canónico](data-model.md#acuerdo-conceptual-de-compra-hold-y-reintentos); representación física, checkout, mapeo/verificación de estados, concurrencia, comparación temporal y mecanismos de devolución TEST siguen pendientes, sin integración ni pruebas ejecutadas.
+- Registrar importe, fecha, usuario, referencia del intento y estado de dominio. La política conceptual de intento durable, pagos conservados, hold y reintentos está acordada en [el modelo canónico](data-model.md#acuerdo-conceptual-de-compra-hold-y-reintentos); la duración vigente del hold es 15 minutos configurables por actualización explícita del usuario, en reemplazo de la duración conjunta previa de cinco minutos. Representación física, checkout, mapeo/verificación de estados, concurrencia, comparación temporal y mecanismos de devolución TEST siguen pendientes, sin integración ni pruebas ejecutadas.
 - La API debe verificar el resultado con el proveedor antes de emitir tickets; nunca confiar únicamente en un éxito informado por el cliente.
 - La aplicación no debe solicitar ni guardar número de tarjeta, CVV o datos financieros equivalentes. El producto de checkout está pendiente de selección; producción y cobros reales requieren decisión de alcance explícita.
 
