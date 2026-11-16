@@ -23,6 +23,9 @@ public class BerrutiDbContext : DbContext
     public DbSet<ParadaSalida> ParadasSalida => Set<ParadaSalida>();
     public DbSet<AsientoSalida> AsientosSalida => Set<AsientoSalida>();
     public DbSet<Tarifa> Tarifas => Set<Tarifa>();
+    public DbSet<IntentoCompra> IntentosCompra => Set<IntentoCompra>();
+    public DbSet<TramoIntentoCompra> TramosIntentoCompra => Set<TramoIntentoCompra>();
+    public DbSet<HoldAsiento> HoldsAsiento => Set<HoldAsiento>();
     public DbSet<AsignacionCobrador> AsignacionesCobrador => Set<AsignacionCobrador>();
     public DbSet<PosicionRecibida> PosicionesRecibidas => Set<PosicionRecibida>();
     public DbSet<BloqueHorario> BloquesHorario => Set<BloqueHorario>();
@@ -93,7 +96,7 @@ public class BerrutiDbContext : DbContext
         contador.ToTable("contador_entidad", t =>
         {
             t.HasCheckConstraint("ck_contador_rango", "ultimo BETWEEN 0 AND 50000");
-            t.HasCheckConstraint("ck_contador_prefijo", "prefijo IN ('US-', 'RO-', 'SA-')");
+            t.HasCheckConstraint("ck_contador_prefijo", "prefijo IN ('US-', 'RO-', 'SA-', 'IC-')");
         });
         contador.HasKey(c => c.Prefijo);
         contador.Property(c => c.Prefijo).HasColumnName("prefijo").HasMaxLength(3).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).ValueGeneratedNever();
@@ -292,5 +295,80 @@ public class BerrutiDbContext : DbContext
         servicio.Property(s => s.SalidaCatalogoId).HasColumnName("salida_catalogo_id").HasMaxLength(36);
         servicio.HasOne<SalidaCatalogo>().WithMany().HasForeignKey(s => s.SalidaCatalogoId).OnDelete(DeleteBehavior.Restrict);
         servicio.HasIndex(s => new { s.SalidaCatalogoId, s.TramoId, s.Salida }).IsUnique().HasDatabaseName("ux_servicio_generado");
+
+        ConfigurarIntentosCompra(modelo);
+    }
+
+    private static void ConfigurarIntentosCompra(ModelBuilder modelo)
+    {
+        var intento = modelo.Entity<IntentoCompra>();
+        intento.ToTable("intento_compra", t => t.HasCheckConstraint("ck_intento_compra_plazo", "hold_vence_utc > creado_utc"));
+        intento.HasKey(i => i.Id);
+        intento.Property(i => i.Id).HasColumnName("intento_id").HasMaxLength(8)
+            .ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).ValueGeneratedNever();
+        intento.Property(i => i.UsuarioId).HasColumnName("usuario_id").HasMaxLength(8)
+            .ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).IsRequired();
+        intento.Property(i => i.CreadoUtc).HasColumnName("creado_utc").HasColumnType("datetime(6)").IsRequired()
+            .HasConversion(v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+        intento.Property(i => i.HoldVenceUtc).HasColumnName("hold_vence_utc").HasColumnType("datetime(6)").IsRequired()
+            .HasConversion(v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+        intento.HasOne<Usuario>().WithMany().HasForeignKey(i => i.UsuarioId).OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("fk_intento_compra_usuario");
+
+        var seleccion = modelo.Entity<TramoIntentoCompra>();
+        seleccion.ToTable("tramo_intento_compra", t =>
+        {
+            t.HasCheckConstraint("ck_tramo_intento_orden", "orden >= 1");
+            t.HasCheckConstraint("ck_tramo_intento_importe", "importe >= 0");
+            t.HasCheckConstraint("ck_tramo_intento_llegada", "llegada > salida");
+            t.HasCheckConstraint("ck_tramo_intento_asiento", "(numero_asiento IS NULL AND salida_id IS NULL AND orden_embarque IS NULL AND orden_desembarque IS NULL) OR (numero_asiento IS NOT NULL AND salida_id IS NOT NULL AND orden_embarque IS NOT NULL AND orden_desembarque IS NOT NULL AND orden_embarque < orden_desembarque)");
+        });
+        seleccion.HasKey(s => new { s.IntentoId, s.Orden });
+        seleccion.Property(s => s.IntentoId).HasColumnName("intento_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii);
+        seleccion.Property(s => s.Orden).HasColumnName("orden");
+        seleccion.Property(s => s.ServicioId).HasColumnName("servicio_id").HasMaxLength(36).IsRequired();
+        seleccion.Property(s => s.TramoId).HasColumnName("tramo_id").HasMaxLength(36).IsRequired();
+        seleccion.Property(s => s.OrigenId).HasColumnName("origen_id").HasMaxLength(36).IsRequired();
+        seleccion.Property(s => s.OrigenNombre).HasColumnName("origen_nombre").HasMaxLength(100).IsRequired();
+        seleccion.Property(s => s.DestinoId).HasColumnName("destino_id").HasMaxLength(36).IsRequired();
+        seleccion.Property(s => s.DestinoNombre).HasColumnName("destino_nombre").HasMaxLength(100).IsRequired();
+        seleccion.Property(s => s.Salida).HasColumnName("salida").HasColumnType("datetime(6)").IsRequired();
+        seleccion.Property(s => s.Llegada).HasColumnName("llegada").HasColumnType("datetime(6)").IsRequired();
+        seleccion.Property(s => s.Importe).HasColumnName("importe").HasPrecision(18, 2).IsRequired();
+        seleccion.Property(s => s.PoliticaAsiento).HasColumnName("politica_asiento").HasConversion<string>().HasMaxLength(24).IsRequired();
+        seleccion.Property(s => s.NumeroAsiento).HasColumnName("numero_asiento");
+        seleccion.Property(s => s.SalidaId).HasColumnName("salida_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii);
+        seleccion.Property(s => s.OrdenEmbarque).HasColumnName("orden_embarque");
+        seleccion.Property(s => s.OrdenDesembarque).HasColumnName("orden_desembarque");
+        seleccion.HasOne<IntentoCompra>().WithMany().HasForeignKey(s => s.IntentoId).OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("fk_tramo_intento_intento");
+        seleccion.HasOne<Servicio>().WithMany().HasForeignKey(s => s.ServicioId).OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("fk_tramo_intento_servicio");
+        seleccion.HasOne<Salida>().WithMany().HasForeignKey(s => s.SalidaId).OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("fk_tramo_intento_salida");
+        seleccion.HasIndex(s => s.ServicioId).HasDatabaseName("ix_tramo_intento_servicio");
+
+        var hold = modelo.Entity<HoldAsiento>();
+        hold.ToTable("hold_asiento", t =>
+        {
+            t.HasCheckConstraint("ck_hold_asiento_numero", "numero_asiento >= 1");
+            t.HasCheckConstraint("ck_hold_asiento_intervalo", "orden_embarque >= 1 AND orden_embarque < orden_desembarque");
+        });
+        hold.HasKey(h => new { h.IntentoId, h.Orden });
+        hold.Property(h => h.IntentoId).HasColumnName("intento_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii);
+        hold.Property(h => h.Orden).HasColumnName("orden");
+        hold.Property(h => h.SalidaId).HasColumnName("salida_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii);
+        hold.Property(h => h.NumeroAsiento).HasColumnName("numero_asiento");
+        hold.Property(h => h.OrdenEmbarque).HasColumnName("orden_embarque");
+        hold.Property(h => h.OrdenDesembarque).HasColumnName("orden_desembarque");
+        hold.HasOne<TramoIntentoCompra>().WithMany().HasForeignKey(h => new { h.IntentoId, h.Orden }).OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("fk_hold_asiento_seleccion");
+        hold.HasOne<AsientoSalida>().WithMany().HasForeignKey(h => new { h.SalidaId, h.NumeroAsiento }).OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("fk_hold_asiento_inventario");
+        hold.HasOne<ParadaSalida>().WithMany().HasForeignKey(h => new { h.SalidaId, h.OrdenEmbarque }).OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("fk_hold_asiento_embarque");
+        hold.HasOne<ParadaSalida>().WithMany().HasForeignKey(h => new { h.SalidaId, h.OrdenDesembarque }).OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("fk_hold_asiento_desembarque");
+        hold.HasIndex(h => new { h.SalidaId, h.NumeroAsiento }).HasDatabaseName("ix_hold_asiento_inventario");
     }
 }
