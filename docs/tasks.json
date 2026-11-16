@@ -1011,7 +1011,7 @@
         "Sin sesión, el menú no muestra enlaces que requieren ingresar; la autorización sigue decidiéndola la API.",
         "Los textos «Datos ficticios y aproximados», «Parámetros académicos usados» y el mensaje en inglés del importe de tarifa se reemplazan por textos neutros en español, y los tests que los exigían verifican el comportamiento en lugar del texto anterior."
       ],
-      "evidence": "Rama feature/fin-011-web-a11y-textos; PR pendiente.\nWebAuthentication 126/126 PASS; OperationalAdministration 137 PASS; build Web 0 advertencias.\nRevisión cruzada de Enzo pendiente."
+      "evidence": "PR #81, commit 07e1f6e.\nWebAuthentication 126/126 PASS; OperationalAdministration 137 PASS; build Web 0 advertencias.\nRevisión cruzada de Enzo pendiente."
     }
   ]
 }
