@@ -6,90 +6,95 @@
 @inject BusquedaItinerariosCliente Cliente
 @inject TimeProvider Reloj
 
-<PageTitle>Buscar viaje</PageTitle>
-<h1>Buscar viaje</h1>
+<PageTitle>Buscar viaje · Berrutti</PageTitle>
+<div class="page-header">
+    <h1>Buscar viaje</h1>
+    <p>Elegí el origen, el destino y la fecha.</p>
+</div>
 
 @if (CargandoParadas)
 {
-    <p role="status">Cargando paradas…</p>
+    <Alerta>Cargando paradas…</Alerta>
 }
 else if (ErrorParadas != null)
 {
-    <p role="alert">@ErrorParadas</p>
-    <button class="btn btn-primary" @onclick="CargarParadasAsync">Reintentar</button>
+    <Alerta Tipo="TipoAviso.Error" Titulo="No pudimos cargar las paradas">
+        @ErrorParadas
+        <br /><button type="button" class="btn btn-secondary" @onclick="CargarParadasAsync">Reintentar</button>
+    </Alerta>
 }
 else
 {
-    <EditForm Model="Form" OnValidSubmit="BuscarAsync" class="mb-4">
-        <DataAnnotationsValidator />
-        <div class="row g-3 align-items-end">
-            <div class="col-md-4">
-                <label for="origen" class="form-label">Origen</label>
-                <InputSelect id="origen" class="form-select" @bind-Value="Form.OrigenId">
-                    <option value="">Seleccioná una parada</option>
-                    @foreach (var p in Paradas) { <option value="@p.Id">@p.Nombre</option> }
-                </InputSelect>
-                <ValidationMessage For="() => Form.OrigenId" />
+    <Tarjeta Clase="mb-section">
+        <EditForm Model="Form" OnValidSubmit="BuscarAsync">
+            <DataAnnotationsValidator />
+            <div class="grid-search">
+                <div class="field">
+                    <label for="origen">Origen</label>
+                    <InputSelect id="origen" @bind-Value="Form.OrigenId">
+                        <option value="">Seleccioná una parada</option>
+                        @foreach (var p in Paradas) { <option value="@p.Id">@p.Nombre</option> }
+                    </InputSelect>
+                    <ValidationMessage For="() => Form.OrigenId" />
+                </div>
+                <div class="field">
+                    <label for="destino">Destino</label>
+                    <InputSelect id="destino" @bind-Value="Form.DestinoId">
+                        <option value="">Seleccioná una parada</option>
+                        @foreach (var p in Paradas) { <option value="@p.Id">@p.Nombre</option> }
+                    </InputSelect>
+                    <ValidationMessage For="() => Form.DestinoId" />
+                    @if (ParadasIguales) { <div class="validation-message">El destino debe ser distinto del origen.</div> }
+                </div>
+                <div class="field">
+                    <label for="fecha">Fecha</label>
+                    <InputDate id="fecha" @bind-Value="Form.Fecha" />
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg" disabled="@Buscando">@(Buscando ? "Buscando…" : "Buscar")</button>
             </div>
-            <div class="col-md-4">
-                <label for="destino" class="form-label">Destino</label>
-                <InputSelect id="destino" class="form-select" @bind-Value="Form.DestinoId">
-                    <option value="">Seleccioná una parada</option>
-                    @foreach (var p in Paradas) { <option value="@p.Id">@p.Nombre</option> }
-                </InputSelect>
-                <ValidationMessage For="() => Form.DestinoId" />
-                @if (ParadasIguales) { <div class="validation-message">El destino debe ser distinto del origen.</div> }
-            </div>
-            <div class="col-md-2">
-                <label for="fecha" class="form-label">Fecha</label>
-                <InputDate id="fecha" class="form-control" @bind-Value="Form.Fecha" />
-            </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-primary w-100" disabled="@Buscando">@(Buscando ? "Buscando…" : "Buscar")</button>
-            </div>
-        </div>
-    </EditForm>
+        </EditForm>
+    </Tarjeta>
 
     @switch (Estado)
     {
         case EstadoBusqueda.Buscando:
-            <p role="status">Buscando itinerarios…</p>
+            <Alerta>Buscando itinerarios…</Alerta>
             break;
         case EstadoBusqueda.Error:
-            <p role="alert">@ErrorBusqueda</p>
-            <button class="btn btn-primary" @onclick="ReintentarAsync" disabled="@Buscando">Reintentar</button>
+            <Alerta Tipo="TipoAviso.Error" Titulo="No pudimos buscar los viajes">
+                @ErrorBusqueda
+                <br /><button type="button" class="btn btn-secondary" @onclick="ReintentarAsync" disabled="@Buscando">Reintentar</button>
+            </Alerta>
             break;
         case EstadoBusqueda.Vacio:
-            <p role="status">No hay viajes de @UltimaBusqueda. Probá con otra fecha u otras paradas.</p>
+            <Alerta>No hay viajes de @UltimaBusqueda. Probá con otra fecha u otras paradas.</Alerta>
             break;
         case EstadoBusqueda.Exito:
-            <p role="status">@Itinerarios.Count @(Itinerarios.Count == 1 ? "itinerario encontrado" : "itinerarios encontrados") de @UltimaBusqueda.</p>
+            <Alerta Tipo="TipoAviso.Exito">@Itinerarios.Count @(Itinerarios.Count == 1 ? "itinerario encontrado" : "itinerarios encontrados") de @UltimaBusqueda.</Alerta>
             @foreach (var itinerario in Itinerarios)
             {
-                <article class="card mb-3">
-                    <div class="card-body">
-                        <h2 class="h5 card-title">
-                            @Hora(itinerario.Salida) → @Hora(itinerario.Llegada)
-                            · @(itinerario.Tramos.Count == 1 ? "Directo" : $"{itinerario.Tramos.Count} tramos")
-                            · Total @Precio(itinerario.PrecioTotal)
-                        </h2>
-                        <ul class="list-group">
-                            @foreach (var tramo in itinerario.Tramos.OrderBy(t => t.Orden))
+                <article class="card itinerario">
+                    <h2 class="h3">
+                        @Hora(itinerario.Salida) → @Hora(itinerario.Llegada)
+                        <Insignia Acento="@(itinerario.Tramos.Count != 1)" Tipo="TipoAviso.Exito">@(itinerario.Tramos.Count == 1 ? "Directo" : $"{itinerario.Tramos.Count} tramos")</Insignia>
+                    </h2>
+                    <p class="total">Total @Precio(itinerario.PrecioTotal)</p>
+                    <ul class="list-plain list-rows">
+                        @foreach (var tramo in itinerario.Tramos.OrderBy(t => t.Orden))
+                        {
+                            <li>
+                                <strong>Tramo @tramo.Orden: @tramo.Origen.Nombre → @tramo.Destino.Nombre</strong><br />
+                                Sale @Hora(tramo.Salida) · llega @Hora(tramo.Llegada) · @Precio(tramo.Importe)<br />
+                                <span class="text-secondary">Asiento: @Politica(tramo.PoliticaAsiento)</span>
+                            </li>
+                            @if (itinerario.Transbordo != null && tramo.Orden == 1)
                             {
-                                <li class="list-group-item">
-                                    <strong>Tramo @tramo.Orden: @tramo.Origen.Nombre → @tramo.Destino.Nombre</strong><br />
-                                    Sale @Hora(tramo.Salida) · llega @Hora(tramo.Llegada) · @Precio(tramo.Importe)<br />
-                                    <span>Asiento: @Politica(tramo.PoliticaAsiento)</span>
+                                <li class="card-soft">
+                                    Transbordo en @itinerario.Transbordo.Parada.Nombre: @itinerario.Transbordo.Minutos min de espera
                                 </li>
-                                @if (itinerario.Transbordo != null && tramo.Orden == 1)
-                                {
-                                    <li class="list-group-item list-group-item-light">
-                                        Transbordo en @itinerario.Transbordo.Parada.Nombre: @itinerario.Transbordo.Minutos min de espera
-                                    </li>
-                                }
                             }
-                        </ul>
-                    </div>
+                        }
+                    </ul>
                 </article>
             }
             break;

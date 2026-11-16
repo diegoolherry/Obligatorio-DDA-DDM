@@ -21,9 +21,10 @@ public class AdministracionOperativaCliente(ISesionCliente sesion)
         return (!result.Exito || result.Contenido == null) ? ([], result.Mensaje) :
             (JsonSerializer.Deserialize<List<TramoDto>>(result.Contenido, Json) ?? [], null);
     }
-    public async Task<(IReadOnlyList<ServicioDto> Items, string? Error)> ListarServiciosAsync()
+    public async Task<(IReadOnlyList<ServicioDto> Items, string? Error)> ListarServiciosAsync(DateOnly fecha)
     {
-        var result = await sesion.SolicitarAdministradorAsync(HttpMethod.Get, "api/administracion/servicios");
+        var result = await sesion.SolicitarAdministradorAsync(HttpMethod.Get,
+            "api/administracion/servicios?fecha=" + fecha.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
         return (!result.Exito || result.Contenido == null) ? ([], result.Mensaje) :
             (JsonSerializer.Deserialize<List<ServicioDto>>(result.Contenido, Json) ?? [], null);
     }

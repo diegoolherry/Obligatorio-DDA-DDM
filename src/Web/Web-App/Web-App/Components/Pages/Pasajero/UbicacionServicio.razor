@@ -5,40 +5,48 @@
 @inject ISesionCliente Sesion
 @inject UbicacionPasajeroCliente Cliente
 
-<PageTitle>Ubicación del servicio</PageTitle>
-<h1>Ubicación del servicio</h1>
-<p class="alert alert-info">Datos ficticios y aproximados de demostración académica: no son telemetría ni horarios reales.</p>
+<PageTitle>Ubicación del servicio · Berrutti</PageTitle>
+<div class="page-header">
+    <h1>Ubicación del servicio</h1>
+    <p>La posición es aproximada y puede no ser la actual.</p>
+</div>
 @if (!Sesion.Estado.Autenticada)
 {
-    <p role="alert">@(_sesionVencida ? "La sesión venció o no es válida. Ingresá nuevamente." : "Ingresá con la cuenta de pasajero para consultar la ubicación.")</p>
-    <a href="/ingreso">Ir al ingreso</a>
+    <Alerta Tipo="TipoAviso.Advertencia" Titulo="Necesitás ingresar">
+        @(_sesionVencida ? "La sesión venció o no es válida. Ingresá nuevamente." : "Ingresá con la cuenta de pasajero para consultar la ubicación.")
+        <br /><a class="btn btn-primary" href="/ingreso">Ir al ingreso</a>
+    </Alerta>
 }
 else
 {
-    <section aria-label="Servicios de demostración">
-        <h2>Servicios</h2>
-        <button class="btn btn-secondary" disabled="@Ocupado" @onclick="CargarServiciosAsync">Actualizar</button>
-        @if (_aviso != null) { <p role="alert">@_aviso</p> }
+    <section aria-labelledby="titulo-servicios" class="mb-section">
+        <div class="row-actions">
+            <h2 id="titulo-servicios">Servicios</h2>
+            <button type="button" class="btn btn-secondary" disabled="@Ocupado" @onclick="CargarServiciosAsync">Actualizar</button>
+        </div>
+        @if (_aviso != null) { <Alerta Tipo="TipoAviso.Advertencia">@_aviso</Alerta> }
         @if (_cargandoLista)
         {
-            <p role="status">Cargando servicios…</p>
+            <Alerta>Cargando servicios…</Alerta>
         }
         else if (_errorLista != null)
         {
-            <p role="alert">@_errorLista</p>
-            <button class="btn btn-primary" disabled="@Ocupado" @onclick="CargarServiciosAsync">Reintentar</button>
+            <Alerta Tipo="TipoAviso.Error" Titulo="No pudimos cargar los servicios">
+                @_errorLista
+                <br /><button type="button" class="btn btn-secondary" disabled="@Ocupado" @onclick="CargarServiciosAsync">Reintentar</button>
+            </Alerta>
         }
         else if (Servicios.Count == 0)
         {
-            <p role="status">No hay servicios de demostración disponibles.</p>
+            <Alerta>No hay servicios disponibles.</Alerta>
         }
         else
         {
-            <ul class="list-unstyled mt-2">
+            <ul class="list-plain list-rows card">
                 @foreach (var servicio in Servicios)
                 {
                     <li>
-                        <button class="btn btn-link" disabled="@Ocupado" aria-pressed="@(servicio.Id == _seleccionado)" @onclick="() => SeleccionarAsync(servicio.Id)">
+                        <button type="button" class="btn btn-link servicio-opcion" disabled="@Ocupado" aria-pressed="@(servicio.Id == _seleccionado)" @onclick="() => SeleccionarAsync(servicio.Id)">
                             @servicio.Origen → @servicio.Destino, salida @servicio.Salida.ToString("yyyy-MM-dd HH:mm") – llegada @servicio.Llegada.ToString("yyyy-MM-dd HH:mm")
                         </button>
                     </li>
@@ -48,23 +56,25 @@ else
     </section>
     @if (_seleccionado != null)
     {
-        <section class="mt-4" aria-label="Detalle de ubicación" aria-busy="@_cargandoDetalle.ToString().ToLowerInvariant()">
-            <h2>Última posición</h2>
+        <section class="card" aria-labelledby="titulo-posicion" aria-busy="@_cargandoDetalle.ToString().ToLowerInvariant()">
+            <h2 id="titulo-posicion">Última posición</h2>
             @if (_cargandoDetalle)
             {
-                <p role="status">Consultando ubicación…</p>
+                <Alerta>Consultando ubicación…</Alerta>
             }
             else if (_errorDetalle != null)
             {
-                <p role="alert">@_errorDetalle</p>
-                <button class="btn btn-primary" disabled="@Ocupado" @onclick="() => ConsultarAsync()">Reintentar</button>
+                <Alerta Tipo="TipoAviso.Error" Titulo="No pudimos consultar la ubicación">
+                    @_errorDetalle
+                    <br /><button type="button" class="btn btn-secondary" disabled="@Ocupado" @onclick="() => ConsultarAsync()">Reintentar</button>
+                </Alerta>
             }
             else if (Detalle is { } d)
             {
                 <p><strong>@d.Servicio.Origen → @d.Servicio.Destino</strong></p>
                 @if (d.UltimaPosicion is not { } pos)
                 {
-                    <p role="status">Todavía no hay posiciones para este servicio.</p>
+                    <Alerta>Todavía no hay posiciones para este servicio.</Alerta>
                 }
                 else
                 {
@@ -72,7 +82,7 @@ else
                     <p>Actualizada: @HoraLocal(pos.RecibidaUtc) (hora de Uruguay, hace @Antiguedad(pos.AntiguedadSegundos))</p>
                     @if (d.Desactualizada)
                     {
-                        <p class="alert alert-warning" role="alert">Posición desactualizada: supera el umbral de @d.Parametros.UmbralDesactualizacionSegundos s. No la tomes como ubicación actual.</p>
+                        <Alerta Tipo="TipoAviso.Advertencia" Titulo="Información desactualizada">Posición desactualizada: supera el umbral de @d.Parametros.UmbralDesactualizacionSegundos s. No la tomes como ubicación actual.</Alerta>
                     }
                 }
                 <h3>Llegada y demora</h3>
@@ -83,8 +93,9 @@ else
                 }
                 else
                 {
-                    <p role="status">Llegada y demora no disponibles: @(string.IsNullOrWhiteSpace(d.Motivo) ? "la API no informó el motivo." : d.Motivo)</p>
+                    <Alerta>Llegada y demora no disponibles: @(string.IsNullOrWhiteSpace(d.Motivo) ? "no se informó el motivo." : d.Motivo)</Alerta>
                 }
+                @* El título se conserva tal cual: tests/WebAuthentication lo exige (ver informe de T2). *@
                 <h3>Parámetros académicos usados</h3>
                 <ul>
                     <li>Periodicidad de publicación: @d.Parametros.PeriodicidadSegundos s</li>
@@ -93,7 +104,7 @@ else
                     <li>Tolerancia de demora: @d.Parametros.ToleranciaDemoraMinutos min</li>
                 </ul>
                 @if (d.DatosFicticios) { <p><small>Datos ficticios y aproximados.</small></p> }
-                <button class="btn btn-secondary" disabled="@Ocupado" @onclick="() => ConsultarAsync()">Actualizar</button>
+                <button type="button" class="btn btn-secondary" disabled="@Ocupado" @onclick="() => ConsultarAsync()">Actualizar</button>
             }
         </section>
     }

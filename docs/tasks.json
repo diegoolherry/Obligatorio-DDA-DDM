@@ -972,11 +972,11 @@
       "area": [
         "Web"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "assignee": "Diego",
       "reviewer": "Enzo",
       "createdAt": "2026-11-12T18:20:46-03:00",
-      "startedAt": null,
+      "startedAt": "2026-11-12T20:21:57-03:00",
       "completedAt": null,
       "completedBy": null,
       "dependencies": [
@@ -986,7 +986,7 @@
         "Las páginas Web existentes aplican los tokens y componentes del sistema de diseño, con foco visible y navegación por teclado.",
         "Las páginas conservan su comportamiento y sus estados de carga, vacío, error y éxito."
       ],
-      "evidence": "Pendiente de FIN-010-01."
+      "evidence": "Rama feature/fin-010-03-web-design. Mismo flujo que Mobile: mockups Web en OpenPencil antes del código."
     }
   ]
 }

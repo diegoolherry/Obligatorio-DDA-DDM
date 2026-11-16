@@ -15,6 +15,7 @@ public class SesionCliente(IHttpClientFactory factory, IConfiguration configurat
     private DateTimeOffset _vence;
     private int _ocupada;
     private long _version;
+    private const long LimiteRespuestaListados = 16 * 1024 * 1024;
     private static readonly JsonSerializerOptions Json = CrearOpciones();
     private static readonly string[] MensajesValidacion =
     ["El correo es obligatorio.", "El correo no es válido.", "La contraseña es obligatoria."];
@@ -48,6 +49,9 @@ public class SesionCliente(IHttpClientFactory factory, IConfiguration configurat
         try
         {
             using var client = factory.CreateClient("Autenticacion");
+            // El cliente nombrado limita las respuestas de autenticación a 64 KB; los listados administrativos
+            // (p. ej. miles de servicios) necesitan más. El límite sigue acotado.
+            client.MaxResponseContentBufferSize = LimiteRespuestaListados;
             using var request = new HttpRequestMessage(metodo, new Uri(baseUrl!, ruta));
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token);
             if (json != null) request.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");

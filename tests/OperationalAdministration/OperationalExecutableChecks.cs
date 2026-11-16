@@ -22,6 +22,7 @@ internal static class OperationalExecutableChecks
         CheckDemoScenario(check);
         CheckDecimalRangeValidation(check);
         await ItinerarySearchChecks.RunAsync(check);
+        await ServiciosFechaChecks.RunAsync(check);
     }
 
     private static async Task CheckServiceScheduleAsync(Action<bool, string> check)
@@ -222,8 +223,14 @@ internal sealed class MemoryServiciosRepository : IServiciosRepository
 {
     public List<Servicio> Services { get; } = [];
     public int SaveCount { get; private set; }
+    public int ListCalls { get; private set; }
 
-    public Task<List<Servicio>> ListarAsync() => Task.FromResult(Services.ToList());
+    public Task<List<Servicio>> ListarAsync(DateOnly? dia = null)
+    {
+        ListCalls++;
+        var query = dia is { } d ? Services.Where(s => DateOnly.FromDateTime(s.Salida) == d) : Services.AsEnumerable();
+        return Task.FromResult(query.OrderBy(s => s.Salida).ToList());
+    }
     public Task<Servicio?> BuscarAsync(string id) => Task.FromResult(Services.FirstOrDefault(s => s.Id == id));
     public Task<bool> ExisteTramoAsync(string tramoId) => Task.FromResult(true);
     public Task AgregarAsync(Servicio servicio) { Services.Add(servicio); return Task.CompletedTask; }

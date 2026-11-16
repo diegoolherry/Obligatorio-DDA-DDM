@@ -4,7 +4,7 @@ namespace API_Berruti.Services.Operational;
 
 public interface IServiciosService
 {
-    Task<IReadOnlyList<ServicioDto>> ListarAsync();
+    Task<IReadOnlyList<ServicioDto>> ListarAsync(DateOnly? dia = null);
     Task<ServicioDto> CrearAsync(ServicioDto dto);
     Task<ServicioDto> ActualizarAsync(string id, ServicioDto dto);
     Task EliminarAsync(string id);

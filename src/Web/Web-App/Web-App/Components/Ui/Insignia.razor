@@ -1,0 +1,16 @@
+@* Etiqueta corta de estado; su contenido es texto visible. *@
+<span class="badge badge-@Clase">@ChildContent</span>
+
+@code {
+    [Parameter] public TipoAviso Tipo { get; set; } = TipoAviso.Info;
+    [Parameter] public bool Acento { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string Clase => Acento ? "accent" : Tipo switch
+    {
+        TipoAviso.Exito => "success",
+        TipoAviso.Advertencia => "warning",
+        TipoAviso.Error => "error",
+        _ => "info"
+    };
+}

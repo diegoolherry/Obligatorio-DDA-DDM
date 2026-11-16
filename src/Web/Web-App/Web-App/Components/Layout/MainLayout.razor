@@ -1,23 +1,55 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject ISesionCliente Sesion
+@inject NavigationManager Navegacion
+@using Web_App.Services.Authentication
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+<CascadingValue Value="this">
+    <a class="skip-link" href="@EnlaceContenido" @onclick="IrAlContenidoAsync" @onclick:preventDefault>Saltar al contenido</a>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+    <header class="site-header">
+        <div class="container header-inner">
+            <a class="brand" href="">Berrutti</a>
+            <NavMenu Autenticada="Sesion.Estado.Autenticada" AlCambiarSesion="Actualizar" />
         </div>
+    </header>
 
-        <article class="content px-4">
+    <main id="contenido" tabindex="-1" @ref="contenido">
+        <div class="container">
             @Body
-        </article>
+        </div>
     </main>
-</div>
+
+    <footer class="site-footer">
+        <div class="container footer-inner">
+            <span class="brand">Berrutti</span>
+            <p>Los horarios provienen de la tabla de invierno 2026 publicada por la empresa.</p>
+        </div>
+    </footer>
+</CascadingValue>
 
 <div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
+    Ocurrió un error inesperado.
+    <a href="." class="reload">Recargar</a>
+    <button type="button" class="dismiss" aria-label="Cerrar aviso">Cerrar</button>
 </div>
+
+@code {
+    // El enlace de salto conserva la ruta actual: con <base href="/">, un "#contenido" suelto llevaría al inicio.
+    private string EnlaceContenido => Navegacion.Uri.Split('#')[0] + "#contenido";
+
+    private ElementReference contenido;
+
+    // Blazor intercepta el enlace con hash y no mueve el foco: se enfoca <main> explícitamente (teclado y clic).
+    private async Task IrAlContenidoAsync() => await contenido.FocusAsync();
+
+    protected override void OnInitialized() => Navegacion.LocationChanged += AlNavegar;
+
+    private void AlNavegar(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs args) =>
+        _ = InvokeAsync(StateHasChanged);
+
+    // Las páginas que cambian la sesión lo avisan para refrescar la barra superior.
+    public void Actualizar() => StateHasChanged();
+
+    public void Dispose() => Navegacion.LocationChanged -= AlNavegar;
+}
