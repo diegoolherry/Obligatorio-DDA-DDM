@@ -30,9 +30,9 @@ Implement only the approved purchase initiation response DTO and structural inpu
 ## Delivery
 - Forecast: approximately 250 authored lines; strategy `ask-on-risk`, below the 400-line planning heuristic.
 - One coherent work-unit commit for API DTOs and their checks; no push or PR authorized.
-- Native review: pending assessment; no approval claimed.
+- Native review: assessment of commits through `ceabbd9` against `1e152af` returned `medium`, 269 authored lines, `review_due: false`, `under_budget`. The slice remains pending; no native approval or candidate consent claimed.
 - Engram mirror: pending; prior writes blocked by host-session identity hook.
 
 ## Progress and next step
 - PC-01 complete: initial RED run reported 12 failures of 16 checks (after restore); after implementation, the suite reported 27 checks and 0 failures. The API build passed with 0 errors and 2 NU1900 vulnerability-feed warnings because api.nuget.org was unreachable. `git diff --check` passed (no output); newly added files were also inspected directly.
-- PC-02 independent verification passed: 27/27 checks, API build exit 0 with the known NU1900 warning, direct new-file readback and no remaining findings. Parent re-ran the 27 checks successfully. Work-unit commit: `d64b610` (273 authored lines). Native assessment remains pending. Final staged-file checking exposed extra EOF blank lines missed by unstaged checks of untracked files; these were removed before final verification.
+- PC-02 independent verification passed: 27/27 checks, API build exit 0 with the known NU1900 warning, direct new-file readback and no remaining findings. Parent re-ran the 27 checks successfully. Work-unit commit: `d64b610`; verification/normalization commit: `ceabbd9`. Final staged-file checking exposed extra EOF blank lines missed by unstaged checks of untracked files; these were removed and tests/build re-run before final verification. Native assessment: medium / under_budget; no review due for this slice yet.
