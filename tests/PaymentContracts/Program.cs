@@ -1,6 +1,12 @@
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 using System.Text.Json;
+using API_Berruti.Controllers.Operational;
 using API_Berruti.DTOs.Operational;
+using API_Berruti.Services.Operational;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 
 var checks = 0;
 var failures = 0;
@@ -149,5 +155,119 @@ var responseElement = JsonDocument.Parse(responseJson).RootElement;
 Check(responseElement.GetProperty("holdVenceEn").GetString() == "2026-11-16T15:30:00Z", "response serializes an explicitly UTC sample unchanged");
 Check(new IniciarIntentoCompraResponseDto().HoldVenceEn == default, "response does not invent a hold expiry default");
 
+var route = typeof(IntentosCompraController).GetCustomAttributes(typeof(RouteAttribute), inherit: true)
+    .Cast<RouteAttribute>().Single();
+var authorize = typeof(IntentosCompraController).GetCustomAttributes(typeof(AuthorizeAttribute), inherit: true)
+    .Cast<AuthorizeAttribute>().Single();
+Check(route.Template == "api/intentos-compra", "attempt controller uses the documented route");
+Check(authorize.Roles == "Pasajero", "all attempt actions require the passenger role");
+Check(typeof(IntentosCompraController).GetMethod(nameof(IntentosCompraController.Crear))!
+    .GetCustomAttributes(typeof(HttpPostAttribute), true).Cast<HttpPostAttribute>().Any(), "create action is HTTP POST");
+Check(typeof(IntentosCompraController).GetMethod(nameof(IntentosCompraController.Consultar))!
+    .GetCustomAttributes(typeof(HttpGetAttribute), true).Cast<HttpGetAttribute>().Single().Template == "{intentoId}", "read action is HTTP GET by attempt ID");
+
+var attemptResponse = new IniciarIntentoCompraResponseDto { IntentoId = "opaque-attempt" };
+var fakeService = new FakeIntentosCompraService { CreateResponse = attemptResponse, ReadResponse = attemptResponse };
+var controller = CreateController(fakeService, "passenger-public-id");
+using var cancellationSource = new CancellationTokenSource();
+var createResult = await controller.Crear(validRequest, cancellationSource.Token);
+Check(createResult.Result is CreatedAtActionResult createdResult
+    && createdResult.ActionName == nameof(IntentosCompraController.Consultar)
+    && createdResult.RouteValues?.GetValueOrDefault("intentoId")?.ToString() == "opaque-attempt"
+    && ReferenceEquals(createdResult.Value, attemptResponse), "create returns 201 with a location for the created opaque attempt");
+Check(fakeService.CreatePassengerId == "passenger-public-id" && ReferenceEquals(fakeService.CreateRequest, validRequest), "create uses the authenticated public identity and typed request");
+Check(fakeService.CreateCancellationToken == cancellationSource.Token, "create propagates the request cancellation token");
+
+var readResult = await controller.Consultar("opaque-attempt", cancellationSource.Token);
+Check(readResult.Result is OkObjectResult readOk && ReferenceEquals(readOk.Value, attemptResponse), "owner-scoped read returns the service response");
+Check(fakeService.ReadPassengerId == "passenger-public-id" && fakeService.ReadAttemptId == "opaque-attempt", "read scopes lookup to authenticated passenger and attempt ID");
+Check(fakeService.ReadCancellationToken == cancellationSource.Token, "read propagates the request cancellation token");
+
+var noIdentityController = CreateController(fakeService, null);
+var createCallsBeforeMissingIdentity = fakeService.CreateCalls;
+Check((await noIdentityController.Crear(validRequest)).Result is UnauthorizedResult, "create rejects missing authenticated identity");
+Check((await noIdentityController.Consultar("opaque-attempt")).Result is UnauthorizedResult, "read rejects missing authenticated identity");
+Check(fakeService.CreateCalls == createCallsBeforeMissingIdentity, "missing identity never reaches the service");
+Check((await controller.Crear(null!)).Result is BadRequestObjectResult, "direct null request is rejected as bad input");
+
+fakeService.CreateException = new ArgumentException("La solicitud no es válida.");
+var invalidCreate = await controller.Crear(validRequest);
+Check(invalidCreate.Result is BadRequestObjectResult invalidBody && Equals(invalidBody.Value, "La solicitud no es válida."), "service validation errors map to 400");
+fakeService.CreateException = new KeyNotFoundException("Missing service");
+Check((await controller.Crear(validRequest)).Result is NotFoundResult, "missing selected service maps to 404");
+fakeService.CreateException = new AsientoNoDisponibleException("internal seat state should stay private");
+var unavailableCreate = await controller.Crear(validRequest);
+Check(unavailableCreate.Result is ConflictObjectResult seatConflict
+    && Equals(seatConflict.Value, "No se pudo reservar un asiento para el itinerario solicitado.")
+    && !seatConflict.Value!.ToString()!.Contains("internal seat state", StringComparison.Ordinal), "seat unavailability maps to a sanitized 409");
+fakeService.CreateException = new InvalidOperationException("provider credential secret");
+var unexpectedCreate = await controller.Crear(validRequest);
+Check(unexpectedCreate.Result is ObjectResult createFailure
+    && createFailure.StatusCode == StatusCodes.Status500InternalServerError
+    && Equals(createFailure.Value, "Error interno del servidor")
+    && !createFailure.Value!.ToString()!.Contains("provider credential", StringComparison.Ordinal), "unexpected create failure is sanitized as 500");
+
+fakeService.CreateException = null;
+fakeService.ReadException = new KeyNotFoundException("Foreign or missing attempt");
+Check((await controller.Consultar("opaque-attempt")).Result is NotFoundResult, "missing or foreign attempt maps to 404");
+fakeService.ReadException = new ArgumentException("Attempt ID is required.");
+Check((await controller.Consultar(" ")).Result is BadRequestObjectResult, "invalid attempt ID maps to 400");
+fakeService.ReadException = new InvalidOperationException("provider credential secret");
+var unexpectedRead = await controller.Consultar("opaque-attempt");
+Check(unexpectedRead.Result is ObjectResult readFailure
+    && readFailure.StatusCode == StatusCodes.Status500InternalServerError
+    && Equals(readFailure.Value, "Error interno del servidor")
+    && !readFailure.Value!.ToString()!.Contains("provider credential", StringComparison.Ordinal), "unexpected read failure is sanitized as 500");
+fakeService.ReadException = null;
+
 Console.WriteLine($"Checks: {checks}; failures: {failures}");
 return failures == 0 ? 0 : 1;
+
+static IntentosCompraController CreateController(IIntentosCompraService service, string? passengerId)
+{
+    var claims = passengerId is null
+        ? Array.Empty<Claim>()
+        : [new Claim(ClaimTypes.NameIdentifier, passengerId)];
+    return new IntentosCompraController(service)
+    {
+        ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(claims, "test"))
+            }
+        }
+    };
+}
+
+sealed class FakeIntentosCompraService : IIntentosCompraService
+{
+    public IniciarIntentoCompraResponseDto CreateResponse { get; set; } = new();
+    public IniciarIntentoCompraResponseDto ReadResponse { get; set; } = new();
+    public Exception? CreateException { get; set; }
+    public Exception? ReadException { get; set; }
+    public string? CreatePassengerId { get; private set; }
+    public string? ReadPassengerId { get; private set; }
+    public string? ReadAttemptId { get; private set; }
+    public IniciarIntentoCompraRequestDto? CreateRequest { get; private set; }
+    public CancellationToken CreateCancellationToken { get; private set; }
+    public CancellationToken ReadCancellationToken { get; private set; }
+    public int CreateCalls { get; private set; }
+
+    public Task<IniciarIntentoCompraResponseDto> CrearAsync(string identificadorPublico, IniciarIntentoCompraRequestDto solicitud, CancellationToken cancellationToken = default)
+    {
+        CreateCalls++;
+        CreatePassengerId = identificadorPublico;
+        CreateRequest = solicitud;
+        CreateCancellationToken = cancellationToken;
+        return CreateException is null ? Task.FromResult(CreateResponse) : Task.FromException<IniciarIntentoCompraResponseDto>(CreateException);
+    }
+
+    public Task<IniciarIntentoCompraResponseDto> ConsultarAsync(string identificadorPublico, string intentoId, CancellationToken cancellationToken = default)
+    {
+        ReadPassengerId = identificadorPublico;
+        ReadAttemptId = intentoId;
+        ReadCancellationToken = cancellationToken;
+        return ReadException is null ? Task.FromResult(ReadResponse) : Task.FromException<IniciarIntentoCompraResponseDto>(ReadException);
+    }
+}

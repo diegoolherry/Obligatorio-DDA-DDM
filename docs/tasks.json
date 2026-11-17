@@ -99,11 +99,11 @@
         "Web",
         "Mobile"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "assignee": "Enzo",
       "reviewer": "Diego",
       "createdAt": "2026-09-21T17:45:04-03:00",
-      "startedAt": null,
+      "startedAt":  "2026-11-16T21:48:18-03:00",
       "completedAt": null,
       "completedBy": null,
       "dependencies": [
@@ -115,7 +115,7 @@
         "La aplicación no solicita ni almacena números de tarjeta, CVV ni datos financieros equivalentes; no hay cobros reales ni credenciales de producción.",
         "El ticket del primer tramo no tiene asiento y el segundo tiene un asiento asignado automáticamente."
       ],
-      "evidence": "Aclaración de los criterios originales, sin implementación: rechazo definitivo permite reintentar solo con hold vigente y tiempo restante; no verificado o pendiente/desconocido no emite tickets ni habilita otro pago hasta resolución autoritativa. La cardinalidad conceptual es a lo sumo una compra confirmada por intento durable con pagos conservados; no define cardinalidad física. Rige docs/design/data-model.md §2, base conceptual aprobada por Diego y Enzo según lo informado por el usuario. Soporte de devolución TEST no verificado, sin reemplazo simulado; integración y pruebas del proveedor pendientes."
+      "evidence": "(1) PR/commit: pending; MVP-004 remains in progress on the feature branch.\n(2) Commands: PaymentContracts 48/48 and API build 0 errors; NU1900 vulnerability-index warning, `git diff --check` passed.\n(3) Revisión cruzada de Diego: pendiente; no se marca la tarea completa ni se acredita revisión."
     },
     {
       "id": "MVP-005",
