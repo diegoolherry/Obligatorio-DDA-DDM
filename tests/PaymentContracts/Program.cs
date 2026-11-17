@@ -1300,6 +1300,45 @@ using (var canceledSync = new CancellationTokenSource())
 
 
 
+var syncEndpoint = typeof(ConciliacionesPagoController).GetMethod(nameof(ConciliacionesPagoController.Sincronizar));
+var syncRoute = typeof(ConciliacionesPagoController).GetCustomAttributes(typeof(RouteAttribute), true)
+    .Cast<RouteAttribute>().SingleOrDefault()?.Template;
+Check(syncRoute == "api/intentos-compra/{intentoId}/pagos"
+    && syncEndpoint?.GetCustomAttributes(typeof(HttpPostAttribute), true).Cast<HttpPostAttribute>()
+        .SingleOrDefault()?.Template == "sincronizar"
+    && syncEndpoint.GetParameters().Length == 2,
+    "sync endpoint is a bodyless authenticated POST, so clients cannot assert payment approval");
+var unknownControllerService = new FakeConciliacionesPagoService
+{
+    Response = new SincronizarPagoResponseDto { Pago = new PagoResponseDto { Estado = EstadoPago.Desconocido } }
+};
+var unknownController = CreateSyncController(unknownControllerService, "passenger-public-id");
+var unknownHttpResult = await unknownController.Sincronizar("IC-opaque");
+Check(unknownHttpResult.Result is ObjectResult { StatusCode: 202 }
+    && unknownControllerService.Owner == "passenger-public-id"
+    && unknownControllerService.Attempt == "IC-opaque",
+    "unknown local payment maps to 202 and the controller supplies only the authenticated passenger identity");
+var knownControllerService = new FakeConciliacionesPagoService
+{
+    Response = new SincronizarPagoResponseDto { Pago = new PagoResponseDto { Estado = EstadoPago.Aprobado } }
+};
+var knownHttpResult = await CreateSyncController(knownControllerService, "passenger-public-id").Sincronizar("IC-opaque");
+Check(knownHttpResult.Result is OkObjectResult,
+    "known synchronized payment maps to 200 without requiring client-provided payment state");
+var noIdentitySyncResult = await CreateSyncController(new FakeConciliacionesPagoService(), null).Sincronizar("IC-opaque");
+Check(noIdentitySyncResult.Result is UnauthorizedResult,
+    "missing authenticated identity is rejected before payment synchronization");
+var foreignControllerService = new FakeConciliacionesPagoService { Exception = new KeyNotFoundException() };
+var foreignHttpResult = await CreateSyncController(foreignControllerService, "passenger-public-id").Sincronizar("IC-foreign");
+Check(foreignHttpResult.Result is NotFoundResult,
+    "missing or foreign attempt maps to 404 without exposing ownership details");
+var canceledControllerService = new FakeConciliacionesPagoService { Exception = new OperationCanceledException() };
+using var canceledControllerToken = new CancellationTokenSource();
+canceledControllerToken.Cancel();
+await CheckThrowsAsync<OperationCanceledException>(
+    () => CreateSyncController(canceledControllerService, "passenger-public-id").Sincronizar("IC-opaque", canceledControllerToken.Token),
+    "synchronization controller propagates caller cancellation");
+
 Console.WriteLine($"Checks: {checks}; failures: {failures}");
 return failures == 0 ? 0 : 1;
 
@@ -1343,6 +1382,23 @@ static PagosController CreatePaymentController(IPagosService service, string? pa
         ? Array.Empty<Claim>()
         : [new Claim(ClaimTypes.NameIdentifier, passengerId)];
     return new PagosController(service)
+    {
+        ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(claims, "test"))
+            }
+        }
+    };
+}
+
+static ConciliacionesPagoController CreateSyncController(IConciliacionesPagoService service, string? passengerId)
+{
+    var claims = passengerId is null
+        ? Array.Empty<Claim>()
+        : [new Claim(ClaimTypes.NameIdentifier, passengerId)];
+    return new ConciliacionesPagoController(service)
     {
         ControllerContext = new ControllerContext
         {
@@ -1825,6 +1881,23 @@ sealed class FakeConfirmationRepository(ResultadoConciliacionPago? snapshot) : I
         Snapshot = OnConciliate?.Invoke(orden, ConciliateCalls) ?? Snapshot
             ?? throw new InvalidOperationException("A reconciliation result must be configured.");
         return Task.FromResult(Snapshot);
+    }
+}
+
+sealed class FakeConciliacionesPagoService : IConciliacionesPagoService
+{
+    public SincronizarPagoResponseDto Response { get; set; } = new();
+    public Exception? Exception { get; set; }
+    public string? Owner { get; private set; }
+    public string? Attempt { get; private set; }
+
+    public Task<SincronizarPagoResponseDto> SincronizarAsync(string identificadorPublico, string intentoId,
+        CancellationToken cancellationToken = default)
+    {
+        Owner = identificadorPublico;
+        Attempt = intentoId;
+        cancellationToken.ThrowIfCancellationRequested();
+        return Exception is null ? Task.FromResult(Response) : Task.FromException<SincronizarPagoResponseDto>(Exception);
     }
 }
 
