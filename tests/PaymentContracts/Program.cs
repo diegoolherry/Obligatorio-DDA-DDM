@@ -941,6 +941,106 @@ using (var canceled = new CancellationTokenSource())
             .ConsultarOrdenAsync("order-1", checkoutReference, checkoutAmount, canceled.Token), "cancellation propagates unchanged");
 }
 
+var confirmedPurchaseType = typeof(CompraConfirmadaResponseDto);
+Check(new[] { "CompraId", "IntentoId", "PagoId", "ConfirmadoUtc", "ImporteTotal", "Tickets" }
+    .All(name => confirmedPurchaseType.GetProperty(name) is not null),
+    "purchase confirmation exposes stable purchase/payment identity, UTC confirmation, amount, and tickets");
+var issuedTicketType = typeof(TicketEmitidoDto);
+Check(new[] { "TicketId", "Orden", "ServicioId", "TramoId", "OrigenNombre", "DestinoNombre", "Salida", "Llegada", "Importe", "PoliticaAsiento", "NumeroAsiento", "QrOpaco" }
+    .All(name => issuedTicketType.GetProperty(name) is not null),
+    "ticket contract exposes frozen leg details, optional assigned seat, and opaque QR payload");
+Check(typeof(TicketEmitidoDto).GetProperty("QrOpaco")?.PropertyType == typeof(string)
+    && typeof(TicketEmitidoDto).GetProperty("NumeroAsiento")?.PropertyType == typeof(int?),
+    "ticket QR is an opaque string and no-seat tickets can omit an assigned seat number");
+
+var confirmationCreatedUtc = new DateTime(2026, 11, 16, 14, 59, 0, DateTimeKind.Utc);
+var confirmationHoldExpiryUtc = confirmationCreatedUtc.AddMinutes(1);
+var frozenSelection = new[]
+{
+    ConfirmationSelection(1, "service-first", "segment-first", "stop-a", "Origin A", "stop-b", "Transfer", 100m, PoliticaAsiento.SinAsiento, null, confirmationCreatedUtc.AddHours(1), confirmationCreatedUtc.AddHours(2)),
+    ConfirmationSelection(2, "service-second", "segment-second", "stop-b", "Transfer", "stop-c", "Destination C", 75m, PoliticaAsiento.AsignacionAutomatica, 12, confirmationCreatedUtc.AddHours(2.5), confirmationCreatedUtc.AddHours(3.5))
+};
+var frozenPaymentPrices = new[]
+{
+    new TramoPago { PagoId = "PG-confirm", IntentoId = "IC-confirm", Orden = 1, Importe = 210m },
+    new TramoPago { PagoId = "PG-confirm", IntentoId = "IC-confirm", Orden = 2, Importe = 140m }
+};
+var approvedConfirmation = ConfirmationRecord(EstadoPago.Aprobado, 350m, confirmationHoldExpiryUtc);
+var emitted = EmisionCompra.Preparar(
+    approvedConfirmation,
+    frozenPaymentPrices,
+    frozenSelection,
+    "CO-confirm",
+    ["CS-first", "CS-second"],
+    ["TK-first", "TK-second"],
+    confirmationCreatedUtc);
+var emittedQrValues = emitted.Tickets.Select(ticket => ticket.QrOpaco).ToArray();
+Check(emitted.Compra.Id == "CO-confirm" && emitted.Compra.PagoId == "PG-confirm"
+    && emitted.Compra.IntentoId == "IC-confirm" && emitted.Compra.ImporteTotal == 350m
+    && emitted.Compra.ConfirmadoUtc == confirmationCreatedUtc,
+    "approved full payment produces one purchase using the expected amount and supplied UTC confirmation time");
+Check(emitted.Servicios.Select(service => (service.Id, service.Orden, service.Importe))
+        .SequenceEqual([("CS-first", 1, 210m), ("CS-second", 2, 140m)])
+    && emitted.Tickets.Select(ticket => ticket.CompraServicioId).SequenceEqual(["CS-first", "CS-second"]),
+    "materialization emits one ordered purchase leg and ticket per frozen payment leg");
+Check(emittedQrValues.Length == 2 && emittedQrValues.Distinct(StringComparer.Ordinal).Count() == 2
+    && emittedQrValues.All(value => value.Length == 64 && value.All(Uri.IsHexDigit))
+    && emittedQrValues.All(value => !value.Contains("IC-confirm", StringComparison.Ordinal)
+        && !value.Contains("PG-confirm", StringComparison.Ordinal)
+        && !value.Contains("service-first", StringComparison.Ordinal)),
+    "ticket QR values are unique opaque 32-byte hex payloads without purchase or passenger identifiers");
+Check(emitted.Servicios.Sum(service => service.Importe) == approvedConfirmation.Pago.ImportePagado
+    && emitted.Servicios[0].Importe != frozenSelection[0].Importe
+    && emitted.Servicios[1].Importe != frozenSelection[1].Importe,
+    "issued prices come from the frozen payment snapshot rather than the original itinerary quote");
+
+foreach (var (name, invalidRecord, invalidPrices, invalidSelection, compraId, csIds, ticketIds, confirmedUtc) in new[]
+{
+    ("partial payment", ConfirmationRecord(EstadoPago.Aprobado, 349m, confirmationHoldExpiryUtc), frozenPaymentPrices, frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
+    ("expired hold", ConfirmationRecord(EstadoPago.Aprobado, 350m, confirmationCreatedUtc), frozenPaymentPrices, frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
+    ("missing frozen price", approvedConfirmation, frozenPaymentPrices[..1], frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
+    ("wrong total", approvedConfirmation, [.. frozenPaymentPrices, new TramoPago { PagoId = "PG-confirm", IntentoId = "IC-confirm", Orden = 3, Importe = 1m }], frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
+    ("wrong generated identity count", approvedConfirmation, frozenPaymentPrices, frozenSelection, "CO-x", new[] { "CS-1" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
+    ("non-UTC confirmation time", approvedConfirmation, frozenPaymentPrices, frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, DateTime.SpecifyKind(confirmationCreatedUtc, DateTimeKind.Unspecified))
+})
+{
+    PlanEmisionCompra? partialPlan = null;
+    CheckThrows<Exception>(() => partialPlan = EmisionCompra.Preparar(
+        invalidRecord, invalidPrices, invalidSelection, compraId, csIds, ticketIds, confirmedUtc),
+        $"materializer rejects {name} before returning a partial plan");
+    Check(partialPlan is null, $"invalid {name} leaves no materialized plan available for persistence");
+}
+
+var validDecision = PoliticaConfirmacionCompra.Decidir(
+    EstadoPago.Aprobado,
+    new DateTimeOffset(confirmationHoldExpiryUtc, TimeSpan.Zero),
+    new DateTimeOffset(confirmationCreatedUtc, TimeSpan.Zero),
+    disponibilidadConfirmada: true);
+var expiresAtDeadlineDecision = PoliticaConfirmacionCompra.Decidir(
+    EstadoPago.Aprobado,
+    new DateTimeOffset(confirmationHoldExpiryUtc, TimeSpan.Zero),
+    new DateTimeOffset(confirmationHoldExpiryUtc, TimeSpan.Zero),
+    disponibilidadConfirmada: true);
+Check(validDecision == DecisionConfirmacion.Confirmar
+    && expiresAtDeadlineDecision == DecisionConfirmacion.SeguimientoDevolucion,
+    "purchase decision uses API confirmation time and exact original-hold deadline, not provider approval time");
+
+var concurrentPurchaseStore = new FakeAtomicPurchaseStore();
+var concurrentMaterializations = await Task.WhenAll(Enumerable.Range(0, 8)
+    .Select(_ => concurrentPurchaseStore.ConfirmAsync(approvedConfirmation, frozenPaymentPrices, frozenSelection, confirmationCreatedUtc)));
+Check(concurrentPurchaseStore.PublishedPurchaseCount == 1
+    && concurrentPurchaseStore.PublishedTicketCount == 2
+    && concurrentMaterializations.Select(result => result.CompraId).Distinct(StringComparer.Ordinal).Count() == 1
+    && concurrentMaterializations.SelectMany(result => result.QrValues).Distinct(StringComparer.Ordinal).Count() == 2
+    && concurrentMaterializations.SelectMany(result => result.QrValues).Distinct(StringComparer.Ordinal).Count() == concurrentMaterializations[0].QrValues.Count,
+    "same-payment fake concurrency elects one materialization and all callers retain the same purchase and QR identities");
+var failingPurchaseStore = new FakeAtomicPurchaseStore { FailBeforePublish = true };
+await CheckThrowsAsync<InvalidOperationException>(
+    () => failingPurchaseStore.ConfirmAsync(approvedConfirmation, frozenPaymentPrices, frozenSelection, confirmationCreatedUtc),
+    "materialization failure before fake atomic publish is surfaced");
+Check(failingPurchaseStore.PublishedPurchaseCount == 0 && failingPurchaseStore.PublishedTicketCount == 0,
+    "failed fake atomic publish leaves no visible purchase or partial tickets; this does not prove database rollback");
+
 Console.WriteLine($"Checks: {checks}; failures: {failures}");
 return failures == 0 ? 0 : 1;
 
@@ -1091,6 +1191,44 @@ void CheckThrows<TException>(Action action, string name) where TException : Exce
         Check(true, name);
     }
 }
+
+static TramoIntentoCompra ConfirmationSelection(int order, string serviceId, string segmentId,
+    string originId, string originName, string destinationId, string destinationName, decimal originalAmount,
+    PoliticaAsiento seatPolicy, int? seatNumber, DateTime departure, DateTime arrival) => new()
+{
+    IntentoId = "IC-confirm",
+    Orden = order,
+    ServicioId = serviceId,
+    TramoId = segmentId,
+    OrigenId = originId,
+    OrigenNombre = originName,
+    DestinoId = destinationId,
+    DestinoNombre = destinationName,
+    Salida = departure,
+    Llegada = arrival,
+    Importe = originalAmount,
+    PoliticaAsiento = seatPolicy,
+    NumeroAsiento = seatNumber,
+    SalidaId = "SA-confirm",
+    OrdenEmbarque = order,
+    OrdenDesembarque = order + 1
+};
+
+static RegistroPago ConfirmationRecord(EstadoPago state, decimal paid, DateTime holdExpiry, string? providerOrderId = "order-stored") =>
+    new(new Pago
+    {
+        Id = "PG-confirm",
+        IntentoId = "IC-confirm",
+        ImporteEsperado = 350m,
+        ImportePagado = paid,
+        Moneda = "UYU",
+        Estado = state,
+        ClaveCreacion = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+        ClaveDevolucion = Guid.Parse("33333333-3333-3333-3333-333333333333"),
+        OrdenProveedorId = providerOrderId,
+        CreadoUtc = new DateTime(2026, 11, 16, 14, 0, 0, DateTimeKind.Utc),
+        ActualizadoUtc = new DateTime(2026, 11, 16, 14, 0, 0, DateTimeKind.Utc)
+    }, holdExpiry, false);
 
 static MercadoPagoCheckoutClient CreateCheckoutClient(MockHttpMessageHandler handler, string token = "TEST-contract-token")
 {
@@ -1306,6 +1444,45 @@ sealed class FakeMercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         Guid claveIdempotencia,
         CancellationToken cancellationToken = default) =>
         Task.FromException(new NotSupportedException());
+}
+
+sealed class FakeAtomicPurchaseStore
+{
+    private readonly SemaphoreSlim _attemptLock = new(1, 1);
+    private PlanEmisionCompra? _published;
+
+    public bool FailBeforePublish { get; init; }
+    public int PublishedPurchaseCount => _published is null ? 0 : 1;
+    public int PublishedTicketCount => _published?.Tickets.Count ?? 0;
+
+    public async Task<(string CompraId, IReadOnlyList<string> QrValues)> ConfirmAsync(
+        RegistroPago payment, IReadOnlyList<TramoPago> prices, IReadOnlyList<TramoIntentoCompra> selections,
+        DateTime confirmedUtc)
+    {
+        await _attemptLock.WaitAsync();
+        try
+        {
+            if (_published is null)
+            {
+                var decision = PoliticaConfirmacionCompra.Decidir(payment.Pago.Estado,
+                    new DateTimeOffset(payment.HoldVenceEn, TimeSpan.Zero),
+                    new DateTimeOffset(confirmedUtc, TimeSpan.Zero), disponibilidadConfirmada: true);
+                if (decision != DecisionConfirmacion.Confirmar)
+                    throw new InvalidOperationException("The payment is not eligible for purchase confirmation.");
+                var plan = EmisionCompra.Preparar(payment, prices, selections, "CO-concurrent",
+                    ["CS-concurrent-1", "CS-concurrent-2"], ["TK-concurrent-1", "TK-concurrent-2"], confirmedUtc);
+                if (FailBeforePublish)
+                    throw new InvalidOperationException("Injected pre-publish failure.");
+                _published = plan;
+            }
+
+            return (_published.Compra.Id, _published.Tickets.Select(ticket => ticket.QrOpaco).ToArray());
+        }
+        finally
+        {
+            _attemptLock.Release();
+        }
+    }
 }
 
 sealed class FakeIntentosCompraService : IIntentosCompraService
