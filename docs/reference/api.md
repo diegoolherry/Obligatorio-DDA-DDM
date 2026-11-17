@@ -67,16 +67,17 @@ Reglas de la búsqueda (decisiones de producto de MVP-003):
 
 ## Intentos de compra (corte HTTP)
 
-Los dos endpoints requieren Bearer válido con rol `Pasajero`. El pasajero se obtiene de la identidad autenticada del servidor; el cliente no envía ni elige el usuario propietario.
+Los tres endpoints requieren Bearer válido con rol `Pasajero`. El pasajero se obtiene de la identidad autenticada del servidor; el cliente no envía ni elige el usuario propietario.
 
 | Método y ruta | Contrato basado en el controller |
 | --- | --- |
 | `POST /api/intentos-compra` | Cuerpo `IniciarIntentoCompraRequestDto` (`tramos`: selecciones ordenadas con `orden` y `servicioId`). `201` con `IniciarIntentoCompraResponseDto` y `Location` al recurso; `400` por solicitud inválida; `401` sin identidad; `404` si falta algún servicio; `409` cuando no se pudo reservar el asiento solicitado; `500` genérico ante error inesperado. |
+| `GET /api/intentos-compra/{intentoId}/cotizacion` | Recalcula la tarifa vigente para la secuencia exacta del intento del pasajero autenticado. `200` devuelve `CotizarCompraResponseDto` con cotización original/actual, `cambioPrecio`, `huellaCotizacion` y vencimiento original; `400` entrada inválida; `401` sin identidad; `404` intento ausente/ajeno; `409` hold vencido o selección no disponible; `500` error genérico. La huella SHA-256 determinista liga intento, vencimiento y precios actuales para comparar una futura aceptación; no es firma ni autorización de pago, y el endpoint no recibe importes del cliente.
 | `GET /api/intentos-compra/{intentoId}` | Devuelve `IniciarIntentoCompraResponseDto` solo cuando el servicio encuentra el intento bajo la identidad del pasajero actual. `200`, `400` por identificador inválido, `401` sin identidad, `404` si no existe o pertenece a otra identidad, y `500` genérico ante error inesperado. |
 
 El `201` incluye `intentoId`, `itinerario` y `holdVenceEn` UTC, según el DTO vigente. El límite HTTP propaga la cancelación y traduce errores esperados sin devolver detalles de excepciones internas. Esta referencia describe el código y el harness determinista llama directamente al controller: todavía no se ejecutó una solicitud HTTP integrada, no se inició la API y no se consultó MySQL; los resultados `401/403`, encabezados Bearer, serialización y `Location` a nivel de servidor no se presentan como comprobados en runtime.
 
-Este corte no agrega checkout, registro/verificación de pagos, confirmación de compra, creación de tickets ni QR. No acredita respuesta de Mercado Pago, persistencia MySQL ni conducta concurrente.
+La cotización se consulta por separado antes de un futuro checkout: el endpoint no registra aceptación ni inicia pago, compra, confirmación de tickets o emisión de QR. Las pruebas llaman al controller directamente; no acreditan middleware HTTP, API iniciada, MySQL ni concurrencia.
 
 ## Catálogo de horarios (FIN-001)
 

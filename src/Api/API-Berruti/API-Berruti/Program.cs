@@ -34,6 +34,7 @@ builder.Services.AddScoped<IBusquedaItinerariosRepository, BusquedaItinerariosRe
 builder.Services.AddScoped<IItinerariosService, ItinerariosService>();
 builder.Services.AddScoped<IIntentosCompraRepository, IntentosCompraRepository>();
 builder.Services.AddScoped<IIntentosCompraService, IntentosCompraService>();
+builder.Services.AddScoped<ICotizacionesCompraService, CotizacionesCompraService>();
 builder.Services.AddSingleton(ParametrosCompra.Desde(builder.Configuration));
 builder.Services.AddSingleton<ParametrosMercadoPago>(servicios =>
     ParametrosMercadoPago.Desde(servicios.GetRequiredService<IConfiguration>()));

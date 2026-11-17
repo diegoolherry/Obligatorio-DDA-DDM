@@ -319,6 +319,36 @@ await CheckThrowsAsync<KeyNotFoundException>(
 Check(quoteItineraries.SearchCount == searchesBeforeForeign, "foreign attempt never triggers itinerary search");
 quoteAttempts.ReadException = null;
 
+var quoteControllerService = new FakeCotizacionesCompraService { Response = unchangedQuote };
+var quoteController = CreateQuoteController(quoteControllerService, "passenger-public-id");
+var quoteControllerResult = await quoteController.Cotizar("IC-123", cancellationSource.Token);
+Check(quoteControllerResult.Result is OkObjectResult quoteOk && ReferenceEquals(quoteOk.Value, unchangedQuote)
+    && quoteControllerService.PassengerId == "passenger-public-id"
+    && quoteControllerService.AttemptId == "IC-123"
+    && quoteControllerService.CancellationToken == cancellationSource.Token,
+    "requote endpoint uses authenticated passenger identity and propagates cancellation");
+Check(typeof(CotizacionesCompraController).GetCustomAttributes(typeof(AuthorizeAttribute), true)
+    .Cast<AuthorizeAttribute>().Single().Roles == "Pasajero"
+    && typeof(CotizacionesCompraController).GetMethod(nameof(CotizacionesCompraController.Cotizar))!
+        .GetCustomAttributes(typeof(HttpGetAttribute), true).Cast<HttpGetAttribute>().Single().Template == "{intentoId}/cotizacion",
+    "requote is a passenger-authorized GET on the attempt quote route");
+var missingQuoteController = CreateQuoteController(quoteControllerService, null);
+var quoteCallsBeforeNoIdentity = quoteControllerService.Calls;
+Check((await missingQuoteController.Cotizar("IC-123")).Result is UnauthorizedResult
+    && quoteControllerService.Calls == quoteCallsBeforeNoIdentity,
+    "missing authenticated identity is rejected before requote service access");
+quoteControllerService.Exception = new CotizacionNoDisponibleException("internal unavailable reason");
+var unavailableQuoteResult = await quoteController.Cotizar("IC-123");
+Check(unavailableQuoteResult.Result is ConflictObjectResult unavailableQuoteBody
+    && !unavailableQuoteBody.Value!.ToString()!.Contains("internal unavailable reason", StringComparison.Ordinal),
+    "expected quote expiry or unavailability maps to a sanitized 409");
+quoteControllerService.Exception = new InvalidOperationException("sensitive internal detail");
+var unexpectedQuoteResult = await quoteController.Cotizar("IC-123");
+Check(unexpectedQuoteResult.Result is ObjectResult quoteFailure
+    && quoteFailure.StatusCode == StatusCodes.Status500InternalServerError
+    && !quoteFailure.Value!.ToString()!.Contains("sensitive internal detail", StringComparison.Ordinal),
+    "unexpected requote errors are sanitized as 500");
+
 var deadline = new DateTimeOffset(2026, 11, 16, 12, 0, 0, TimeSpan.Zero);
 var beforeDeadline = deadline.AddTicks(-1);
 Check(PoliticaConfirmacionCompra.Decidir(EstadoPago.Aprobado, deadline, beforeDeadline, true) == DecisionConfirmacion.Confirmar, "approved payment confirms before the original deadline when available");
@@ -526,6 +556,23 @@ static IntentosCompraController CreateController(IIntentosCompraService service,
     };
 }
 
+static CotizacionesCompraController CreateQuoteController(ICotizacionesCompraService service, string? passengerId)
+{
+    var claims = passengerId is null
+        ? Array.Empty<Claim>()
+        : [new Claim(ClaimTypes.NameIdentifier, passengerId)];
+    return new CotizacionesCompraController(service)
+    {
+        ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(claims, "test"))
+            }
+        }
+    };
+}
+
 static ItinerarioDto CreateQuote(decimal firstPrice, decimal secondPrice)
 {
     var start = new DateTime(2026, 11, 16, 8, 0, 0);
@@ -647,4 +694,23 @@ sealed class FakeTimeProvider(DateTimeOffset utcNow) : TimeProvider
     private DateTimeOffset _utcNow = utcNow;
     public override DateTimeOffset GetUtcNow() => _utcNow;
     public void SetUtcNow(DateTimeOffset value) => _utcNow = value;
+}
+
+sealed class FakeCotizacionesCompraService : ICotizacionesCompraService
+{
+    public CotizarCompraResponseDto Response { get; set; } = new();
+    public Exception? Exception { get; set; }
+    public string? PassengerId { get; private set; }
+    public string? AttemptId { get; private set; }
+    public CancellationToken CancellationToken { get; private set; }
+    public int Calls { get; private set; }
+
+    public Task<CotizarCompraResponseDto> CotizarAsync(string identificadorPublico, string intentoId, CancellationToken cancellationToken = default)
+    {
+        Calls++;
+        PassengerId = identificadorPublico;
+        AttemptId = intentoId;
+        CancellationToken = cancellationToken;
+        return Exception is null ? Task.FromResult(Response) : Task.FromException<CotizarCompraResponseDto>(Exception);
+    }
 }
