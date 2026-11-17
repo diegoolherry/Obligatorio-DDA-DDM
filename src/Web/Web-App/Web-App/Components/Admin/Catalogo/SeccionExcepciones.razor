@@ -1,0 +1,104 @@
+@using Web_App.Models.Catalogo
+
+<section class="card mb-section" aria-labelledby="titulo-excepciones">
+    <h2 id="titulo-excepciones">Excepciones del calendario</h2>
+    <EditForm Model="_form" OnValidSubmit="GuardarAsync">
+        <DataAnnotationsValidator />
+        <ResumenValidacion />
+        <div class="grid-form">
+            <div class="field">
+                <label for="excepcion-bloque">Bloque</label>
+                <InputSelect id="excepcion-bloque" @bind-Value="_form.BloqueId">
+                    <option value="">Todos los bloques</option>
+                    @foreach (var b in Bloques) { <option value="@b.Id">@b.Clave · @b.Nombre</option> }
+                </InputSelect>
+            </div>
+            <div class="field">
+                <label for="excepcion-tipo">Tipo</label>
+                <InputSelect id="excepcion-tipo" @bind-Value="_form.Tipo">
+                    <option value="@TipoExcepcion.SinServicio">Sin servicio</option>
+                    <option value="@TipoExcepcion.ConsultarAgencia">Consultar a la agencia</option>
+                </InputSelect>
+            </div>
+            <div class="field">
+                <label for="excepcion-desde">Desde</label>
+                <InputDate id="excepcion-desde" @bind-Value="_form.Desde" />
+                <ValidationMessage For="() => _form.Desde" />
+            </div>
+            <div class="field">
+                <label for="excepcion-hasta">Hasta (inclusive)</label>
+                <InputDate id="excepcion-hasta" @bind-Value="_form.Hasta" />
+                <ValidationMessage For="() => _form.Hasta" />
+            </div>
+            <div class="field">
+                <label for="excepcion-motivo">Motivo</label>
+                <InputText id="excepcion-motivo" @bind-Value="_form.Motivo" />
+                <ValidationMessage For="() => _form.Motivo" />
+            </div>
+        </div>
+        <div class="cluster">
+            <button class="btn btn-primary" disabled="@Ocupado">@(_form.Id == null ? "Crear excepción" : "Guardar excepción")</button>
+            @if (_form.Id != null) { <button type="button" class="btn btn-secondary" disabled="@Ocupado" @onclick="Limpiar">Cancelar edición</button> }
+        </div>
+    </EditForm>
+    @if (Excepciones.Count == 0)
+    {
+        <Alerta>No hay excepciones cargadas.</Alerta>
+    }
+    else
+    {
+        <ul class="list-plain list-rows">
+            @foreach (var excepcion in Excepciones.OrderBy(e => e.Desde))
+            {
+                <li class="row-actions">
+                    <span>
+                        <strong>@excepcion.Desde.ToString("dd/MM/yyyy") a @excepcion.Hasta.ToString("dd/MM/yyyy")</strong> ·
+                        @(excepcion.Tipo == TipoExcepcion.SinServicio ? "Sin servicio" : "Consultar a la agencia") ·
+                        @NombreBloque(excepcion.BloqueId) · @excepcion.Motivo
+                    </span>
+                    <span>
+                        <button type="button" class="btn btn-link" disabled="@Ocupado" @onclick="() => Editar(excepcion)">Editar</button>
+                        <button type="button" class="btn btn-link btn-danger-text" disabled="@Ocupado" @onclick="() => SolicitarBajaAsync(excepcion)">Eliminar</button>
+                    </span>
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ExcepcionAdministracionDto> Excepciones { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<BloqueAdministracionDto> Bloques { get; set; } = [];
+    [Parameter] public bool Ocupado { get; set; }
+    [Parameter, EditorRequired] public Func<string?, ExcepcionEscrituraDto, Task<bool>> Guardar { get; set; } = (_, _) => Task.FromResult(false);
+    [Parameter] public EventCallback<BajaCatalogo> AlSolicitarBaja { get; set; }
+
+    private readonly FormularioExcepcion _form = new();
+
+    private string NombreBloque(string? bloqueId) =>
+        bloqueId == null ? "todos los bloques" : "bloque " + (Bloques.FirstOrDefault(b => b.Id == bloqueId)?.Clave ?? bloqueId);
+
+    private async Task GuardarAsync()
+    {
+        var dto = new ExcepcionEscrituraDto
+        {
+            BloqueId = string.IsNullOrEmpty(_form.BloqueId) ? null : _form.BloqueId,
+            Desde = _form.Desde, Hasta = _form.Hasta, Tipo = _form.Tipo, Motivo = _form.Motivo
+        };
+        if (await Guardar(_form.Id, dto)) Limpiar();
+    }
+
+    private void Editar(ExcepcionAdministracionDto e)
+    {
+        _form.Id = e.Id; _form.BloqueId = e.BloqueId ?? string.Empty; _form.Desde = e.Desde; _form.Hasta = e.Hasta;
+        _form.Tipo = e.Tipo; _form.Motivo = e.Motivo;
+    }
+
+    private void Limpiar()
+    {
+        _form.Id = null; _form.BloqueId = _form.Motivo = string.Empty; _form.Desde = _form.Hasta = null; _form.Tipo = default;
+    }
+
+    private Task SolicitarBajaAsync(ExcepcionAdministracionDto e) => AlSolicitarBaja.InvokeAsync(
+        new BajaCatalogo("excepciones", e.Id, $"la excepción del {e.Desde:dd/MM/yyyy} al {e.Hasta:dd/MM/yyyy} ({e.Motivo})", false));
+}
