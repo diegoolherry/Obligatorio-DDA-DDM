@@ -30,7 +30,7 @@
                 </div>
                 <div class="field">
                     <label for="ruta-clave">Clave</label>
-                    <InputText id="ruta-clave" @bind-Value="_form.Clave" />
+                    <InputText id="ruta-clave" @ref="_primerCampo" @bind-Value="_form.Clave" />
                     <ValidationMessage For="() => _form.Clave" />
                 </div>
                 <div class="field">
@@ -170,7 +170,7 @@
     }
 
     private void Editar(RutaAdministracionDto ruta)
-    {
+    { _enfocar = true;
         _form.Id = ruta.Id; _form.BloqueId = ruta.BloqueId; _form.Clave = ruta.Clave; _form.Familia = ruta.Familia; _form.Nombre = ruta.Nombre;
         _form.ParadaIds = ruta.Paradas.OrderBy(p => p.Orden).Select(p => p.ParadaId).ToList();
         foreach (var p in ruta.Paradas) _nombresExtra[p.ParadaId] = p.Nombre;
@@ -185,4 +185,15 @@
 
     private Task SolicitarBajaAsync(RutaAdministracionDto ruta) =>
         AlSolicitarBaja.InvokeAsync(new BajaCatalogo("rutas", ruta.Id, $"la ruta {ruta.Clave}", true));
+
+    // «Editar» llena el formulario arriba de la lista: se le pasa el foco para que quede a la vista.
+    private InputText? _primerCampo;
+    private bool _enfocar;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_enfocar) return;
+        _enfocar = false;
+        if (_primerCampo?.Element is { } campo) await campo.FocusAsync();
+    }
 }

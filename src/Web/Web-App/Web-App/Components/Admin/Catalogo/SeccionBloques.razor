@@ -8,7 +8,7 @@
         <div class="grid-form">
             <div class="field">
                 <label for="bloque-clave">Clave</label>
-                <InputText id="bloque-clave" @bind-Value="_form.Clave" />
+                <InputText id="bloque-clave" @ref="_primerCampo" @bind-Value="_form.Clave" />
                 <ValidationMessage For="() => _form.Clave" />
             </div>
             <div class="field">
@@ -93,7 +93,7 @@
         AlSolicitarBaja.InvokeAsync(new BajaCatalogo("bloques", bloque.Id, $"el bloque {bloque.Clave}", true));
 
     private void Editar(BloqueAdministracionDto bloque)
-    {
+    { _enfocar = true;
         _form.Id = bloque.Id; _form.Clave = bloque.Clave; _form.Nombre = bloque.Nombre; _form.Empresa = bloque.Empresa;
         _form.FuenteUrl = bloque.FuenteUrl; _form.VigenteDesde = bloque.VigenteDesde; _form.VigenteHasta = bloque.VigenteHasta;
     }
@@ -102,5 +102,16 @@
     {
         _form.Id = null; _form.Clave = _form.Nombre = _form.Empresa = string.Empty;
         _form.FuenteUrl = null; _form.VigenteDesde = _form.VigenteHasta = null;
+    }
+
+    // «Editar» llena el formulario arriba de la lista: se le pasa el foco para que quede a la vista.
+    private InputText? _primerCampo;
+    private bool _enfocar;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_enfocar) return;
+        _enfocar = false;
+        if (_primerCampo?.Element is { } campo) await campo.FocusAsync();
     }
 }

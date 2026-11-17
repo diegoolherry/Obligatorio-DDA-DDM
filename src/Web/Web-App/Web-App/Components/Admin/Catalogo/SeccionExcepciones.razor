@@ -8,7 +8,7 @@
         <div class="grid-form">
             <div class="field">
                 <label for="excepcion-bloque">Bloque</label>
-                <InputSelect id="excepcion-bloque" @bind-Value="_form.BloqueId">
+                <InputSelect id="excepcion-bloque" @ref="_primerCampo" @bind-Value="_form.BloqueId">
                     <option value="">Todos los bloques</option>
                     @foreach (var b in Bloques) { <option value="@b.Id">@b.Clave · @b.Nombre</option> }
                 </InputSelect>
@@ -89,7 +89,7 @@
     }
 
     private void Editar(ExcepcionAdministracionDto e)
-    {
+    { _enfocar = true;
         _form.Id = e.Id; _form.BloqueId = e.BloqueId ?? string.Empty; _form.Desde = e.Desde; _form.Hasta = e.Hasta;
         _form.Tipo = e.Tipo; _form.Motivo = e.Motivo;
     }
@@ -101,4 +101,15 @@
 
     private Task SolicitarBajaAsync(ExcepcionAdministracionDto e) => AlSolicitarBaja.InvokeAsync(
         new BajaCatalogo("excepciones", e.Id, $"la excepción del {e.Desde:dd/MM/yyyy} al {e.Hasta:dd/MM/yyyy} ({e.Motivo})", false));
+
+    // «Editar» llena el formulario arriba de la lista: se le pasa el foco para que quede a la vista.
+    private InputSelect<string>? _primerCampo;
+    private bool _enfocar;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_enfocar) return;
+        _enfocar = false;
+        if (_primerCampo?.Element is { } campo) await campo.FocusAsync();
+    }
 }

@@ -31,7 +31,7 @@
                 </div>
                 <div class="field">
                     <label for="salida-dias">Días de operación</label>
-                    <InputSelect id="salida-dias" @bind-Value="_form.Dias">
+                    <InputSelect id="salida-dias" @ref="_primerCampo" @bind-Value="_form.Dias">
                         @foreach (var dias in Enum.GetValues<DiasOperacion>()) { <option value="@dias">@EtiquetaDias(dias)</option> }
                     </InputSelect>
                 </div>
@@ -168,7 +168,7 @@
     }
 
     private void Editar(SalidaAdministracionDto salida)
-    {
+    { _enfocar = true;
         _form.Id = salida.Id; _form.RutaId = salida.RutaId; _form.Dias = salida.Dias;
         _form.Codigos = salida.Codigos; _form.Nota = salida.Nota;
         _form.Horas = salida.Horas.Where(h => h.Hora != null)
@@ -184,4 +184,15 @@
 
     private Task SolicitarBajaAsync(RutaAdministracionDto ruta, SalidaAdministracionDto salida) =>
         AlSolicitarBaja.InvokeAsync(new BajaCatalogo("salidas", salida.Id, $"la salida {EtiquetaDias(salida.Dias)} de la ruta {ruta.Clave}", true));
+
+    // «Editar» llena el formulario arriba de la lista: se le pasa el foco para que quede a la vista.
+    private InputSelect<DiasOperacion>? _primerCampo;
+    private bool _enfocar;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_enfocar) return;
+        _enfocar = false;
+        if (_primerCampo?.Element is { } campo) await campo.FocusAsync();
+    }
 }

@@ -14,7 +14,7 @@
             </div>
             <div class="field">
                 <label for="feriado-nombre">Nombre</label>
-                <InputText id="feriado-nombre" @bind-Value="_form.Nombre" />
+                <InputText id="feriado-nombre" @ref="_primerCampo" @bind-Value="_form.Nombre" />
                 <ValidationMessage For="() => _form.Nombre" />
             </div>
         </div>
@@ -59,7 +59,7 @@
         if (await Guardar(_form.FechaOriginal, dto)) Limpiar();
     }
 
-    private void Editar(FeriadoDto feriado) { _form.FechaOriginal = feriado.Fecha; _form.Fecha = feriado.Fecha; _form.Nombre = feriado.Nombre; }
+    private void Editar(FeriadoDto feriado) { _enfocar = true; _form.FechaOriginal = feriado.Fecha; _form.Fecha = feriado.Fecha; _form.Nombre = feriado.Nombre; }
 
     private void Limpiar() { _form.FechaOriginal = null; _form.Fecha = null; _form.Nombre = string.Empty; }
 
@@ -67,4 +67,15 @@
     private Task SolicitarBajaAsync(FeriadoDto feriado) => AlSolicitarBaja.InvokeAsync(
         new BajaCatalogo("feriados", feriado.Fecha.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
             $"el feriado del {feriado.Fecha:dd/MM/yyyy} ({feriado.Nombre})", false));
+
+    // «Editar» llena el formulario arriba de la lista: se le pasa el foco para que quede a la vista.
+    private InputText? _primerCampo;
+    private bool _enfocar;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_enfocar) return;
+        _enfocar = false;
+        if (_primerCampo?.Element is { } campo) await campo.FocusAsync();
+    }
 }
