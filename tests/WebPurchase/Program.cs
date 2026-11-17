@@ -95,6 +95,83 @@ sealed class Checks
         Equal(HttpMethod.Post, syncSession.Calls[0].Metodo, "sync uses POST");
         Equal("/api/intentos-compra/IC-01/pagos/sincronizar", syncSession.Calls[0].Ruta, "sync reuses attempt ID");
         Equal(null, syncSession.Calls[0].Json, "sync sends no payment body");
+
+        const string validPago = """{"pagoId":"PG-01","intentoId":"IC-01","estado":"pendiente","importe":125,"moneda":"UYU","checkoutUrl":null,"holdVenceEn":"2026-11-18T09:15:00Z"}""";
+        var invalidAttemptSession = new FakeSession(new RespuestaApiAdministracion(true, 200, validPago, "ok"));
+        var invalidAttemptResult = await new CompraCliente(invalidAttemptSession).IniciarPagoAsync("IC/01", new string('a', 64));
+        Equal(TipoResultadoCompra.Error, invalidAttemptResult.Tipo, "invalid payment attempt ID is rejected safely");
+        Equal(0, invalidAttemptSession.Calls.Count, "invalid payment attempt ID causes no outbound request");
+        var invalidSyncAttemptSession = new FakeSession();
+        Equal(TipoResultadoCompra.Error,
+            (await new CompraCliente(invalidSyncAttemptSession).SincronizarPagoAsync("IC/01")).Tipo,
+            "invalid sync attempt ID is rejected safely");
+        Equal(0, invalidSyncAttemptSession.Calls.Count, "invalid sync attempt ID causes no outbound request");
+
+        var malformedPayments = new[]
+        {
+            "{}",
+            validPago.Replace("\"pagoId\":\"PG-01\",", ""),
+            validPago.Replace("\"intentoId\":\"IC-01\"", "\"intentoId\":\"IC-02\""),
+            validPago.Replace("\"pagoId\":\"PG-01\"", "\"pagoId\":\"PG/01\""),
+            validPago.Replace("2026-11-18T09:15:00Z", "0001-01-01T00:00:00Z"),
+            validPago.Replace("2026-11-18T09:15:00Z", "2026-11-18T09:15:00"),
+            validPago.Replace("\"pendiente\"", "\"estadoNoReconocido\""),
+        };
+        foreach (var body in malformedPayments)
+        {
+            foreach (var status in new[] { 200, 201 })
+            {
+                var malformedPaymentSession = new FakeSession(new RespuestaApiAdministracion(true, status, body, "ok"));
+                var malformedPayment = await new CompraCliente(malformedPaymentSession).IniciarPagoAsync("IC-01", new string('a', 64));
+                Equal(TipoResultadoCompra.Ambiguo, malformedPayment.Tipo, "malformed successful payment stays ambiguous");
+                True(malformedPayment.Datos is null, "ambiguous payment exposes no default payment DTO");
+                Equal(1, malformedPaymentSession.Calls.Count, "malformed payment makes only the requested call");
+            }
+        }
+
+        foreach (var state in new[] { "pendiente", "desconocido", "aprobado", "rechazado", "devolucionPendiente", "devuelto" })
+        {
+            var stateSession = new FakeSession(new RespuestaApiAdministracion(true, 200,
+                validPago.Replace("\"pendiente\"", $"\"{state}\""), "ok"));
+            var stateResult = await new CompraCliente(stateSession).IniciarPagoAsync("IC-01", new string('a', 64));
+            Equal(TipoResultadoCompra.Exito, stateResult.Tipo, $"known payment state {state} is accepted");
+            Equal(1, stateSession.Calls.Count, $"known payment state {state} uses one call");
+        }
+
+        var validCompra = """{"compraId":"CO-01","intentoId":"IC-01","pagoId":"PG-01","confirmadoUtc":"2026-11-18T09:02:00Z","importeTotal":125,"tickets":[{"ticketId":"TI-01","orden":1,"servicioId":"SV-01","tramoId":"TR-01","qrOpaco":"opaque-1"}]}""";
+        string SyncBody(string pago, string? compra = null) => $"{{\"pago\":{pago},\"compra\":{compra ?? "null"}}}";
+        var malformedSyncs = new[]
+        {
+            "{}",
+            """{"pago":null,"compra":null}""",
+            SyncBody(validPago.Replace("\"intentoId\":\"IC-01\"", "\"intentoId\":\"IC-02\"")),
+            SyncBody(validPago, "{}"),
+            SyncBody(validPago, validCompra.Replace("\"intentoId\":\"IC-01\"", "\"intentoId\":\"IC-02\"")),
+            SyncBody(validPago, validCompra.Replace("\"pagoId\":\"PG-01\"", "\"pagoId\":\"PG-02\"")),
+            SyncBody(validPago, validCompra.Replace("\"tickets\":[{\"ticketId\":\"TI-01\",\"orden\":1,\"servicioId\":\"SV-01\",\"tramoId\":\"TR-01\",\"qrOpaco\":\"opaque-1\"}]", "\"tickets\":[]")),
+            SyncBody(validPago, validCompra.Replace("\"ticketId\":\"TI-01\"", "\"ticketId\":\"\"").Replace("\"qrOpaco\":\"opaque-1\"", "\"qrOpaco\":\"\"")),
+        };
+        foreach (var body in malformedSyncs)
+        {
+            foreach (var status in new[] { 200, 201 })
+            {
+                var malformedSyncSession = new FakeSession(new RespuestaApiAdministracion(true, status, body, "ok"));
+                var malformedSync = await new CompraCliente(malformedSyncSession).SincronizarPagoAsync("IC-01");
+                Equal(TipoResultadoCompra.Ambiguo, malformedSync.Tipo, "malformed successful sync stays ambiguous");
+                True(malformedSync.Datos is null, "ambiguous sync exposes no default response DTO");
+                Equal(1, malformedSyncSession.Calls.Count, "malformed sync makes only the requested call");
+            }
+        }
+
+        var validSyncStates = new[] { "pendiente", "desconocido", "rechazado", "devolucionPendiente", "devuelto" };
+        foreach (var state in validSyncStates)
+        {
+            var stateSession = new FakeSession(new RespuestaApiAdministracion(true, 200,
+                SyncBody(validPago.Replace("\"pendiente\"", $"\"{state}\"")), "ok"));
+            var stateResult = await new CompraCliente(stateSession).SincronizarPagoAsync("IC-01");
+            Equal(TipoResultadoCompra.Exito, stateResult.Tipo, $"known sync payment state {state} is accepted");
+            Equal(null, stateResult.Datos!.Compra, $"known sync payment state {state} has no fabricated purchase");
+        }
     }
 }
 

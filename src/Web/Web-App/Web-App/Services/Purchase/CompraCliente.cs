@@ -19,7 +19,7 @@ public sealed class CompraCliente(ISesionCliente sesion)
             new IniciarIntentoCompraRequestDto { Tramos = tramos.ToList() }, ambigua: true);
         if (resultado.Tipo != TipoResultadoCompra.Exito || resultado.Datos is not { } intento) return resultado;
 
-        var respuestaValida = EsIntentoValido(intento.IntentoId)
+        var respuestaValida = EsIdentificadorValido(intento.IntentoId)
             && intento.Itinerario?.Tramos is { Count: > 0 } legs
             && legs.All(leg => leg is not null && leg.Orden > 0 && !string.IsNullOrWhiteSpace(leg.ServicioId))
             && intento.HoldVenceEn != default && intento.HoldVenceEn.Kind == DateTimeKind.Utc;
@@ -34,6 +34,7 @@ public sealed class CompraCliente(ISesionCliente sesion)
 
     public async Task<ResultadoCompra<PagoResponseDto>> IniciarPagoAsync(string intentoId, string huella)
     {
+        if (!EsIdentificadorValido(intentoId)) return Error<PagoResponseDto>(null, "El intento de compra no es válido.");
         if (!EsHuellaValida(huella)) return Error<PagoResponseDto>(null, "La cotización aceptada no es válida.");
         var ruta = Ruta(intentoId, "/pagos");
         var respuesta = await sesion.SolicitarAutenticadaAsync(HttpMethod.Post, ruta,
@@ -46,12 +47,21 @@ public sealed class CompraCliente(ISesionCliente sesion)
                     "El precio cambió. Revise y aceptá nuevamente la cotización vigente.", actual.Datos)
                 : Error<PagoResponseDto>(actual.EstadoHttp, "No se pudo cargar la cotización vigente. No se inició otro pago.");
         }
-        return Convertir<PagoResponseDto>(respuesta, ambigua: true);
+        var resultado = Convertir<PagoResponseDto>(respuesta, ambigua: true);
+        if (resultado.Tipo != TipoResultadoCompra.Exito || resultado.Datos is not { } pago) return resultado;
+        return EsPagoValido(pago, intentoId) ? resultado : Ambiguo<PagoResponseDto>(resultado.EstadoHttp);
     }
 
-    public Task<ResultadoCompra<SincronizarPagoResponseDto>> SincronizarPagoAsync(string intentoId) =>
-        EnviarAsync<SincronizarPagoResponseDto>(HttpMethod.Post, Ruta(intentoId, "/pagos/sincronizar"),
+    public async Task<ResultadoCompra<SincronizarPagoResponseDto>> SincronizarPagoAsync(string intentoId)
+    {
+        var resultado = await EnviarAsync<SincronizarPagoResponseDto>(HttpMethod.Post, Ruta(intentoId, "/pagos/sincronizar"),
             cuerpo: null, ambigua: true);
+        if (resultado.Tipo != TipoResultadoCompra.Exito || resultado.Datos is not { } sincronizacion) return resultado;
+        var compraValida = sincronizacion.Compra is null
+            || EsCompraValida(sincronizacion.Compra, intentoId, sincronizacion.Pago?.PagoId);
+        return EsPagoValido(sincronizacion.Pago, intentoId) && compraValida
+            ? resultado : Ambiguo<SincronizarPagoResponseDto>(resultado.EstadoHttp);
+    }
 
     private async Task<ResultadoCompra<T>> EnviarAsync<T>(HttpMethod metodo, string ruta, object? cuerpo, bool ambigua)
     {
@@ -89,12 +99,43 @@ public sealed class CompraCliente(ISesionCliente sesion)
     private static ResultadoCompra<T> Error<T>(int? status, string message) =>
         new(TipoResultadoCompra.Error, default, status, message);
 
-    private static bool EsIntentoValido(string? intentoId) =>
-        !string.IsNullOrWhiteSpace(intentoId) && System.Text.RegularExpressions.Regex.IsMatch(intentoId, "^[A-Za-z0-9-]+$");
+    private static bool EsIdentificadorValido(string? identificador) =>
+        !string.IsNullOrWhiteSpace(identificador)
+        && System.Text.RegularExpressions.Regex.IsMatch(identificador, "^[A-Za-z0-9-]+$");
 
     private static string Ruta(string intentoId, string sufijo) =>
-        EsIntentoValido(intentoId)
+        EsIdentificadorValido(intentoId)
             ? $"/api/intentos-compra/{intentoId}{sufijo}" : string.Empty;
+
+    private static bool EsPagoValido(PagoResponseDto? pago, string intentoId) =>
+        pago is not null
+        && EsIdentificadorValido(pago.PagoId)
+        && EsIdentificadorValido(pago.IntentoId)
+        && string.Equals(pago.IntentoId, intentoId, StringComparison.Ordinal)
+        && Enum.IsDefined(typeof(EstadoPago), pago.Estado)
+        && EsUtcNoPredeterminado(pago.HoldVenceEn);
+
+    private static bool EsCompraValida(CompraConfirmadaResponseDto? compra, string intentoId, string? pagoId) =>
+        compra is not null
+        && EsIdentificadorValido(compra.CompraId)
+        && string.Equals(compra.IntentoId, intentoId, StringComparison.Ordinal)
+        && EsIdentificadorValido(compra.PagoId)
+        && string.Equals(compra.PagoId, pagoId, StringComparison.Ordinal)
+        && EsUtcNoPredeterminado(compra.ConfirmadoUtc)
+        && compra.Tickets is { Count: > 0 } tickets
+        && tickets.All(ticket => ticket is not null
+            && EsIdentificadorValido(ticket.TicketId)
+            && ticket.Orden > 0
+            && !string.IsNullOrWhiteSpace(ticket.ServicioId)
+            && !string.IsNullOrWhiteSpace(ticket.TramoId)
+            && !string.IsNullOrWhiteSpace(ticket.QrOpaco));
+
+    private static bool EsUtcNoPredeterminado(DateTime fecha) =>
+        fecha != default && fecha.Kind == DateTimeKind.Utc;
+
+    private static ResultadoCompra<T> Ambiguo<T>(int? status) =>
+        new(TipoResultadoCompra.Ambiguo, default, status,
+            "No se pudo confirmar el resultado. Verifique el estado del mismo intento; no cree otro.");
 
     private static bool EsHuellaValida(string huella) =>
         huella.Length == 64 && huella.All(Uri.IsHexDigit);
