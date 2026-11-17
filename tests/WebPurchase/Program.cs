@@ -5,9 +5,21 @@ using Web_App.Models.Purchase;
 using Web_App.Services.Authentication;
 using Web_App.Services.Purchase;
 
-var checks = new Checks();
-await checks.RunAsync();
-Console.WriteLine($"{checks.Count}/{checks.Count} Web purchase checks passed.");
+try
+{
+    if (args.Length == 1 && args[0] == "--verify-failure-exit")
+        throw new InvalidOperationException("CONTROLLED-TEST-HARNESS-FAILURE");
+
+    var checks = new Checks();
+    await checks.RunAsync();
+    Console.WriteLine($"{checks.Count}/{checks.Count} Web purchase checks passed.");
+    return 0;
+}
+catch (Exception exception)
+{
+    Console.Error.WriteLine(exception.ToString());
+    return 1;
+}
 
 sealed class Checks
 {
