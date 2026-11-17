@@ -1,10 +1,13 @@
 using System.ComponentModel.DataAnnotations;
+using System.Net;
 using System.Security.Claims;
+using System.Text;
 using System.Text.Json;
 using API_Berruti.Controllers.Operational;
 using API_Berruti.DTOs.Operational;
 using API_Berruti.Models.Operational;
 using API_Berruti.Services.Operational;
+using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -236,6 +239,107 @@ Check(PoliticaConfirmacionCompra.Decidir((EstadoPago)999, deadline, beforeDeadli
 CheckThrows<ArgumentException>(() => PoliticaConfirmacionCompra.Decidir(EstadoPago.Aprobado, deadline.ToOffset(TimeSpan.FromHours(-3)), beforeDeadline, true), "non-UTC deadline is rejected");
 CheckThrows<ArgumentException>(() => PoliticaConfirmacionCompra.Decidir(EstadoPago.Aprobado, deadline, beforeDeadline.ToOffset(TimeSpan.FromHours(-3)), true), "non-UTC API confirmation time is rejected");
 
+var checkoutToken = "TEST-contract-token";
+var checkoutAmount = 125.50m;
+var checkoutReference = "payment-123";
+var checkoutResponse = """
+    {"id":"order-1","external_reference":"payment-123","total_amount":"125.50","total_paid_amount":"125.50","currency":"UYU","status":"processed","status_detail":"accredited"}
+    """;
+await CheckThrowsAsync<ArgumentException>(
+    () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, checkoutResponse)))
+        .ConsultarOrdenAsync(" ", checkoutReference, checkoutAmount), "blank provider order ID is rejected");
+
+var getHandler = new MockHttpMessageHandler((request, _) =>
+{
+    Check(request.Method == HttpMethod.Get, "order reconciliation uses GET");
+    Check(request.RequestUri == new Uri("https://api.mercadopago.com/v1/orders/provider%2Fid"), "provider ID is escaped in fixed GET endpoint");
+    Check(request.Headers.Authorization?.Scheme == "Bearer" && request.Headers.Authorization.Parameter == checkoutToken, "TEST access token is sent as a bearer header");
+    return JsonResponse(HttpStatusCode.OK, checkoutResponse.Replace("order-1", "provider/id", StringComparison.Ordinal));
+});
+var readOrder = await CreateCheckoutClient(getHandler).ConsultarOrdenAsync("provider/id", checkoutReference, checkoutAmount);
+Check(readOrder.Id == "provider/id" && readOrder.Estado == EstadoPago.Aprobado, "GET validates requested order identity");
+
+foreach (var (status, statusDetail, paid, expected) in new (string Status, string? Detail, string Paid, EstadoPago Expected)[]
+{
+    ("processed", "accredited", "125.50", EstadoPago.Aprobado),
+    ("processed", "accredited", "50.00", EstadoPago.Desconocido),
+    ("processed", "refunded", "125.50", EstadoPago.Devuelto),
+    ("processed", "partially_refunded", "125.50", EstadoPago.DevolucionPendiente),
+    ("processed", "unknown_detail", "125.50", EstadoPago.Desconocido),
+    ("processed", null, "125.50", EstadoPago.Desconocido),
+    ("created", "created", "0.00", EstadoPago.Pendiente),
+    ("processing", "in_process", "0.00", EstadoPago.Pendiente),
+    ("processing", "pending_review_manual", "0.00", EstadoPago.Pendiente),
+    ("action_required", "waiting_capture", "0.00", EstadoPago.Pendiente),
+    ("failed", "processing_error", "0.00", EstadoPago.Rechazado),
+    ("canceled", "canceled", "0.00", EstadoPago.Rechazado),
+    ("refunded", "refunded", "125.50", EstadoPago.Devuelto),
+    ("future_status", "accredited", "125.50", EstadoPago.Desconocido),
+    ("processing", "accredited", "125.50", EstadoPago.Desconocido)
+})
+{
+    var body = JsonSerializer.Serialize(new
+    {
+        id = "order-1",
+        external_reference = checkoutReference,
+        total_amount = "125.50",
+        total_paid_amount = paid,
+        currency = "UYU",
+        status,
+        status_detail = statusDetail
+    });
+    var snapshot = await CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, body)))
+        .ConsultarOrdenAsync("order-1", checkoutReference, checkoutAmount);
+    Check(snapshot.Estado == expected, $"provider status/detail {status}/{statusDetail ?? "missing"} maps fail-closed to {expected}");
+}
+var missingDetailResponse = checkoutResponse.Replace(",\"status_detail\":\"accredited\"", "", StringComparison.Ordinal);
+var missingDetailOrder = await CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, missingDetailResponse)))
+    .ConsultarOrdenAsync("order-1", checkoutReference, checkoutAmount);
+Check(missingDetailOrder.Estado == EstadoPago.Desconocido, "processed order without status_detail remains unknown");
+
+foreach (var invalidId in new[] { ".", ".." })
+{
+    var handler = new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, checkoutResponse));
+    await CheckThrowsAsync<ArgumentException>(
+        () => CreateCheckoutClient(handler).ConsultarOrdenAsync(invalidId, checkoutReference, checkoutAmount),
+        $"dot-segment provider ID {invalidId} is rejected");
+    Check(handler.RequestCount == 0, $"dot-segment provider ID {invalidId} is rejected before HTTP");
+}
+
+foreach (var invalidSnapshot in new[]
+{
+    checkoutResponse.Replace("payment-123", "another-payment", StringComparison.Ordinal),
+    checkoutResponse.Replace("125.50", "125.51", StringComparison.Ordinal),
+    checkoutResponse.Replace("UYU", "USD", StringComparison.Ordinal),
+    checkoutResponse.Replace("order-1", "different-order", StringComparison.Ordinal)
+})
+{
+    await CheckThrowsAsync<InvalidOperationException>(
+        () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, invalidSnapshot)))
+            .ConsultarOrdenAsync("order-1", checkoutReference, checkoutAmount), "mismatched provider facts reject reconciliation");
+}
+
+CheckThrows<InvalidOperationException>(
+    () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, checkoutResponse)), "PROD-secret"),
+    "production credential is rejected when client resolves");
+CheckThrows<InvalidOperationException>(
+    () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, checkoutResponse)), ""),
+    "missing TEST credential is rejected when client resolves");
+
+await CheckThrowsAsync<InvalidOperationException>(
+    () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.InternalServerError, "secret response")))
+        .ConsultarOrdenAsync("order-1", checkoutReference, checkoutAmount), "provider HTTP errors fail safely");
+await CheckThrowsAsync<InvalidOperationException>(
+    () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, "not-json")))
+        .ConsultarOrdenAsync("order-1", checkoutReference, checkoutAmount), "invalid provider JSON fails safely");
+using (var canceled = new CancellationTokenSource())
+{
+    canceled.Cancel();
+    await CheckThrowsAsync<OperationCanceledException>(
+        () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => throw new OperationCanceledException()))
+            .ConsultarOrdenAsync("order-1", checkoutReference, checkoutAmount, canceled.Token), "cancellation propagates unchanged");
+}
+
 Console.WriteLine($"Checks: {checks}; failures: {failures}");
 return failures == 0 ? 0 : 1;
 
@@ -266,6 +370,44 @@ void CheckThrows<TException>(Action action, string name) where TException : Exce
     catch (TException)
     {
         Check(true, name);
+    }
+}
+
+static MercadoPagoCheckoutClient CreateCheckoutClient(MockHttpMessageHandler handler, string token = "TEST-contract-token")
+{
+    var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["MercadoPago:AccessToken"] = token
+    }).Build();
+    return new MercadoPagoCheckoutClient(new HttpClient(handler), ParametrosMercadoPago.Desde(configuration));
+}
+
+static HttpResponseMessage JsonResponse(HttpStatusCode statusCode, string body) => new(statusCode)
+{
+    Content = new StringContent(body, Encoding.UTF8, "application/json")
+};
+
+async Task CheckThrowsAsync<TException>(Func<Task> action, string name) where TException : Exception
+{
+    try
+    {
+        await action();
+        Check(false, name);
+    }
+    catch (TException)
+    {
+        Check(true, name);
+    }
+}
+
+sealed class MockHttpMessageHandler(Func<HttpRequestMessage, CancellationToken, HttpResponseMessage> responseFactory) : HttpMessageHandler
+{
+    public int RequestCount { get; private set; }
+
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        RequestCount++;
+        return Task.FromResult(responseFactory(request, cancellationToken));
     }
 }
 
