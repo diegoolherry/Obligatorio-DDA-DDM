@@ -79,6 +79,20 @@ Reglas de calendario, en este orden: fuera de la vigencia publicada del bloque n
 
 La generación crea un `Servicio` por cada par de paradas con hora publicada en ambas (por ejemplo, la salida de 05:20 de Nueva Palmira genera Nueva Palmira→Carmelo, →Radial y →Colonia, y así con cada parada siguiente). Las paradas sin hora (Polancos, los alimentadores de Ombúes y Conchillas, Nueva Palmira / Carmelo y Agraciada) no generan servicios. Reutiliza el `Tramo` existente de cada par o lo crea. No crea tarifas: un servicio generado aparece en la búsqueda recién cuando su tramo tiene una tarifa vigente. Repetir la generación no duplica: lo impide el índice único `(salida_catalogo_id, tramo_id, salida)`.
 
+## Administración del catálogo (FIN-008)
+
+Todas las rutas exigen el rol `Administrador`: `401` sin sesión y `403` con otro rol. Documentación basada en fuente y en `tests/RouteCatalog` (en memoria).
+
+| Método y ruta | Comportamiento establecido en fuente |
+| --- | --- |
+| `GET /api/administracion/catalogo` | `200` con los bloques activos y sus `id`, rutas activas (paradas ordenadas) y salidas activas. Cada salida informa `horas` (`orden`, `hora`) y `serviciosGenerados`. |
+| `POST /api/administracion/catalogo/bloques` · `PUT …/bloques/{id}` | Cuerpo: `clave` (hasta 16), `nombre`, `empresa`, `fuenteUrl` opcional, `vigenteDesde` y `vigenteHasta` opcionales. `201` o `200` con el bloque; `400` con el motivo; `409` si la clave ya existe. |
+| `POST /api/administracion/catalogo/rutas` · `PUT …/rutas/{id}` | Cuerpo: `bloqueId` (activo), `clave`, `familia`, `nombre` y `paradaIds` en orden de recorrido. Necesita al menos dos paradas existentes, sin repetir la misma de forma consecutiva; el orden se guarda como 1..n. `409` si la clave ya existe, o si cambian las paradas mientras la ruta tiene salidas activas. |
+| `POST /api/administracion/catalogo/salidas` · `PUT …/salidas/{id}` | Cuerpo: `rutaId` (activa), `dias`, `codigos` y `nota` opcionales, y `horas` (`orden`, `hora`). Necesita al menos dos horas; la parada de orden 1 debe tener hora, cada orden corresponde a una parada de la ruta y aparece una vez, y las horas son estrictamente crecientes. Una salida no cambia de ruta. |
+| `DELETE …/bloques/{id}` · `…/rutas/{id}` · `…/salidas/{id}` | `204`: baja lógica (`activo = 0`). `404` si no existe o ya fue dado de baja. |
+
+Política de baja (decisión de Diego, 2026-11-17): el elemento dado de baja deja de aparecer en `GET /api/catalogo`, en las salidas del día y en la administración, y no genera más `Servicio`. Los servicios ya generados se conservan. Un bloque dado de baja oculta sus rutas y excepciones; una ruta, sus salidas. No hay reactivación. Editar las paradas o las horas no cambia los servicios ya generados: aplica a las generaciones siguientes. Cambiar las paradas de una ruta exige dar de baja antes sus salidas activas, porque las horas se guardan por orden de parada. Las validaciones rechazan sin guardar nada. Migración `20261117193916_BajaLogicaCatalogo` ([SQL](../../scripts/database/20261117193916_BajaLogicaCatalogo.sql)).
+
 ## Ubicación de demostración (MVP-009)
 
 El dispositivo embarcado es el celular del cobrador: con su sesión `Cobrador` publica la posición del servicio en el que viaja, según la asignación `cobrador_servicio` que siembra el reinicio local (el cobrador demo queda asignado a los dos servicios demo). Los parámetros son académicos y ficticios, en la sección `Ubicacion` de [`appsettings.json`](../../src/Api/API-Berruti/API-Berruti/appsettings.json): `PeriodicidadSegundos`, `MargenPeriodicidadSegundos`, `UmbralDesactualizacionSegundos`, `VelocidadPromedioKmH`, `ToleranciaDemoraMinutos`, `ZonaHoraria` y `Destinos` (coordenadas por nombre de parada de destino). Si algún valor es inválido, la API no arranca.

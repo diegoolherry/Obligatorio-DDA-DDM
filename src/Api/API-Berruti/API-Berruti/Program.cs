@@ -35,6 +35,8 @@ builder.Services.AddScoped<ICatalogoRepository, CatalogoRepository>();
 builder.Services.AddScoped<ICatalogoService, CatalogoService>();
 builder.Services.AddScoped<IGeneracionServiciosRepository, GeneracionServiciosRepository>();
 builder.Services.AddScoped<IGeneracionServiciosService, GeneracionServiciosService>();
+builder.Services.AddScoped<ICatalogoAdministracionRepository, CatalogoAdministracionRepository>();
+builder.Services.AddScoped<ICatalogoAdministracionService, CatalogoAdministracionService>();
 // Parámetros académicos de ubicación (appsettings.json, sección Ubicacion); valores inválidos detienen el arranque.
 builder.Services.AddSingleton(ParametrosUbicacion.Desde(builder.Configuration));
 builder.Services.AddScoped<IUbicacionRepository, UbicacionRepository>();
