@@ -941,6 +941,10 @@ using (var canceled = new CancellationTokenSource())
             .ConsultarOrdenAsync("order-1", checkoutReference, checkoutAmount, canceled.Token), "cancellation propagates unchanged");
 }
 
+var synchronizationResponseType = typeof(SincronizarPagoResponseDto);
+Check(synchronizationResponseType.GetProperty("Pago")?.PropertyType == typeof(PagoResponseDto)
+    && synchronizationResponseType.GetProperty("Compra")?.PropertyType == typeof(CompraConfirmadaResponseDto),
+    "payment synchronization separates payment status from optional atomic purchase confirmation");
 var confirmedPurchaseType = typeof(CompraConfirmadaResponseDto);
 Check(new[] { "CompraId", "IntentoId", "PagoId", "ConfirmadoUtc", "ImporteTotal", "Tickets" }
     .All(name => confirmedPurchaseType.GetProperty(name) is not null),
@@ -952,6 +956,18 @@ Check(new[] { "TicketId", "Orden", "ServicioId", "TramoId", "OrigenNombre", "Des
 Check(typeof(TicketEmitidoDto).GetProperty("QrOpaco")?.PropertyType == typeof(string)
     && typeof(TicketEmitidoDto).GetProperty("NumeroAsiento")?.PropertyType == typeof(int?),
     "ticket QR is an opaque string and no-seat tickets can omit an assigned seat number");
+var reconciliationType = typeof(ResultadoConciliacionPago);
+Check(new[] { "Registro", "Compra", "RequiereDevolucion" }.All(name => reconciliationType.GetProperty(name) is not null),
+    "repository reconciliation result carries durable payment, optional purchase, and refund follow-up state");
+var synchronizationServiceMethod = typeof(IConciliacionesPagoService).GetMethod("SincronizarAsync");
+Check(synchronizationServiceMethod?.ReturnType == typeof(Task<SincronizarPagoResponseDto>)
+    && synchronizationServiceMethod.GetParameters().Select(parameter => parameter.ParameterType)
+        .SequenceEqual([typeof(string), typeof(string), typeof(CancellationToken)]),
+    "payment synchronization service is owner-scoped, attempt-scoped, asynchronous, and cancelable");
+var confirmationRepositoryType = typeof(IConfirmacionesCompraRepository);
+Check(confirmationRepositoryType.GetMethod("ConsultarAsync") is not null
+    && confirmationRepositoryType.GetMethod("ConciliarAsync") is not null,
+    "purchase confirmation repository separates owned snapshot reads from transactional reconciliation");
 
 var confirmationCreatedUtc = new DateTime(2026, 11, 16, 14, 59, 0, DateTimeKind.Utc);
 var confirmationHoldExpiryUtc = confirmationCreatedUtc.AddMinutes(1);
