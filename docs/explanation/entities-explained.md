@@ -61,10 +61,19 @@ El formato acordado de IDs `string` con abreviaturas de dos letras y guion, los 
 - **Relaciones:** pertenece a un usuario pasajero y resulta de un intento durable de compra; agrupa servicios comprados mediante `compra_servicio`, y cada uno origina un ticket.
 - **Por qué:** **Reglas:** la API verifica la aprobación del proveedor TEST (RN-02, RN-07); el acuerdo vigente exige además disponibilidad confirmada y hold vigente. Compra y tickets se generan de forma atómica e idempotente: repetir solicitudes o notificaciones no los duplica. El ER representa compras confirmadas, no intentos rechazados; el mecanismo técnico todavía no está implementado.
 
+**Persistencia preparada, runtime pendiente:** `compra` contiene el intento, el pago escogido, el total y la hora UTC de confirmación; los índices únicos impiden más de una compra por intento y por pago. La relación compuesta impide asociar el pago de otro intento. `compra_servicio` conserva su orden y el importe aceptado. Estos constraints no prueban que el pago esté aprobado ni que la compra incluya tramos, ni implementan una transacción atómica.
+
 ### Pago
 - **Propósito:** reflejar importe, fecha, estado del dominio y referencia externa cuando exista para un intento de pago de prueba.
 - **Relaciones:** pertenece a un intento durable de compra, que conserva sus pagos aunque no genere compra confirmada. **No se adopta la anterior FK opcional `pago.compra_id`:** la representación física del vínculo está pendiente.
 - **Por qué:** **Regla:** el cliente no declara unilateralmente la aprobación; la API verifica el resultado del proveedor. Un rechazo definitivo permite reintentar con hold vigente; un resultado pendiente o desconocido bloquea otro pago hasta resolución autoritativa. Mercado Pago TEST sigue siendo una propuesta revisable, sin integración ni pruebas del proveedor ejecutadas; checkout, verificación y mapeo de estados están pendientes. No se almacenan tarjetas ni CVV.
+
+**Estado del corte de persistencia:** el modelo EF Core y la migración offline `PagosComprasTickets` ya crean `pago` y `tramo_pago`, sin `pago.compra_id`. La compra referencia el pago y el mismo intento con una FK compuesta. `tramo_pago` registra por orden el importe actualmente aceptado para ese pago, sin sobrescribir la cotización inicial de `tramo_intento_compra`. La API re-cotiza antes del checkout y requiere aceptación del pasajero ante cualquier diferencia; el hold original de 15 minutos no se renueva. Esto es persistencia únicamente: no implementa checkout, manejo de consentimiento, reintentos, proveedor, refund, API ni orquestación.
+
+### Cotización aceptada por pago
+- **Propósito:** conservar el importe autoritativo por tramo que aceptó el pasajero para un pago concreto.
+- **Relaciones:** `tramo_pago` usa (`pago_id`, `orden`) como clave y referencia tanto a ese pago/intento como al tramo ordenado del mismo `IntentoCompra`. Una compra materializada enlaza ese importe a `compra_servicio`.
+- **Por qué:** la cotización inicial de intento es una fotografía de la oferta inicial, no el precio final. Si cambia la tarifa, se debe re-cotizar antes del checkout y obtener aceptación del pasajero ante cualquier diferencia; guardar por pago evita que un rechazo, estado desconocido o reinicio altere la cantidad intentada. No cambia el vencimiento original del hold. Esta tabla no implica que el proveedor haya aprobado o cobrado el importe.
 
 ### Hold y resolución de pagos
 
@@ -85,6 +94,8 @@ El formato acordado de IDs `string` con abreviaturas de dos letras y guion, los 
 - **Propósito:** acreditar un tramo comprado mediante QR opaco, estado y asiento opcional.
 - **Relaciones:** el ER propone un ticket por `compra_servicio`; este identifica su servicio y la compra permite conocer al pasajero. Las validaciones pueden referir ese ticket.
 - **Por qué:** **Reglas:** un ticket por tramo tras aprobación verificada, disponibilidad confirmada y hold vigente, QR sin datos personales ni estado completo, uso exitoso único para servicio/tramo correcto y asiento obligatorio solo cuando el servicio lo requiera (RN-02 a RN-05). *Rationale:* dos tramos comprados juntos necesitan dos controles independientes.
+
+**Persistencia preparada, emisión pendiente:** `ticket` tiene QR opaco único y FK única a `compra_servicio`, lo que limita a un ticket por tramo comprado; no codifica datos personales ni el estado completo del ticket. La base no puede garantizar aquí “al menos un ticket por cada tramo” o emisión atómica de todos los tickets. No se incluye la lectura, presentación, expiración ni consumo QR de MVP-005.
 
 ## Abonos y control
 
