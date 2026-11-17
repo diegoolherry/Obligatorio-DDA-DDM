@@ -9,7 +9,7 @@ public class CatalogoService(ICatalogoRepository repository) : ICatalogoService
 {
     public async Task<CatalogoDto> ObtenerAsync()
     {
-        var datos = await repository.ObtenerAsync();
+        var datos = CatalogoActivo.Filtrar(await repository.ObtenerAsync());
         var bloques = datos.Bloques.ToDictionary(b => b.Id);
         return new CatalogoDto
         {
@@ -33,7 +33,7 @@ public class CatalogoService(ICatalogoRepository repository) : ICatalogoService
 
     public async Task<SalidasDelDiaDto> SalidasDelDiaAsync(DateOnly fecha)
     {
-        var datos = await repository.ObtenerAsync();
+        var datos = CatalogoActivo.Filtrar(await repository.ObtenerAsync());
         var dia = fecha.ToDateTime(TimeOnly.MinValue);
         var resultado = new SalidasDelDiaDto { Fecha = fecha, Feriado = datos.Feriados.FirstOrDefault(f => f.Fecha.Date == dia)?.Nombre };
         foreach (var bloque in datos.Bloques.OrderBy(b => b.Clave, StringComparer.Ordinal))

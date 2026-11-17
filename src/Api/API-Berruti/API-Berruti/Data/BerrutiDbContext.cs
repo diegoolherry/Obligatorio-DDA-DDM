@@ -182,6 +182,7 @@ public class BerrutiDbContext : DbContext
         bloque.Property(b => b.VigenteDesde).HasColumnName("vigente_desde").HasColumnType("date");
         bloque.Property(b => b.VigenteHasta).HasColumnName("vigente_hasta").HasColumnType("date");
         bloque.Property(b => b.FuenteUrl).HasColumnName("fuente_url").HasMaxLength(200).IsRequired();
+        bloque.Property(b => b.Activo).HasColumnName("activo").IsRequired();
         bloque.HasIndex(b => b.Clave).IsUnique().HasDatabaseName("ux_bloque_clave");
 
         var ruta = modelo.Entity<RutaCatalogo>();
@@ -192,6 +193,7 @@ public class BerrutiDbContext : DbContext
         ruta.Property(r => r.Clave).HasColumnName("clave").HasMaxLength(16).IsRequired();
         ruta.Property(r => r.Familia).HasColumnName("familia").HasMaxLength(100).IsRequired();
         ruta.Property(r => r.Nombre).HasColumnName("nombre").HasMaxLength(100).IsRequired();
+        ruta.Property(r => r.Activo).HasColumnName("activo").IsRequired();
         ruta.HasIndex(r => r.Clave).IsUnique().HasDatabaseName("ux_ruta_clave");
         ruta.HasOne<BloqueHorario>().WithMany().HasForeignKey(r => r.BloqueId).OnDelete(DeleteBehavior.Restrict);
 
@@ -212,6 +214,8 @@ public class BerrutiDbContext : DbContext
         salida.Property(s => s.Dias).HasColumnName("dias").HasConversion<string>().HasMaxLength(24).IsRequired();
         salida.Property(s => s.Codigos).HasColumnName("codigos").HasMaxLength(16);
         salida.Property(s => s.Nota).HasColumnName("nota").HasMaxLength(200);
+        // FIN-008: baja lógica. Sin valor por defecto en el modelo: EF enviaría siempre el valor explícito.
+        salida.Property(s => s.Activo).HasColumnName("activo").IsRequired();
         salida.HasOne<RutaCatalogo>().WithMany().HasForeignKey(s => s.RutaId).OnDelete(DeleteBehavior.Cascade);
 
         var hora = modelo.Entity<HoraSalida>();

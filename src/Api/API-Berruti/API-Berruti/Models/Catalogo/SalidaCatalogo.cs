@@ -8,4 +8,6 @@ public class SalidaCatalogo
     public DiasOperacion Dias { get; set; }
     public string? Codigos { get; set; }
     public string? Nota { get; set; }
+    // FIN-008: eliminar desde la administración es una baja lógica; los Servicios ya generados se conservan.
+    public bool Activo { get; set; } = true;
 }

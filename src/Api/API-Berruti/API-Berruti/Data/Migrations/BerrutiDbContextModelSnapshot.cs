@@ -196,6 +196,10 @@ namespace API_Berruti.Data.Migrations
                         .HasColumnType("varchar(36)")
                         .HasColumnName("bloque_id");
 
+                    b.Property<bool>("Activo")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("activo");
+
                     b.Property<string>("Clave")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -356,6 +360,10 @@ namespace API_Berruti.Data.Migrations
                         .HasColumnType("varchar(36)")
                         .HasColumnName("ruta_id");
 
+                    b.Property<bool>("Activo")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("activo");
+
                     b.Property<string>("BloqueId")
                         .IsRequired()
                         .HasMaxLength(36)
@@ -397,6 +405,10 @@ namespace API_Berruti.Data.Migrations
                         .HasMaxLength(36)
                         .HasColumnType("varchar(36)")
                         .HasColumnName("salida_id");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("activo");
 
                     b.Property<string>("Codigos")
                         .HasMaxLength(16)

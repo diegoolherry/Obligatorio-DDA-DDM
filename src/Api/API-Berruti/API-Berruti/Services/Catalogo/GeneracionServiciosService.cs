@@ -25,7 +25,7 @@ public class GeneracionServiciosService(ICatalogoRepository catalogo, IGeneracio
         if (dto.PoliticaAsiento is null || !Enum.IsDefined(dto.PoliticaAsiento.Value))
             throw new ArgumentException("La política de asiento es obligatoria.");
 
-        var datos = await catalogo.ObtenerAsync();
+        var datos = CatalogoActivo.Filtrar(await catalogo.ObtenerAsync());
         var tramos = (await repository.ListarTramosAsync())
             .GroupBy(t => (t.OrigenId, t.DestinoId))
             .ToDictionary(g => g.Key, g => g.OrderBy(t => t.Id, StringComparer.Ordinal).First());

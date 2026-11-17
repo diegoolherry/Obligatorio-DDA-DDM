@@ -9,7 +9,7 @@ using API_Berruti.Services.Catalogo;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-// Executable checks for FIN-001 (route catalog, calendars and service generation).
+// Executable checks for FIN-001 (route catalog, calendars and service generation) and FIN-008 (catalog administration).
 // Run from the repository root: dotnet run --project tests/RouteCatalog/RouteCatalog.csproj --no-launch-profile
 var failures = new List<string>();
 var checkCount = 0;
@@ -22,6 +22,7 @@ try
     await CalendarChecks.RunAsync(json, Check);
     await GenerationChecks.RunAsync(json, Check);
     await AdversarialChecks.RunAsync(json, Check);
+    await InactiveCatalogChecks.RunAsync(json, Check);
 }
 catch (Exception e)
 {

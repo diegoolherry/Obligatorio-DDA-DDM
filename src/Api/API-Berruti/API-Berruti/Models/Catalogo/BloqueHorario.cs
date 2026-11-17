@@ -12,4 +12,6 @@ public class BloqueHorario
     public DateTime? VigenteHasta { get; set; }
     // URL de la publicación de la que se transcribió el bloque.
     public string FuenteUrl { get; set; } = string.Empty;
+    // FIN-008: eliminar desde la administración es una baja lógica; los Servicios ya generados se conservan.
+    public bool Activo { get; set; } = true;
 }
