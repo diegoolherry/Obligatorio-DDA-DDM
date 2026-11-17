@@ -109,7 +109,9 @@ Las asociaciones del diagrama expresan intención conceptual, no un esquema fís
 
 ## 2. Persistencia candidata (ER MySQL)
 
-Los nombres y campos siguientes son **propuesta técnica**, no migración. `itinerario` se materializaría al comprar mediante `compra_servicio` (orden y precio congelado); la búsqueda puede construir itinerarios sin guardarlos. El ER representa únicamente compras confirmadas tras aprobación verificada, disponibilidad confirmada y hold vigente: cada `compra_servicio` tiene exactamente un ticket emitido. Se omite la relación física de pagos hasta diseñar la persistencia del intento durable de compra y sus intentos de pago; el UML expresa ese vínculo conceptual. En el diagrama, las patas opcionales y las claves foráneas nulas de validaciones se explican abajo.
+La implementación actual de MVP-004 ya persiste `Pago` asociado al intento y conserva sus estados y clave de creación; este ER sigue siendo una propuesta conceptual y no representa ese esquema físico implementado. El inicio HTTP de checkout no confirma compra ni genera tickets: verificación, disponibilidad y emisión siguen siendo pasos posteriores.
+
+Los nombres y campos siguientes son **propuesta técnica**, no migración. `itinerario` se materializaría al comprar mediante `compra_servicio` (orden y precio congelado); la búsqueda puede construir itinerarios sin guardarlos. El ER representa únicamente compras confirmadas tras aprobación verificada, disponibilidad confirmada y hold vigente: cada `compra_servicio` tiene exactamente un ticket emitido. El ER omite la relación física de pagos; el UML expresa ese vínculo conceptual, mientras que la implementación actual de MVP-004 sí conserva registros `Pago` ligados al intento. En el diagrama, las patas opcionales y las claves foráneas nulas de validaciones se explican abajo.
 
 ```mermaid
 erDiagram

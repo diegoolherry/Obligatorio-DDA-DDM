@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using API_Berruti.DTOs.Operational;
+using API_Berruti.Models.Operational;
 
 namespace API_Berruti.Services.Operational;
 
@@ -24,6 +25,23 @@ public static class ReglasInicioPago
         ExigirUtc(holdVenceUtc, nameof(holdVenceUtc));
         ExigirUtc(ahoraUtc, nameof(ahoraUtc));
         return ahoraUtc < holdVenceUtc;
+    }
+
+    public static EstadoPago EstadoTrasCrearOrden(
+        EstadoPago actual,
+        decimal importePagadoActual,
+        OrdenCheckoutMercadoPago orden)
+    {
+        ArgumentNullException.ThrowIfNull(orden);
+        if (importePagadoActual != 0m || orden.ImportePagado != 0m)
+            return actual;
+
+        return (actual, orden.Estado) switch
+        {
+            (EstadoPago.Desconocido, EstadoPago.Pendiente) => EstadoPago.Pendiente,
+            (EstadoPago.Desconocido or EstadoPago.Pendiente, EstadoPago.Rechazado) => EstadoPago.Rechazado,
+            _ => actual
+        };
     }
 
     public static void ValidarReserva(

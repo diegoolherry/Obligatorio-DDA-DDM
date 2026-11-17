@@ -266,6 +266,33 @@ foreach (var invalidFingerprint in new[] { "", new string('a', 63), new string('
 Check(typeof(IniciarPagoRequestDto).GetProperties().Select(property => property.Name)
         .SequenceEqual(["HuellaCotizacionAceptada"]),
     "payment request accepts only quote acceptance and no client amount, card, or passenger identity");
+foreach (var (current, currentPaid, incoming, incomingPaid, expected) in new[]
+{
+    (EstadoPago.Desconocido, 0m, EstadoPago.Pendiente, 0m, EstadoPago.Pendiente),
+    (EstadoPago.Desconocido, 0m, EstadoPago.Rechazado, 0m, EstadoPago.Rechazado),
+    (EstadoPago.Pendiente, 0m, EstadoPago.Rechazado, 0m, EstadoPago.Rechazado),
+    (EstadoPago.Desconocido, 0m, EstadoPago.Rechazado, 1m, EstadoPago.Desconocido),
+    (EstadoPago.Pendiente, 0m, EstadoPago.Rechazado, 1m, EstadoPago.Pendiente),
+    (EstadoPago.Desconocido, 1m, EstadoPago.Rechazado, 0m, EstadoPago.Desconocido),
+    (EstadoPago.Pendiente, 1m, EstadoPago.Rechazado, 0m, EstadoPago.Pendiente),
+    (EstadoPago.Aprobado, 0m, EstadoPago.Rechazado, 0m, EstadoPago.Aprobado),
+    (EstadoPago.Rechazado, 0m, EstadoPago.Pendiente, 0m, EstadoPago.Rechazado),
+    (EstadoPago.Devuelto, 0m, EstadoPago.Pendiente, 0m, EstadoPago.Devuelto),
+    (EstadoPago.DevolucionPendiente, 0m, EstadoPago.Rechazado, 0m, EstadoPago.DevolucionPendiente)
+})
+{
+    var order = new OrdenCheckoutMercadoPago
+    {
+        Id = "order-state",
+        ReferenciaExterna = "P-state",
+        Importe = 100m,
+        ImportePagado = incomingPaid,
+        Moneda = "UYU",
+        Estado = incoming
+    };
+    Check(ReglasInicioPago.EstadoTrasCrearOrden(current, currentPaid, order) == expected,
+        $"checkout state transition {current} + {incoming} paid locally/provider {currentPaid}/{incomingPaid} => {expected}");
+}
 
 var paymentNow = new FakeTimeProvider(new DateTimeOffset(2026, 11, 16, 14, 0, 0, TimeSpan.Zero));
 var paymentQuoteService = new FakeCotizacionesCompraService { Response = unchangedQuote };
@@ -359,6 +386,50 @@ Check(rejectedRepository.ReserveCalls == 1 && rejectedGateway.CreateCalls == 1
     && rejectedRetry.PagoId == rejectedRepository.Current!.Pago.Id && rejectedRetry.PagoId != "P-rejected"
     && rejectedRepository.Current!.HoldVenceEn == quoteExpiry,
     "definitely rejected payment permits a new checkout only inside the original live hold");
+
+var rejectedOrderRepository = new FakePagosRepository();
+var rejectedOrderGateway = new FakeMercadoPagoCheckoutClient
+{
+    CreateResponse = new OrdenCheckoutMercadoPago
+    {
+        Id = "order-rejected",
+        ReferenciaExterna = "P-1",
+        Importe = 350m,
+        ImportePagado = 0m,
+        Moneda = "UYU",
+        Estado = EstadoPago.Rechazado,
+        CheckoutUrl = "https://www.mercadopago.com.uy/checkout/rejected"
+    }
+};
+var rejectedOrderService = CreatePaymentService(rejectedOrderRepository, paymentQuoteService, rejectedOrderGateway, paymentNow);
+var firstRejectedOrder = await rejectedOrderService.IniciarAsync("passenger", "IC-123", paymentRequest);
+Check(firstRejectedOrder.Estado == EstadoPago.Rechazado && rejectedOrderRepository.Current!.Pago.Estado == EstadoPago.Rechazado,
+    "valid zero-paid rejected provider order is persisted as rejected");
+var firstRejectedPayment = rejectedOrderRepository.Current!.Pago;
+var rejectedOrderRetryGateway = new FakeMercadoPagoCheckoutClient
+{
+    CreateResponse = new OrdenCheckoutMercadoPago
+    {
+        Id = "order-retry-after-rejection",
+        ReferenciaExterna = "P-2",
+        Importe = 350m,
+        ImportePagado = 0m,
+        Moneda = "UYU",
+        Estado = EstadoPago.Pendiente,
+        CheckoutUrl = "https://www.mercadopago.com.uy/checkout/retry"
+    }
+};
+var secondPayment = await CreatePaymentService(rejectedOrderRepository, paymentQuoteService,
+        rejectedOrderRetryGateway, paymentNow)
+    .IniciarAsync("passenger", "IC-123", paymentRequest);
+Check(rejectedOrderRepository.NewReservationCount == 2
+    && secondPayment.Estado == EstadoPago.Pendiente
+    && secondPayment.PagoId != firstRejectedPayment.Id
+    && rejectedOrderRepository.History.Count == 2
+    && rejectedOrderRepository.History[0].Estado == EstadoPago.Rechazado
+    && rejectedOrderRepository.History[0].ClaveCreacion != rejectedOrderRepository.History[1].ClaveCreacion
+    && rejectedOrderRepository.Current!.HoldVenceEn == quoteExpiry,
+    "persisted rejection allows a new payment key while retaining original payment and hold expiry");
 
 var expiredAcceptedQuote = new CotizarCompraResponseDto
 {
@@ -604,6 +675,85 @@ Check(unexpectedQuoteResult.Result is ObjectResult quoteFailure
     && !quoteFailure.Value!.ToString()!.Contains("sensitive internal detail", StringComparison.Ordinal),
     "unexpected requote errors are sanitized as 500");
 
+var paymentHttpService = new FakePagosService
+{
+    Response = new PagoResponseDto
+    {
+        PagoId = "PG-9",
+        IntentoId = "IC-123",
+        Estado = EstadoPago.Pendiente,
+        Importe = 350m,
+        Moneda = "UYU",
+        CheckoutUrl = "https://www.mercadopago.com.uy/checkout/example",
+        HoldVenceEn = quoteExpiry
+    }
+};
+var paymentController = CreatePaymentController(paymentHttpService, "passenger-public-id");
+using var paymentCancellation = new CancellationTokenSource();
+var paymentHttpResult = await paymentController.Iniciar("IC-123", paymentRequest, paymentCancellation.Token);
+Check(paymentHttpResult.Result is OkObjectResult paymentOk && ReferenceEquals(paymentOk.Value, paymentHttpService.Response)
+    && paymentHttpService.PassengerId == "passenger-public-id"
+    && paymentHttpService.AttemptId == "IC-123"
+    && ReferenceEquals(paymentHttpService.Request, paymentRequest)
+    && paymentHttpService.CancellationToken == paymentCancellation.Token,
+    "payment POST uses authenticated identity, attempt ID, typed acceptance, and cancellation");
+Check(typeof(PagosController).GetCustomAttributes(typeof(AuthorizeAttribute), true)
+    .Cast<AuthorizeAttribute>().Single().Roles == "Pasajero"
+    && typeof(PagosController).GetCustomAttributes(typeof(RouteAttribute), true)
+        .Cast<RouteAttribute>().Single().Template == "api/intentos-compra/{intentoId}/pagos"
+    && typeof(PagosController).GetMethod(nameof(PagosController.Iniciar))!
+        .GetCustomAttributes(typeof(HttpPostAttribute), true).Cast<HttpPostAttribute>().Single().Template is null
+    && typeof(PagosController).GetMethod(nameof(PagosController.ConsultarActual))!
+        .GetCustomAttributes(typeof(HttpGetAttribute), true).Cast<HttpGetAttribute>().Single().Template == "actual",
+    "payment actions expose the passenger-authorized POST and current-payment GET routes");
+paymentHttpService.Response = new PagoResponseDto { PagoId = "PG-10", IntentoId = "IC-123", Estado = EstadoPago.Desconocido };
+Check((await paymentController.Iniciar("IC-123", paymentRequest)).Result is ObjectResult unknownPayment
+    && unknownPayment.StatusCode == StatusCodes.Status202Accepted,
+    "unknown checkout outcome returns 202 without claiming payment confirmation");
+paymentHttpService.CurrentResponse = paymentHttpService.Response;
+Check((await paymentController.ConsultarActual("IC-123")).Result is OkObjectResult currentHttpPayment
+    && ReferenceEquals(currentHttpPayment.Value, paymentHttpService.CurrentResponse),
+    "current-payment GET returns the service's typed representation");
+paymentHttpService.CurrentResponse = null;
+Check((await paymentController.ConsultarActual("IC-123")).Result is NotFoundResult,
+    "current-payment GET returns 404 when no payment exists");
+var paymentControllerCalls = paymentHttpService.Calls;
+Check((await CreatePaymentController(paymentHttpService, null).Iniciar("IC-123", paymentRequest)).Result is UnauthorizedResult
+    && (await CreatePaymentController(paymentHttpService, null).ConsultarActual("IC-123")).Result is UnauthorizedResult
+    && paymentHttpService.Calls == paymentControllerCalls,
+    "missing authenticated identity is rejected before payment service access");
+Check((await paymentController.Iniciar("IC-123", null!)).Result is BadRequestObjectResult,
+    "direct null payment request maps to 400");
+paymentHttpService.Exception = new CotizacionModificadaException(unchangedQuote);
+Check((await paymentController.Iniciar("IC-123", paymentRequest)).Result is ConflictObjectResult changedQuote
+    && ReferenceEquals(changedQuote.Value, unchangedQuote),
+    "changed quote returns 409 with current server quote for explicit re-acceptance");
+paymentHttpService.Exception = new CotizacionNoDisponibleException("private unavailable detail");
+var unavailablePayment = await paymentController.Iniciar("IC-123", paymentRequest);
+Check(unavailablePayment.Result is ConflictObjectResult unavailablePaymentBody
+    && !unavailablePaymentBody.Value!.ToString()!.Contains("private unavailable detail", StringComparison.Ordinal),
+    "expired or unavailable quote maps to sanitized 409");
+paymentHttpService.Exception = new KeyNotFoundException("missing or foreign attempt");
+Check((await paymentController.ConsultarActual("IC-123")).Result is NotFoundResult,
+    "missing or foreign payment attempt maps to 404");
+paymentHttpService.Exception = new ArgumentException("invalid accepted quote");
+Check((await paymentController.Iniciar("IC-123", paymentRequest)).Result is BadRequestObjectResult,
+    "invalid payment request maps to 400");
+paymentHttpService.Exception = new InvalidOperationException("sensitive payment provider detail");
+var unexpectedPayment = await paymentController.Iniciar("IC-123", paymentRequest);
+Check(unexpectedPayment.Result is ObjectResult paymentFailure
+    && paymentFailure.StatusCode == StatusCodes.Status500InternalServerError
+    && !paymentFailure.Value!.ToString()!.Contains("sensitive payment provider detail", StringComparison.Ordinal),
+    "unexpected payment errors are sanitized as 500");
+using (var canceledPaymentRequest = new CancellationTokenSource())
+{
+    canceledPaymentRequest.Cancel();
+    paymentHttpService.Exception = new OperationCanceledException();
+    await CheckThrowsAsync<OperationCanceledException>(
+        () => paymentController.Iniciar("IC-123", paymentRequest, canceledPaymentRequest.Token),
+        "caller cancellation propagates unchanged from payment endpoint");
+}
+
 var deadline = new DateTimeOffset(2026, 11, 16, 12, 0, 0, TimeSpan.Zero);
 var beforeDeadline = deadline.AddTicks(-1);
 Check(PoliticaConfirmacionCompra.Decidir(EstadoPago.Aprobado, deadline, beforeDeadline, true) == DecisionConfirmacion.Confirmar, "approved payment confirms before the original deadline when available");
@@ -828,6 +978,23 @@ static CotizacionesCompraController CreateQuoteController(ICotizacionesCompraSer
     };
 }
 
+static PagosController CreatePaymentController(IPagosService service, string? passengerId)
+{
+    var claims = passengerId is null
+        ? Array.Empty<Claim>()
+        : [new Claim(ClaimTypes.NameIdentifier, passengerId)];
+    return new PagosController(service)
+    {
+        ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(claims, "test"))
+            }
+        }
+    };
+}
+
 static ItinerarioDto CreateQuote(decimal firstPrice, decimal secondPrice)
 {
     var start = new DateTime(2026, 11, 16, 8, 0, 0);
@@ -963,6 +1130,46 @@ sealed class MockHttpMessageHandler(Func<HttpRequestMessage, CancellationToken, 
     }
 }
 
+sealed class FakePagosService : IPagosService
+{
+    public PagoResponseDto Response { get; set; } = new();
+    public PagoResponseDto? CurrentResponse { get; set; }
+    public Exception? Exception { get; set; }
+    public string? PassengerId { get; private set; }
+    public string? AttemptId { get; private set; }
+    public IniciarPagoRequestDto? Request { get; private set; }
+    public CancellationToken CancellationToken { get; private set; }
+    public int Calls { get; private set; }
+
+    public Task<PagoResponseDto> IniciarAsync(
+        string identificadorPublico,
+        string intentoId,
+        IniciarPagoRequestDto solicitud,
+        CancellationToken cancellationToken = default)
+    {
+        Calls++;
+        PassengerId = identificadorPublico;
+        AttemptId = intentoId;
+        Request = solicitud;
+        CancellationToken = cancellationToken;
+        if (Exception is not null) return Task.FromException<PagoResponseDto>(Exception);
+        return Task.FromResult(Response);
+    }
+
+    public Task<PagoResponseDto?> ConsultarActualAsync(
+        string identificadorPublico,
+        string intentoId,
+        CancellationToken cancellationToken = default)
+    {
+        Calls++;
+        PassengerId = identificadorPublico;
+        AttemptId = intentoId;
+        CancellationToken = cancellationToken;
+        if (Exception is not null) return Task.FromException<PagoResponseDto?>(Exception);
+        return Task.FromResult(CurrentResponse);
+    }
+}
+
 sealed class FakePagosRepository : IPagosRepository
 {
     private readonly object _sync = new();
@@ -977,6 +1184,7 @@ sealed class FakePagosRepository : IPagosRepository
     public int ConsultCalls { get; private set; }
     public int ReserveCalls { get; private set; }
     public int NewReservationCount { get; private set; }
+    public List<Pago> History { get; } = [];
 
     public Task<RegistroPago?> ConsultarActualAsync(
         string identificadorPublico,
@@ -1020,6 +1228,7 @@ sealed class FakePagosRepository : IPagosRepository
                 Estado = EstadoPago.Desconocido,
                 ClaveCreacion = Guid.NewGuid()
             };
+            History.Add(payment);
             Current = new RegistroPago(payment, cotizacion.HoldVenceEn, true);
             NewReservationCount++;
             return Task.FromResult(Current);
@@ -1040,7 +1249,7 @@ sealed class FakePagosRepository : IPagosRepository
             LastOrder = orden;
             Current.Pago.OrdenProveedorId = orden.Id;
             Current.Pago.CheckoutUrl = orden.CheckoutUrl;
-            Current.Pago.Estado = orden.Estado;
+            Current.Pago.Estado = ReglasInicioPago.EstadoTrasCrearOrden(Current.Pago.Estado, Current.Pago.ImportePagado, orden);
             Current.Pago.ActualizadoUtc = DateTime.UtcNow;
             return Task.FromResult(Current with { EsNuevo = false });
         }

@@ -79,6 +79,17 @@ El `201` incluye `intentoId`, `itinerario` y `holdVenceEn` UTC, según el DTO vi
 
 La cotización se consulta por separado antes de un futuro checkout: el endpoint no registra aceptación ni inicia pago, compra, confirmación de tickets o emisión de QR. Las pruebas llaman al controller directamente; no acreditan middleware HTTP, API iniciada, MySQL ni concurrencia.
 
+### Inicio y consulta de pagos
+
+Los endpoints de intentos y pagos requieren Bearer válido con rol `Pasajero`. La identidad del pasajero se obtiene del servidor; el cliente no envía ni elige al propietario.
+
+| Método y ruta | Contrato basado en el controller |
+| --- | --- |
+| `POST /api/intentos-compra/{intentoId}/pagos` | Cuerpo `IniciarPagoRequestDto` con solo `huellaCotizacionAceptada`; usa cotización y precio del servidor. `200` devuelve pago existente o resultado conocido; `202` indica resultado `Desconocido` que requiere reconciliación; `400` solicitud inválida; `401` sin identidad; `404` intento ausente/ajeno; `409` cotización cambió (devuelve la actual para aceptación explícita) o hold vencido/no disponible; `500` genérico. No confirma compra ni emite tickets/QR. |
+| `GET /api/intentos-compra/{intentoId}/pagos/actual` | `200` devuelve `PagoResponseDto` del intento autenticado; `400` identificador inválido; `401` sin identidad; `404` intento ausente/ajeno o sin pago; `500` genérico. La URL de checkout solo se expone si el pago está pendiente y el hold original sigue vigente. |
+
+Una respuesta `Desconocido` no confirma el pago. La aprobación del proveedor tampoco confirma compra ni emite tickets/QR: verificación y cumplimiento son cortes posteriores. Las pruebas directas del controller no acreditan middleware HTTP, API iniciada, MySQL ni concurrencia.
+
 ## Catálogo de horarios (FIN-001)
 
 Transcripción del horario publicado en <http://www.berruttiturismo.com.uy/horarios.html> («Horarios de invierno 2026»), versionada en [`horarios-invierno-2026.json`](../../src/Api/API-Berruti/API-Berruti/Data/Catalogo/horarios-invierno-2026.json) y sembrada por el reinicio local. Documentación basada en fuente y en `tests/RouteCatalog` (en memoria), no en una prueba HTTP contra MySQL.

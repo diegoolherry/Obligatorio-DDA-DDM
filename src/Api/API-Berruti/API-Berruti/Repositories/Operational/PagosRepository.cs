@@ -141,9 +141,10 @@ public sealed class PagosRepository(
             pago.OrdenProveedorId = orden.Id;
             pago.CheckoutUrl = orden.CheckoutUrl;
             pago.ActualizadoUtc = TruncarMicrosegundos(timeProvider.GetUtcNow().UtcDateTime);
-            var cambiaEstado = pago.Estado == EstadoPago.Desconocido && orden.Estado == EstadoPago.Pendiente;
+            var estadoActualizado = ReglasInicioPago.EstadoTrasCrearOrden(pago.Estado, pago.ImportePagado, orden);
+            var cambiaEstado = pago.Estado != estadoActualizado;
             if (cambiaEstado)
-                pago.Estado = EstadoPago.Pendiente;
+                pago.Estado = estadoActualizado;
 
             var entrada = contexto.Attach(pago);
             entrada.Property(item => item.OrdenProveedorId).IsModified = true;
