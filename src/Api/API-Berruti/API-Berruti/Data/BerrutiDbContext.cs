@@ -97,7 +97,7 @@ public class BerrutiDbContext : DbContext
         contador.ToTable("contador_entidad", t =>
         {
             t.HasCheckConstraint("ck_contador_rango", "ultimo BETWEEN 0 AND 50000");
-            t.HasCheckConstraint("ck_contador_prefijo", "prefijo IN ('US-', 'RO-', 'SA-', 'IC-')");
+            t.HasCheckConstraint("ck_contador_prefijo", "prefijo IN ('US-', 'RO-', 'SA-', 'IC-', 'PG-', 'CO-', 'CS-', 'TI-')");
         });
         contador.HasKey(c => c.Prefijo);
         contador.Property(c => c.Prefijo).HasColumnName("prefijo").HasMaxLength(3).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).ValueGeneratedNever();

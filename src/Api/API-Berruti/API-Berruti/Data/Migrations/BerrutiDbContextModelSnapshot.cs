@@ -36,7 +36,7 @@ namespace API_Berruti.Data.Migrations
 
                     b.ToTable("contador_entidad", null, t =>
                         {
-                            t.HasCheckConstraint("ck_contador_prefijo", "prefijo IN ('US-', 'RO-', 'SA-', 'IC-')");
+                            t.HasCheckConstraint("ck_contador_prefijo", "prefijo IN ('US-', 'RO-', 'SA-', 'IC-', 'PG-', 'CO-', 'CS-', 'TI-')");
 
                             t.HasCheckConstraint("ck_contador_rango", "ultimo BETWEEN 0 AND 50000");
                         });

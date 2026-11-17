@@ -1,6 +1,7 @@
 using System.Data;
 using System.Reflection;
 using API_Berruti.Data;
+using API_Berruti.Models.Authentication;
 using API_Berruti.Models.Operational;
 using API_Berruti.Services.Identifiers;
 using Microsoft.EntityFrameworkCore;
@@ -168,6 +169,19 @@ var migration = migrationType is null ? null : Activator.CreateInstance(migratio
 var up = new MigrationBuilder("MySql.EntityFrameworkCore");
 var upMethod = migrationType?.GetMethod("Up", BindingFlags.Instance | BindingFlags.NonPublic);
 upMethod?.Invoke(migration, [up]);
+var snapshotModel = context.GetService<IMigrationsAssembly>().ModelSnapshot?.Model;
+Check("counter prefix constraint agrees across the current model, payment migration target, snapshot and migration Up", () =>
+{
+    const string expectedCounterSql = "prefijo IN ('US-', 'RO-', 'SA-', 'IC-', 'PG-', 'CO-', 'CS-', 'TI-')";
+    var designTimeCounter = model.FindEntityType(typeof(ContadorEntidad));
+    var targetCounter = migration?.TargetModel.FindEntityType(typeof(ContadorEntidad));
+    var snapshotCounter = snapshotModel?.FindEntityType(typeof(ContadorEntidad));
+    var upConstraint = up.Operations.OfType<AddCheckConstraintOperation>()
+        .SingleOrDefault(operation => operation.Name == "ck_contador_prefijo");
+    return new[] { designTimeCounter, targetCounter, snapshotCounter }
+            .All(entity => entity?.GetCheckConstraints().SingleOrDefault(check => check.Name == "ck_contador_prefijo")?.Sql == expectedCounterSql) &&
+        upConstraint?.Sql == expectedCounterSql;
+});
 var attemptMigrationType = typeof(BerrutiDbContext).Assembly.GetType("API_Berruti.Data.Migrations.IntentosCompraHold");
 var attemptMigration = attemptMigrationType is null ? null : Activator.CreateInstance(attemptMigrationType) as Migration;
 var attemptUp = new MigrationBuilder("MySql.EntityFrameworkCore");
