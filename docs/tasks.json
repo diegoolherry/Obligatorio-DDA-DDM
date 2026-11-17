@@ -888,7 +888,7 @@
         "Se rechazan rutas con menos de dos paradas, paradas inexistentes o repetidas consecutivas, y salidas cuya primera parada no tiene hora o cuyas horas no son estrictamente crecientes.",
         "Eliminar un bloque, una ruta o una salida la marca inactiva: deja de aparecer en el catálogo y en la generación, y los Servicios ya generados se conservan."
       ],
-      "evidence": "Rama feature/fin-008-01-api-catalogo (b872b30, f8f854f, 731db24); PR pendiente.\nRouteCatalog 176/176; E2E MySQL 19/19 (.local/fin-008-e2e.sh); verificación independiente sin bloqueos.\nPendiente: revisión cruzada de Enzo."
+      "evidence": "PR #82 (b872b30, f8f854f, 731db24, 7636409).\nRouteCatalog 176/176; E2E MySQL 19/19; bloqueo de filas forzado: 409 en 3,3 s sin cambiar datos; verificación independiente sin bloqueos.\nPendiente: revisión cruzada de Enzo."
     },
     {
       "id": "FIN-008-02",
@@ -914,7 +914,7 @@
         "Se rechazan feriados repetidos, excepciones con rango invertido, sin motivo o de un bloque inexistente o inactivo.",
         "Los cambios se reflejan en la consulta de salidas del día y en la próxima generación de Servicios."
       ],
-      "evidence": "Rama feature/fin-008-02-api-calendario (785f1e0); PR pendiente, encadenado sobre FIN-008-01.\nRouteCatalog 201/201; E2E MySQL 18/18 (.local/fin-008-02-e2e.sh).\nPendiente: revisión cruzada de Enzo."
+      "evidence": "PR #83 (18863c3), encadenado sobre #82.\nRouteCatalog 201/201; E2E MySQL 18/18.\nPendiente: revisión cruzada de Enzo."
     },
     {
       "id": "FIN-008-03",
@@ -941,7 +941,7 @@
         "Las bajas piden confirmación y la edición de una salida o ruta con Servicios advierte que aplica a futuras generaciones.",
         "El recorrido manual del camino feliz queda descrito en el PR."
       ],
-      "evidence": "Rama feature/fin-008-03-web (e954802 y corrección de refresco y foco); PR pendiente, encadenado sobre FIN-008-02.\nWebAuthentication 161/161; recorrido en navegador 9/9 pasos y re-chequeo de mensajes, foco y 404 PASS; 403 por la UI sin probar.\nPendiente: revisión cruzada de Enzo."
+      "evidence": "PR #84 (33de4c3, bbc1a9f), encadenado sobre #83.\nWebAuthentication 161/161; recorrido en navegador 9/9, re-chequeo de mensajes, foco y 404, y 403 por la UI PASS.\nPendiente: revisión cruzada de Enzo."
     },
     {
       "id": "FIN-009",
