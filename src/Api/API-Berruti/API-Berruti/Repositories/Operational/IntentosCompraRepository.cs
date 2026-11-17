@@ -113,7 +113,7 @@ public class IntentosCompraRepository(
                     if (servicio.SalidaId is null || servicio.OrdenEmbarque is null || servicio.OrdenDesembarque is null)
                         throw new AsientoNoDisponibleException("El servicio no tiene una salida y un intervalo de asiento válidos.");
                     await ValidarParadasServicioAsync(servicio, actual.OrigenId, actual.DestinoId, cancellationToken);
-                    numeroAsiento = await SeleccionarAsientoAsync(servicio, asignacionesPendientes, ahoraUtc, cancellationToken);
+                    numeroAsiento = await SeleccionarAsientoAsync(intento.Id, servicio, asignacionesPendientes, ahoraUtc, cancellationToken);
                     asignacionesPendientes.Add((servicio.SalidaId, numeroAsiento.Value, servicio.OrdenEmbarque.Value, servicio.OrdenDesembarque.Value));
                 }
 
@@ -271,6 +271,7 @@ public class IntentosCompraRepository(
     }
 
     private async Task<int> SeleccionarAsientoAsync(
+        string intentoId,
         Servicio servicio,
         IReadOnlyCollection<(string SalidaId, int Asiento, int Embarque, int Desembarque)> asignacionesPendientes,
         DateTime ahoraUtc,
@@ -290,14 +291,31 @@ public class IntentosCompraRepository(
                                    hold.OrdenEmbarque < desembarque && embarque < hold.OrdenDesembarque
                              select new { hold.NumeroAsiento, hold.OrdenEmbarque, hold.OrdenDesembarque })
             .ToListAsync(cancellationToken);
+        var candidato = new TramoIntentoCompra
+        {
+            IntentoId = intentoId,
+            SalidaId = salidaId,
+            PoliticaAsiento = PoliticaAsiento.AsignacionAutomatica,
+            OrdenEmbarque = embarque,
+            OrdenDesembarque = desembarque
+        };
+        var asientosConfirmados = await OcupacionAsientosCompra.TicketsConfirmados(
+                contexto.Set<Ticket>().AsNoTracking(),
+                contexto.Set<CompraServicio>().AsNoTracking(),
+                contexto.TramosIntentoCompra.AsNoTracking())
+            .Where(OcupacionAsientosCompra.IntervalosSuperpuestos(candidato))
+            .Where(tramo => tramo.NumeroAsiento.HasValue)
+            .Select(tramo => tramo.NumeroAsiento!.Value)
+            .ToListAsync(cancellationToken);
 
         foreach (var asiento in inventario)
         {
             var conflictoPersistido = activos.Any(hold => hold.NumeroAsiento == asiento &&
                 IntervalsOverlap(embarque, desembarque, hold.OrdenEmbarque, hold.OrdenDesembarque));
+            var conflictoConfirmado = asientosConfirmados.Contains(asiento);
             var conflictoPendiente = asignacionesPendientes.Any(hold => hold.SalidaId == salidaId && hold.Asiento == asiento &&
                 IntervalsOverlap(embarque, desembarque, hold.Embarque, hold.Desembarque));
-            if (!conflictoPersistido && !conflictoPendiente) return asiento;
+            if (!conflictoPersistido && !conflictoConfirmado && !conflictoPendiente) return asiento;
         }
         throw new AsientoNoDisponibleException("No hay un asiento disponible para el intervalo solicitado.");
     }
