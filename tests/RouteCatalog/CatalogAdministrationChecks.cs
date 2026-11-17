@@ -160,5 +160,12 @@ internal sealed class MemoryAdministracionRepository(DatosCatalogo datos) : ICat
         return Task.CompletedTask;
     }
 
+    public Task AgregarFeriadoAsync(Feriado feriado) { Saves++; datos.Feriados.Add(feriado); return Task.CompletedTask; }
+    public Task ActualizarFeriadoAsync(Feriado feriado) { Saves++; Replace(datos.Feriados, f => f.Fecha == feriado.Fecha, feriado); return Task.CompletedTask; }
+    public Task EliminarFeriadoAsync(DateTime fecha) { Saves++; datos.Feriados.RemoveAll(f => f.Fecha == fecha); return Task.CompletedTask; }
+    public Task AgregarExcepcionAsync(ExcepcionCalendario excepcion) { Saves++; datos.Excepciones.Add(excepcion); return Task.CompletedTask; }
+    public Task ActualizarExcepcionAsync(ExcepcionCalendario excepcion) { Saves++; Replace(datos.Excepciones, e => e.Id == excepcion.Id, excepcion); return Task.CompletedTask; }
+    public Task EliminarExcepcionAsync(string id) { Saves++; datos.Excepciones.RemoveAll(e => e.Id == id); return Task.CompletedTask; }
+
     private static void Replace<T>(List<T> lista, Predicate<T> criterio, T nuevo) => lista[lista.FindIndex(criterio)] = nuevo;
 }

@@ -24,6 +24,7 @@ try
     await AdversarialChecks.RunAsync(json, Check);
     await InactiveCatalogChecks.RunAsync(json, Check);
     await CatalogAdministrationChecks.RunAsync(json, Check);
+    await CalendarAdministrationChecks.RunAsync(json, Check);
 }
 catch (Exception e)
 {
