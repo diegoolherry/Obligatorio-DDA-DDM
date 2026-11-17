@@ -71,7 +71,7 @@ public sealed class CotizacionesCompraService(
             throw new CotizacionNoDisponibleException("El hold original venció.");
     }
 
-    private static bool ConservaSeleccion(ItinerarioDto original, ItinerarioDto actual)
+    internal static bool ConservaSeleccion(ItinerarioDto original, ItinerarioDto actual)
     {
         var originales = original.Tramos.OrderBy(tramo => tramo.Orden).ToArray();
         var actuales = actual.Tramos.OrderBy(tramo => tramo.Orden).ToArray();
