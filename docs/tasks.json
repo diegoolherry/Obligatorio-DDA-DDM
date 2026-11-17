@@ -888,7 +888,7 @@
         "Se rechazan rutas con menos de dos paradas, paradas inexistentes o repetidas consecutivas, y salidas cuya primera parada no tiene hora o cuyas horas no son estrictamente crecientes.",
         "Eliminar un bloque, una ruta o una salida la marca inactiva: deja de aparecer en el catálogo y en la generación, y los Servicios ya generados se conservan."
       ],
-      "evidence": "Sin evidencia todavía."
+      "evidence": "Rama feature/fin-008-01-api-catalogo (b872b30, f8f854f, 731db24); PR pendiente.\nRouteCatalog 176/176; E2E MySQL 19/19 (.local/fin-008-e2e.sh); verificación independiente sin bloqueos.\nPendiente: revisión cruzada de Enzo."
     },
     {
       "id": "FIN-008-02",
@@ -899,11 +899,11 @@
       "area": [
         "API"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "assignee": "Diego",
       "reviewer": "Enzo",
       "createdAt": "2026-11-17T16:36:38-03:00",
-      "startedAt": null,
+      "startedAt": "2026-11-17T17:20:54-03:00",
       "completedAt": null,
       "completedBy": null,
       "dependencies": [
@@ -914,7 +914,7 @@
         "Se rechazan feriados repetidos, excepciones con rango invertido, sin motivo o de un bloque inexistente o inactivo.",
         "Los cambios se reflejan en la consulta de salidas del día y en la próxima generación de Servicios."
       ],
-      "evidence": "Sin evidencia todavía."
+      "evidence": "Rama feature/fin-008-02-api-calendario (785f1e0); PR pendiente, encadenado sobre FIN-008-01.\nRouteCatalog 201/201; E2E MySQL 18/18 (.local/fin-008-02-e2e.sh).\nPendiente: revisión cruzada de Enzo."
     },
     {
       "id": "FIN-008-03",
@@ -925,11 +925,11 @@
       "area": [
         "Web"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "assignee": "Diego",
       "reviewer": "Enzo",
       "createdAt": "2026-11-17T16:36:38-03:00",
-      "startedAt": null,
+      "startedAt": "2026-11-17T17:20:54-03:00",
       "completedAt": null,
       "completedBy": null,
       "dependencies": [
@@ -941,7 +941,7 @@
         "Las bajas piden confirmación y la edición de una salida o ruta con Servicios advierte que aplica a futuras generaciones.",
         "El recorrido manual del camino feliz queda descrito en el PR."
       ],
-      "evidence": "Sin evidencia todavía."
+      "evidence": "Rama feature/fin-008-03-web (e954802 y corrección de refresco y foco); PR pendiente, encadenado sobre FIN-008-02.\nWebAuthentication 161/161; recorrido en navegador 9/9 pasos y re-chequeo de mensajes, foco y 404 PASS; 403 por la UI sin probar.\nPendiente: revisión cruzada de Enzo."
     },
     {
       "id": "FIN-009",
