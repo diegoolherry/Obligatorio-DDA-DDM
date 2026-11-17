@@ -224,6 +224,101 @@ Check(unexpectedRead.Result is ObjectResult readFailure
     && !readFailure.Value!.ToString()!.Contains("provider credential", StringComparison.Ordinal), "unexpected read failure is sanitized as 500");
 fakeService.ReadException = null;
 
+var originalQuote = CreateQuote(100m, 250m);
+var quoteExpiry = DateTime.SpecifyKind(new DateTime(2026, 11, 16, 15, 0, 0), DateTimeKind.Utc);
+var quoteAttempt = new IniciarIntentoCompraResponseDto
+{
+    IntentoId = "IC-123",
+    Itinerario = originalQuote,
+    HoldVenceEn = quoteExpiry
+};
+var quoteAttempts = new FakeIntentosCompraService { ReadResponse = quoteAttempt };
+var quoteItineraries = new FakeItinerariosService { Offers = [CreateQuote(100m, 250m)] };
+var quoteClock = new FakeTimeProvider(new DateTimeOffset(2026, 11, 16, 14, 0, 0, TimeSpan.Zero));
+var quotes = new CotizacionesCompraService(quoteAttempts, quoteItineraries, quoteClock);
+var unchangedQuote = await quotes.CotizarAsync("passenger", "IC-123");
+Check(!unchangedQuote.CambioPrecio && unchangedQuote.CotizacionOriginal.PrecioTotal == 350m
+    && unchangedQuote.CotizacionActual.PrecioTotal == 350m && unchangedQuote.HoldVenceEn == quoteExpiry,
+    "same-price requote returns original and current quotes without moving the hold deadline");
+Check(quoteAttempts.ReadPassengerId == "passenger" && quoteAttempts.ReadAttemptId == "IC-123"
+    && quoteItineraries.SearchCount == 1 && quoteItineraries.LastDate == new DateOnly(2026, 11, 16),
+    "requote uses owner-scoped attempt data and the local travel date");
+using var requoteCancellation = new CancellationTokenSource();
+await quotes.CotizarAsync("passenger", "IC-123", requoteCancellation.Token);
+Check(quoteAttempts.ReadCancellationToken == requoteCancellation.Token,
+    "requote forwards cancellation to the owner-scoped attempt read");
+var repeatQuote = await quotes.CotizarAsync("passenger", "IC-123");
+Check(unchangedQuote.HuellaCotizacion == repeatQuote.HuellaCotizacion
+    && unchangedQuote.HuellaCotizacion.Length == 64, "same server quote produces a deterministic SHA-256 hex fingerprint");
+quoteItineraries.Offers = [CreateQuote(100.0m, 250.0m)];
+var scaleOneQuote = await quotes.CotizarAsync("passenger", "IC-123");
+quoteItineraries.Offers = [CreateQuote(100.00m, 250.00m)];
+var scaleTwoQuote = await quotes.CotizarAsync("passenger", "IC-123");
+Check(!scaleOneQuote.CambioPrecio && !scaleTwoQuote.CambioPrecio
+    && scaleOneQuote.HuellaCotizacion == scaleTwoQuote.HuellaCotizacion,
+    "numerically identical money with different decimal scales has the same quote fingerprint");
+quoteItineraries.Offers = [CreateQuote(100.001m, 249.999m)];
+await CheckThrowsAsync<InvalidOperationException>(
+    () => quotes.CotizarAsync("passenger", "IC-123"),
+    "offered prices beyond two decimal places are rejected before fingerprinting");
+quoteItineraries.Offers = [CreateQuote(100m, 250m)];
+quoteAttempts.ReadResponse = new IniciarIntentoCompraResponseDto
+{
+    IntentoId = "IC-123",
+    Itinerario = originalQuote,
+    HoldVenceEn = quoteExpiry.AddMinutes(1)
+};
+var laterExpiryQuote = await quotes.CotizarAsync("passenger", "IC-123");
+Check(laterExpiryQuote.HuellaCotizacion != unchangedQuote.HuellaCotizacion,
+    "quote fingerprint is bound to the original hold expiry");
+quoteAttempts.ReadResponse = quoteAttempt;
+
+quoteItineraries.Offers = [CreateQuote(110m, 240m)];
+var compensatedChange = await quotes.CotizarAsync("passenger", "IC-123");
+Check(compensatedChange.CambioPrecio && compensatedChange.CotizacionActual.PrecioTotal == 350m
+    && compensatedChange.CotizacionOriginal.Tramos[0].Importe == 100m
+    && compensatedChange.HuellaCotizacion != unchangedQuote.HuellaCotizacion,
+    "a per-leg price change is detected when the total is unchanged and the original snapshot is preserved");
+quoteAttempts.ReadResponse = new IniciarIntentoCompraResponseDto
+{
+    IntentoId = "IC-124",
+    Itinerario = originalQuote,
+    HoldVenceEn = quoteExpiry
+};
+var otherAttemptQuote = await quotes.CotizarAsync("passenger", "IC-124");
+Check(otherAttemptQuote.HuellaCotizacion != compensatedChange.HuellaCotizacion,
+    "quote fingerprint is bound to the attempt identity");
+quoteAttempts.ReadResponse = quoteAttempt;
+
+quoteItineraries.Offers = [CreateQuote(101m, 250m)];
+var singleLegChange = await quotes.CotizarAsync("passenger", "IC-123");
+Check(singleLegChange.CambioPrecio && singleLegChange.HuellaCotizacion != unchangedQuote.HuellaCotizacion,
+    "a current price change changes the passenger-acceptance fingerprint");
+quoteItineraries.Offers = [];
+var searchCountBeforeUnavailable = quoteItineraries.SearchCount;
+await CheckThrowsAsync<CotizacionNoDisponibleException>(
+    () => quotes.CotizarAsync("passenger", "IC-123"), "missing exact service sequence fails as unavailable");
+Check(quoteItineraries.SearchCount == searchCountBeforeUnavailable + 1,
+    "unavailable quote searches current offers without substituting a different itinerary");
+
+quoteClock.SetUtcNow(new DateTimeOffset(quoteExpiry));
+var searchCountAtExpiry = quoteItineraries.SearchCount;
+await CheckThrowsAsync<CotizacionNoDisponibleException>(
+    () => quotes.CotizarAsync("passenger", "IC-123"), "hold expiry equality fails closed");
+Check(quoteItineraries.SearchCount == searchCountAtExpiry, "already-expired hold avoids current itinerary lookup");
+quoteClock.SetUtcNow(new DateTimeOffset(2026, 11, 16, 14, 0, 0, TimeSpan.Zero));
+quoteItineraries.BeforeReturn = () => quoteClock.SetUtcNow(new DateTimeOffset(quoteExpiry));
+await CheckThrowsAsync<CotizacionNoDisponibleException>(
+    () => quotes.CotizarAsync("passenger", "IC-123"), "hold expiring during itinerary lookup fails closed");
+quoteItineraries.BeforeReturn = null;
+
+quoteAttempts.ReadException = new KeyNotFoundException("Foreign or missing attempt");
+var searchesBeforeForeign = quoteItineraries.SearchCount;
+await CheckThrowsAsync<KeyNotFoundException>(
+    () => quotes.CotizarAsync("passenger", "IC-foreign"), "foreign attempt remains not found");
+Check(quoteItineraries.SearchCount == searchesBeforeForeign, "foreign attempt never triggers itinerary search");
+quoteAttempts.ReadException = null;
+
 var deadline = new DateTimeOffset(2026, 11, 16, 12, 0, 0, TimeSpan.Zero);
 var beforeDeadline = deadline.AddTicks(-1);
 Check(PoliticaConfirmacionCompra.Decidir(EstadoPago.Aprobado, deadline, beforeDeadline, true) == DecisionConfirmacion.Confirmar, "approved payment confirms before the original deadline when available");
@@ -431,6 +526,23 @@ static IntentosCompraController CreateController(IIntentosCompraService service,
     };
 }
 
+static ItinerarioDto CreateQuote(decimal firstPrice, decimal secondPrice)
+{
+    var start = new DateTime(2026, 11, 16, 8, 0, 0);
+    return new ItinerarioDto
+    {
+        Salida = start,
+        Llegada = start.AddHours(2),
+        PrecioTotal = firstPrice + secondPrice,
+        Transbordo = new TransbordoDto { Parada = new ParadaDto { Id = "P2", Nombre = "Middle" }, Minutos = 15 },
+        Tramos =
+        [
+            new() { Orden = 1, ServicioId = "S1", TramoId = "T1", Origen = new() { Id = "P1", Nombre = "Origin" }, Destino = new() { Id = "P2", Nombre = "Middle" }, Salida = start, Llegada = start.AddMinutes(45), Importe = firstPrice, PoliticaAsiento = PoliticaAsiento.AsignacionAutomatica },
+            new() { Orden = 2, ServicioId = "S2", TramoId = "T2", Origen = new() { Id = "P2", Nombre = "Middle" }, Destino = new() { Id = "P3", Nombre = "Destination" }, Salida = start.AddHours(1), Llegada = start.AddHours(2), Importe = secondPrice, PoliticaAsiento = PoliticaAsiento.SinAsiento }
+        ]
+    };
+}
+
 void CheckThrows<TException>(Action action, string name) where TException : Exception
 {
     try
@@ -512,4 +624,27 @@ sealed class FakeIntentosCompraService : IIntentosCompraService
         ReadCancellationToken = cancellationToken;
         return ReadException is null ? Task.FromResult(ReadResponse) : Task.FromException<IniciarIntentoCompraResponseDto>(ReadException);
     }
+}
+
+sealed class FakeItinerariosService : IItinerariosService
+{
+    public IReadOnlyList<ItinerarioDto> Offers { get; set; } = [];
+    public Action? BeforeReturn { get; set; }
+    public int SearchCount { get; private set; }
+    public DateOnly LastDate { get; private set; }
+
+    public Task<IReadOnlyList<ItinerarioDto>> BuscarAsync(string? origenId, string? destinoId, DateOnly fecha)
+    {
+        SearchCount++;
+        LastDate = fecha;
+        BeforeReturn?.Invoke();
+        return Task.FromResult(Offers);
+    }
+}
+
+sealed class FakeTimeProvider(DateTimeOffset utcNow) : TimeProvider
+{
+    private DateTimeOffset _utcNow = utcNow;
+    public override DateTimeOffset GetUtcNow() => _utcNow;
+    public void SetUtcNow(DateTimeOffset value) => _utcNow = value;
 }
