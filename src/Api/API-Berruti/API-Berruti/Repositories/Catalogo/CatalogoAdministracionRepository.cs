@@ -51,6 +51,9 @@ public class CatalogoAdministracionRepository(BerrutiDbContext contexto) : ICata
         await using var transaccion = await contexto.Database.BeginTransactionAsync();
         try
         {
+            // Si otra sesión retiene filas, MySQL debe responder el error 1205 antes de que venza el timeout de comando
+            // del cliente (5 s): cuando vence primero, MySql.Data no completa la tarea async y la request queda colgada.
+            await contexto.Database.ExecuteSqlRawAsync("SET SESSION innodb_lock_wait_timeout = 3");
             await cambios();
             await contexto.SaveChangesAsync();
             await transaccion.CommitAsync();
@@ -60,6 +63,12 @@ public class CatalogoAdministracionRepository(BerrutiDbContext contexto) : ICata
         {
             contexto.ChangeTracker.Clear();
             throw new CatalogoConcurrenteException(e);
+        }
+        finally
+        {
+            // La conexión vuelve al pool: se restaura el valor del servidor para no afectar otros usos.
+            try { await contexto.Database.ExecuteSqlRawAsync("SET SESSION innodb_lock_wait_timeout = DEFAULT"); }
+            catch (System.Data.Common.DbException) { }
         }
     }
 }
