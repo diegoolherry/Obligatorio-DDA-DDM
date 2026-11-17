@@ -41,9 +41,12 @@ else if (Catalogo == null)
 }
 else
 {
-    <Alerta Tipo="@(HayError ? TipoAviso.Error : TipoAviso.Info)">@Mensaje</Alerta>
+    <div @ref="_aviso" tabindex="-1">
+        <Alerta Tipo="@(HayError ? TipoAviso.Error : TipoAviso.Info)">@Mensaje</Alerta>
+    </div>
     @if (_baja is { } baja)
     {
+        <div @ref="_confirmacion" tabindex="-1">
         <Alerta Tipo="TipoAviso.Advertencia" Titulo="Confirmar baja" aria-label="Confirmar baja" aria-busy="@Ocupado.ToString().ToLowerInvariant()">
             <p>¿Confirmás @(baja.Logica ? "dar de baja" : "eliminar") @baja.Descripcion?</p>
             @if (baja.Logica)
@@ -59,6 +62,7 @@ else
                 <button type="button" class="btn btn-secondary" disabled="@Ocupado" @onclick="CancelarBaja">Cancelar</button>
             </div>
         </Alerta>
+        </div>
     }
     <SeccionBloques Bloques="Catalogo.Bloques" Ocupado="Ocupado" Guardar="GuardarBloqueAsync" AlSolicitarBaja="SolicitarBaja" />
     <SeccionRutas Bloques="Catalogo.Bloques" Paradas="Paradas" Ocupado="Ocupado" Guardar="GuardarRutaAsync" AlSolicitarBaja="SolicitarBaja" />
@@ -73,6 +77,15 @@ else
     private bool Autorizado, Ocupado, HayError, Cargando;
     private string Mensaje = "Verificando tus permisos…";
     private BajaCatalogo? _baja;
+    // El aviso y la confirmación se muestran arriba de las secciones: se les pasa el foco para que queden a la vista.
+    private ElementReference _aviso, _confirmacion;
+    private bool _enfocarAviso, _enfocarConfirmacion;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_enfocarConfirmacion && _baja != null) { _enfocarConfirmacion = false; await _confirmacion.FocusAsync(); }
+        else if (_enfocarAviso) { _enfocarAviso = false; await _aviso.FocusAsync(); }
+    }
 
     protected override async Task OnInitializedAsync() => await ComprobarAccesoAsync();
 
@@ -129,11 +142,18 @@ else
     {
         if (Ocupado) return false;
         Ocupado = true;
+        StateHasChanged();
         try { return await operacion(); }
-        finally { Ocupado = false; }
+        finally
+        {
+            // Las secciones llaman a Guardar con un Func (no un EventCallback): sin esto la página no se vuelve a renderizar.
+            Ocupado = false;
+            _enfocarAviso = true;
+            StateHasChanged();
+        }
     }
 
-    private void SolicitarBaja(BajaCatalogo baja) { if (!Ocupado) _baja = baja; }
+    private void SolicitarBaja(BajaCatalogo baja) { if (!Ocupado) { _baja = baja; _enfocarConfirmacion = true; } }
     private void CancelarBaja() { if (!Ocupado) _baja = null; }
 
     private async Task ConfirmarBajaAsync()
@@ -156,6 +176,6 @@ else
             await RecargarAsync();
             if (error != null || !HayError) Informar(error, baja.Logica ? "Baja realizada. Los Servicios ya generados se conservan." : "Elemento eliminado.");
         }
-        finally { Ocupado = false; }
+        finally { Ocupado = false; _enfocarAviso = true; }
     }
 }
