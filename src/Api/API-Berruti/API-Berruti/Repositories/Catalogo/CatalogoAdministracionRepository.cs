@@ -55,7 +55,8 @@ public class CatalogoAdministracionRepository(BerrutiDbContext contexto) : ICata
             await contexto.SaveChangesAsync();
             await transaccion.CommitAsync();
         }
-        catch (DbUpdateException e)
+        // ExecuteDeleteAsync no pasa por SaveChanges: su error llega como DbException del proveedor, no DbUpdateException.
+        catch (Exception e) when (e is DbUpdateException or System.Data.Common.DbException)
         {
             contexto.ChangeTracker.Clear();
             throw new CatalogoConcurrenteException(e);
