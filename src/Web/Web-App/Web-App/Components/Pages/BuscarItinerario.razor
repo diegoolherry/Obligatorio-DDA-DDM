@@ -2,7 +2,9 @@
 @using System.ComponentModel.DataAnnotations
 @using System.Globalization
 @using Web_App.Models.Operational
+@using Web_App.Models.Purchase
 @using Web_App.Services.Operational
+@using Web_App.Components.Purchase
 @inject BusquedaItinerariosCliente Cliente
 @inject TimeProvider Reloj
 
@@ -50,6 +52,18 @@ else
         </div>
     </EditForm>
 
+    @if (CompraSeleccionada is not null)
+    {
+        @if (!CompraVisible)
+        {
+            <p role="status">Hay una compra en curso en este circuito.</p>
+            <button class="btn btn-primary" @onclick="() => CompraVisible = true">Volver a la compra en curso</button>
+        }
+        <div class="@(CompraVisible ? string.Empty : "d-none")">
+            <CompraItinerario Itinerario="@CompraSeleccionada" OnCerrar="@CerrarCompra" OnFinalizar="@FinalizarCompra" />
+        </div>
+    }
+
     @switch (Estado)
     {
         case EstadoBusqueda.Buscando:
@@ -64,33 +78,37 @@ else
             break;
         case EstadoBusqueda.Exito:
             <p role="status">@Itinerarios.Count @(Itinerarios.Count == 1 ? "itinerario encontrado" : "itinerarios encontrados") de @UltimaBusqueda.</p>
-            @foreach (var itinerario in Itinerarios)
+            @if (CompraSeleccionada is null)
             {
-                <article class="card mb-3">
-                    <div class="card-body">
-                        <h2 class="h5 card-title">
-                            @Hora(itinerario.Salida) → @Hora(itinerario.Llegada)
-                            · @(itinerario.Tramos.Count == 1 ? "Directo" : $"{itinerario.Tramos.Count} tramos")
-                            · Total @Precio(itinerario.PrecioTotal)
-                        </h2>
-                        <ul class="list-group">
-                            @foreach (var tramo in itinerario.Tramos.OrderBy(t => t.Orden))
-                            {
-                                <li class="list-group-item">
-                                    <strong>Tramo @tramo.Orden: @tramo.Origen.Nombre → @tramo.Destino.Nombre</strong><br />
-                                    Sale @Hora(tramo.Salida) · llega @Hora(tramo.Llegada) · @Precio(tramo.Importe)<br />
-                                    <span>Asiento: @Politica(tramo.PoliticaAsiento)</span>
-                                </li>
-                                @if (itinerario.Transbordo != null && tramo.Orden == 1)
+                @foreach (var itinerario in Itinerarios)
+                {
+                    <article class="card mb-3">
+                        <div class="card-body">
+                            <h2 class="h5 card-title">
+                                @Hora(itinerario.Salida) → @Hora(itinerario.Llegada)
+                                · @(itinerario.Tramos.Count == 1 ? "Directo" : $"{itinerario.Tramos.Count} tramos")
+                                · Total @Precio(itinerario.PrecioTotal)
+                            </h2>
+                            <ul class="list-group">
+                                @foreach (var tramo in itinerario.Tramos.OrderBy(t => t.Orden))
                                 {
-                                    <li class="list-group-item list-group-item-light">
-                                        Transbordo en @itinerario.Transbordo.Parada.Nombre: @itinerario.Transbordo.Minutos min de espera
+                                    <li class="list-group-item">
+                                        <strong>Tramo @tramo.Orden: @tramo.Origen.Nombre → @tramo.Destino.Nombre</strong><br />
+                                        Sale @Hora(tramo.Salida) · llega @Hora(tramo.Llegada) · @Precio(tramo.Importe)<br />
+                                        <span>Asiento: @Politica(tramo.PoliticaAsiento)</span>
                                     </li>
+                                    @if (itinerario.Transbordo != null && tramo.Orden == 1)
+                                    {
+                                        <li class="list-group-item list-group-item-light">
+                                            Transbordo en @itinerario.Transbordo.Parada.Nombre: @itinerario.Transbordo.Minutos min de espera
+                                        </li>
+                                    }
                                 }
-                            }
-                        </ul>
-                    </div>
-                </article>
+                            </ul>
+                            <button class="btn btn-primary mt-3" @onclick="() => SeleccionarCompra(itinerario)">Comprar este viaje</button>
+                        </div>
+                    </article>
+                }
             }
             break;
     }
@@ -116,6 +134,8 @@ else
     private string? ErrorBusqueda { get; set; }
     private string UltimaBusqueda { get; set; } = string.Empty;
     private bool ParadasIguales { get; set; }
+    private ItinerarioDto? CompraSeleccionada { get; set; }
+    private bool CompraVisible { get; set; } = true;
     private (string Origen, string Destino, DateOnly Fecha)? Ultima { get; set; }
     private bool Buscando => Estado == EstadoBusqueda.Buscando;
 
@@ -165,4 +185,17 @@ else
         PoliticaAsiento.AsignacionAutomatica => "asignación automática",
         _ => "no informada"
     };
+
+    private void SeleccionarCompra(ItinerarioDto itinerario)
+    {
+        if (CompraSeleccionada is not null) return;
+        CompraSeleccionada = itinerario;
+        CompraVisible = true;
+    }
+    private void CerrarCompra() => CompraVisible = false;
+    private void FinalizarCompra()
+    {
+        CompraSeleccionada = null;
+        CompraVisible = true;
+    }
 }

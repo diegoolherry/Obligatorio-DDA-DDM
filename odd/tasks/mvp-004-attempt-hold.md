@@ -225,3 +225,9 @@ All parts use delegated direct execution because they cross non-trivial code/tes
 - Una compilación intermedia señaló una referencia al helper renombrado; se corrigió antes de la verificación final. No se ejecutaron API, proveedor ni DB/MySQL.
 - Cobertura: no salida HTTP con ID inválido, DTO de pago malformado/mismatch/default, estados válidos, y sincronización con compra/tickets correlacionados.
 - Rollback: revertir únicamente este commit para quitar las guardias y regresiones del cliente Web, conservando UI/Mobile y backend.
+
+### PAY-01g8 - Flujo de compra Web
+- Corte: UI de compra y conexión con búsqueda; conserva el intento entre búsquedas, abre exclusivamente la `checkoutUrl` HTTPS devuelta por la API y permite sincronizar manualmente el mismo intento. El éxito resume compra/tickets sin QR/wallet/escaneo (MVP-005 fuera de alcance).
+- Prueba reutilizada del padre `3849f5d`: build del harness compila su referencia `Web-App` con estos mismos bytes Razor y terminó con 0 advertencias/errores; el harness fake pasó 164/164 y verifica el cliente, no el render.
+- Pendiente explícito: no hubo recorrido browser/UI, API iniciada, Checkout Pro vivo ni DB/MySQL; no se afirma MVP-004 completo ni E2E. La selección del producto Mercado Pago Checkout Pro TEST no representa una ejecución en proveedor.
+- Rollback: revertir solo UI de compra, integración en búsqueda y documentación cliente de esta unidad; mantener el cliente Web y backend en sus límites padres.
