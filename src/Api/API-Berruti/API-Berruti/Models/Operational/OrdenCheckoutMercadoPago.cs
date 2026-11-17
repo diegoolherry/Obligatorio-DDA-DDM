@@ -8,4 +8,5 @@ public sealed record OrdenCheckoutMercadoPago
     public required decimal ImportePagado { get; init; }
     public required string Moneda { get; init; }
     public required EstadoPago Estado { get; init; }
+    public string? CheckoutUrl { get; init; }
 }

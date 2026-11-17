@@ -243,8 +243,37 @@ var checkoutToken = "TEST-contract-token";
 var checkoutAmount = 125.50m;
 var checkoutReference = "payment-123";
 var checkoutResponse = """
-    {"id":"order-1","external_reference":"payment-123","total_amount":"125.50","total_paid_amount":"125.50","currency":"UYU","status":"processed","status_detail":"accredited"}
+    {"id":"order-1","external_reference":"payment-123","total_amount":"125.50","total_paid_amount":"125.50","currency":"UYU","status":"processed","status_detail":"accredited","checkout_url":"https://www.mercadopago.com.uy/checkout/v1/redirect?order_id=order-1"}
     """;
+var createHandler = new MockHttpMessageHandler((request, _) =>
+{
+    Check(request.Method == HttpMethod.Post, "checkout creation uses POST");
+    Check(request.RequestUri == new Uri("https://api.mercadopago.com/v1/orders"), "checkout creation uses the fixed Orders endpoint");
+    Check(request.Headers.Authorization?.Scheme == "Bearer" && request.Headers.Authorization.Parameter == checkoutToken, "TEST access token is sent as a bearer header");
+    Check(request.Headers.TryGetValues("X-Idempotency-Key", out var keys)
+        && keys.Single() == "11111111-1111-1111-1111-111111111111", "create uses the caller's stable idempotency UUID");
+    var body = JsonDocument.Parse(request.Content!.ReadAsStringAsync().GetAwaiter().GetResult()).RootElement;
+    Check(body.GetProperty("type").GetString() == "online"
+        && body.GetProperty("processing_mode").GetString() == "manual"
+        && body.GetProperty("total_amount").GetString() == "125.50"
+        && body.GetProperty("external_reference").GetString() == checkoutReference, "create sends the exact TEST order contract");
+    return JsonResponse(HttpStatusCode.Created, checkoutResponse);
+});
+var createClient = CreateCheckoutClient(createHandler);
+var createdOrder = await createClient.CrearOrdenAsync(
+    Guid.Parse("11111111-1111-1111-1111-111111111111"), checkoutReference, checkoutAmount);
+Check(createdOrder.Id == "order-1" && createdOrder.Estado == EstadoPago.Aprobado
+    && createdOrder.CheckoutUrl == "https://www.mercadopago.com.uy/checkout/v1/redirect?order_id=order-1", "create returns validated provider order and hosted URL");
+await CheckThrowsAsync<ArgumentException>(
+    () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, checkoutResponse)))
+        .CrearOrdenAsync(Guid.Empty, checkoutReference, checkoutAmount), "empty create idempotency key is rejected");
+await CheckThrowsAsync<ArgumentException>(
+    () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, checkoutResponse)))
+        .CrearOrdenAsync(Guid.NewGuid(), checkoutReference, 125.501m), "amount with more than two decimals is rejected without rounding");
+await CheckThrowsAsync<ArgumentException>(
+    () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, checkoutResponse)))
+        .CrearOrdenAsync(Guid.NewGuid(), " ", checkoutAmount), "blank external reference is rejected");
+
 await CheckThrowsAsync<ArgumentException>(
     () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, checkoutResponse)))
         .ConsultarOrdenAsync(" ", checkoutReference, checkoutAmount), "blank provider order ID is rejected");
@@ -318,6 +347,48 @@ foreach (var invalidSnapshot in new[]
         () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, invalidSnapshot)))
             .ConsultarOrdenAsync("order-1", checkoutReference, checkoutAmount), "mismatched provider facts reject reconciliation");
 }
+
+foreach (var (providerAmount, expectedAmount) in new[]
+{
+    ("1,25", 125m),
+    ("1,000.00", 1000m),
+    (" 125.50", 125.50m)
+})
+{
+    var invalidAmount = checkoutResponse
+        .Replace("125.50", providerAmount, StringComparison.Ordinal);
+    await CheckThrowsAsync<InvalidOperationException>(
+        () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, invalidAmount)))
+            .ConsultarOrdenAsync("order-1", checkoutReference, expectedAmount),
+        $"provider amount '{providerAmount}' is rejected instead of locale-normalized");
+}
+
+foreach (var unsafeUrl in new[]
+{
+    "http://www.mercadopago.com.uy/checkout",
+    "https://mercadopago.com.uy/checkout",
+    "https://attacker.example/checkout",
+    "https://user@www.mercadopago.com.uy/checkout"
+})
+{
+    var body = checkoutResponse.Replace("https://www.mercadopago.com.uy/checkout/v1/redirect?order_id=order-1", unsafeUrl, StringComparison.Ordinal);
+    await CheckThrowsAsync<InvalidOperationException>(
+        () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.Created, body)))
+            .CrearOrdenAsync(Guid.NewGuid(), checkoutReference, checkoutAmount), "unsafe hosted checkout URL is rejected");
+}
+
+var refundHandler = new MockHttpMessageHandler((request, _) =>
+{
+    Check(request.Method == HttpMethod.Post
+        && request.RequestUri == new Uri("https://api.mercadopago.com/v1/orders/order-1/refund"), "refund request uses official full-refund endpoint");
+    Check(request.Headers.TryGetValues("X-Idempotency-Key", out var keys)
+        && keys.Single() == "22222222-2222-2222-2222-222222222222", "refund uses the caller's stable idempotency UUID");
+    Check(request.Content is null, "full refund request sends no amount body");
+    return JsonResponse(HttpStatusCode.OK, "{}");
+});
+await CreateCheckoutClient(refundHandler).SolicitarDevolucionCompletaAsync(
+    "order-1", Guid.Parse("22222222-2222-2222-2222-222222222222"));
+Check(refundHandler.RequestCount == 1, "refund operation only submits a request and does not claim domain completion");
 
 CheckThrows<InvalidOperationException>(
     () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, checkoutResponse)), "PROD-secret"),

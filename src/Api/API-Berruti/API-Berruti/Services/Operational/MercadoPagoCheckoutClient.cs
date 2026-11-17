@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using API_Berruti.Models.Operational;
 
 namespace API_Berruti.Services.Operational;
@@ -20,6 +22,35 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         _httpClient.Timeout = RequestTimeout;
     }
 
+    public async Task<OrdenCheckoutMercadoPago> CrearOrdenAsync(
+        Guid claveIdempotencia,
+        string referenciaExterna,
+        decimal importe,
+        CancellationToken cancellationToken = default)
+    {
+        ValidarClaveIdempotencia(claveIdempotencia);
+        ValidarDatosEsperados(referenciaExterna, importe);
+
+        var body = new CrearOrdenRequest
+        {
+            Type = "online",
+            ProcessingMode = "manual",
+            TotalAmount = importe.ToString("F2", CultureInfo.InvariantCulture),
+            ExternalReference = referenciaExterna
+        };
+        using var request = CrearRequest(HttpMethod.Post, OrdersEndpoint);
+        request.Headers.Add("X-Idempotency-Key", claveIdempotencia.ToString("D"));
+        request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+
+        using var document = await EnviarAsync(request, cancellationToken);
+        var orden = LeerOrden(document.RootElement, expectedId: null, referenciaExterna, importe);
+        var checkoutUrl = LeerStringOpcional(document.RootElement, "checkout_url");
+        if (!EsCheckoutUrlSeguro(checkoutUrl))
+            throw ErrorProveedor();
+
+        return orden with { CheckoutUrl = checkoutUrl };
+    }
+
     public async Task<OrdenCheckoutMercadoPago> ConsultarOrdenAsync(
         string ordenId,
         string referenciaExternaEsperada,
@@ -33,6 +64,22 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         using var request = CrearRequest(HttpMethod.Get, endpoint);
         using var document = await EnviarAsync(request, cancellationToken);
         return LeerOrden(document.RootElement, ordenId, referenciaExternaEsperada, importeEsperado);
+    }
+
+    public async Task SolicitarDevolucionCompletaAsync(
+        string ordenId,
+        Guid claveIdempotencia,
+        CancellationToken cancellationToken = default)
+    {
+        ValidarIdOrden(ordenId);
+        ValidarClaveIdempotencia(claveIdempotencia);
+
+        var endpoint = new Uri($"{OrdersEndpoint.AbsoluteUri}/{Uri.EscapeDataString(ordenId)}/refund");
+        using var request = CrearRequest(HttpMethod.Post, endpoint);
+        request.Headers.Add("X-Idempotency-Key", claveIdempotencia.ToString("D"));
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            throw ErrorProveedor();
     }
 
     private HttpRequestMessage CrearRequest(HttpMethod method, Uri endpoint)
@@ -139,6 +186,18 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         return value.GetString();
     }
 
+    private static bool EsCheckoutUrlSeguro(string? value)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri))
+            return false;
+
+        return uri.Scheme == Uri.UriSchemeHttps
+            && string.Equals(uri.Host, "www.mercadopago.com.uy", StringComparison.OrdinalIgnoreCase)
+            && uri.IsDefaultPort
+            && string.IsNullOrEmpty(uri.UserInfo)
+            && string.IsNullOrEmpty(uri.Fragment);
+    }
+
     private static decimal LeerDecimalRequerido(JsonElement root, string name)
     {
         if (!root.TryGetProperty(name, out var value))
@@ -146,7 +205,7 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
 
         var parsed = value.ValueKind switch
         {
-            JsonValueKind.String => decimal.TryParse(value.GetString(), NumberStyles.Number, CultureInfo.InvariantCulture, out var parsedString)
+            JsonValueKind.String => decimal.TryParse(value.GetString(), NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var parsedString)
                 ? parsedString
                 : throw ErrorProveedor(),
             JsonValueKind.Number => value.TryGetDecimal(out var parsedNumber)
@@ -176,7 +235,28 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
             throw new ArgumentException("El identificador de orden no es válido.", nameof(ordenId));
     }
 
+    private static void ValidarClaveIdempotencia(Guid claveIdempotencia)
+    {
+        if (claveIdempotencia == Guid.Empty)
+            throw new ArgumentException("La clave de idempotencia es obligatoria.", nameof(claveIdempotencia));
+    }
+
     private static InvalidOperationException ErrorProveedor() =>
         new("Mercado Pago no devolvió una respuesta válida para la operación.");
+
+    private sealed class CrearOrdenRequest
+    {
+        [JsonPropertyName("type")]
+        public required string Type { get; init; }
+
+        [JsonPropertyName("processing_mode")]
+        public required string ProcessingMode { get; init; }
+
+        [JsonPropertyName("total_amount")]
+        public required string TotalAmount { get; init; }
+
+        [JsonPropertyName("external_reference")]
+        public required string ExternalReference { get; init; }
+    }
 
 }
