@@ -818,6 +818,69 @@ var getHandler = new MockHttpMessageHandler((request, _) =>
 var readOrder = await CreateCheckoutClient(getHandler).ConsultarOrdenAsync("provider/id", checkoutReference, checkoutAmount);
 Check(readOrder.Id == "provider/id" && readOrder.Estado == EstadoPago.Aprobado, "GET validates requested order identity");
 
+var searchStartUtc = new DateTime(2026, 11, 16, 14, 0, 0, DateTimeKind.Utc);
+var searchEndUtc = searchStartUtc.AddMinutes(10);
+var searchedOrderJson = """
+    {"id":"order-1","external_reference":"payment-123","total_amount":"125.50","total_paid_amount":"125.50","currency":"UYU","status":"processed","status_detail":"accredited"}
+    """;
+var searchHandler = new MockHttpMessageHandler((request, _) =>
+{
+    Check(request.Method == HttpMethod.Get && request.RequestUri!.GetLeftPart(UriPartial.Path) == "https://api.mercadopago.com/v1/orders",
+        "lost-order recovery uses the fixed public Orders search endpoint");
+    Check(request.Headers.Authorization?.Scheme == "Bearer" && request.Headers.Authorization.Parameter == checkoutToken,
+        "lost-order recovery uses the configured TEST bearer credential");
+    var query = Uri.UnescapeDataString(request.RequestUri!.Query);
+    Check(query.Contains("begin_date=2026-11-16T14:00:00", StringComparison.Ordinal)
+        && query.Contains("end_date=2026-11-16T14:10:00", StringComparison.Ordinal)
+        && query.Contains("external_reference=payment-123", StringComparison.Ordinal)
+        && query.Contains("limit=2", StringComparison.Ordinal) && query.Contains("offset=0", StringComparison.Ordinal),
+        "lost-order search bounds its UTC window and requests a two-row ambiguity check for one payment reference");
+    return JsonResponse(HttpStatusCode.OK,
+        $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}");
+});
+var searchedOrder = await CreateCheckoutClient(searchHandler).BuscarOrdenAsync(
+    checkoutReference, searchStartUtc, searchEndUtc, checkoutAmount);
+Check(searchedOrder is { Id: "order-1", Estado: EstadoPago.Aprobado, CheckoutUrl: null },
+    "one complete matching result recovers validated order facts without inventing a checkout URL");
+
+var emptySearch = await CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK,
+    "{\"data\":[],\"paging\":{\"total\":0,\"total_pages\":0,\"offset\":0,\"limit\":2}}")))
+    .BuscarOrdenAsync(checkoutReference, searchStartUtc, searchEndUtc, checkoutAmount);
+Check(emptySearch is null, "empty authoritative order search preserves the unknown-payment outcome");
+foreach (var ambiguousSearch in new[]
+{
+    $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":2,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}",
+    $"{{\"data\":[{searchedOrderJson},{searchedOrderJson.Replace("order-1", "order-2", StringComparison.Ordinal)}],\"paging\":{{\"total\":2,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}",
+    $"{{\"data\":[{searchedOrderJson.Replace("payment-123", "other-payment", StringComparison.Ordinal)}],\"paging\":{{\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}",
+    $"{{\"data\":[{searchedOrderJson.Replace("125.50", "125.51", StringComparison.Ordinal)}],\"paging\":{{\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}",
+    $"{{\"data\":[{searchedOrderJson.Replace("UYU", "USD", StringComparison.Ordinal)}],\"paging\":{{\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}",
+    "{\"data\":[],\"paging\":{\"total\":0,\"total_pages\":0,\"offset\":1,\"limit\":2}}"
+})
+{
+    await CheckThrowsAsync<InvalidOperationException>(
+        () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, ambiguousSearch)))
+            .BuscarOrdenAsync(checkoutReference, searchStartUtc, searchEndUtc, checkoutAmount),
+        "ambiguous, truncated, mismatched, or malformed pagination never binds a recovered order");
+}
+var invalidWindowHandler = new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, "{}"));
+await CheckThrowsAsync<ArgumentException>(
+    () => CreateCheckoutClient(invalidWindowHandler).BuscarOrdenAsync(
+        checkoutReference, searchEndUtc, searchStartUtc, checkoutAmount),
+    "reversed recovery time windows are rejected before HTTP");
+Check(invalidWindowHandler.RequestCount == 0, "invalid recovery window issues no provider request");
+await CheckThrowsAsync<InvalidOperationException>(
+    () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.InternalServerError, "offline")))
+        .BuscarOrdenAsync(checkoutReference, searchStartUtc, searchEndUtc, checkoutAmount),
+    "order search network failures remain an unknown reconciliation result");
+using (var canceledSearch = new CancellationTokenSource())
+{
+    canceledSearch.Cancel();
+    await CheckThrowsAsync<OperationCanceledException>(
+        () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => throw new OperationCanceledException()))
+            .BuscarOrdenAsync(checkoutReference, searchStartUtc, searchEndUtc, checkoutAmount, canceledSearch.Token),
+        "caller cancellation propagates through order recovery search");
+}
+
 foreach (var (status, statusDetail, paid, expected) in new (string Status, string? Detail, string Paid, EstadoPago Expected)[]
 {
     ("processed", "accredited", "125.50", EstadoPago.Aprobado),
@@ -1454,6 +1517,11 @@ sealed class FakeMercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         decimal importeEsperado,
         CancellationToken cancellationToken = default) =>
         Task.FromException<OrdenCheckoutMercadoPago>(new NotSupportedException());
+
+    public Task<OrdenCheckoutMercadoPago?> BuscarOrdenAsync(
+        string referenciaExternaEsperada, DateTime desdeUtc, DateTime hastaUtc, decimal importeEsperado,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<OrdenCheckoutMercadoPago?>(null);
 
     public Task SolicitarDevolucionCompletaAsync(
         string ordenId,
