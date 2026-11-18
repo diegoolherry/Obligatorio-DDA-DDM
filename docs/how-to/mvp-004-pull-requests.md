@@ -1,10 +1,10 @@
 # MVP-004 — borradores locales de PR en cadena
 
-**Estado:** hay 27 borradores encadenados con ramas locales verificadas. El corte de reintentos incluye los commits `00fc202`, `13858ba` y `fd80d0b`; los aliases y commits históricos se conservan sin reescritura. Los cuerpos están preparados para GitHub, no publicados: no hay PRs remotos, números ni URLs.
+**Estado:** hay 27 borradores encadenados previos; el corte 28 de preparación aislada está en implementación en `test/mvp-004-entorno-aislado`, basado en `d7b0a46`, sin commit todavía. El corte de reintentos incluye `00fc202`, `13858ba` y `fd80d0b`; aliases e historial se conservan. Los cuerpos son locales y no publicados: no hay PRs remotos, números ni URLs.
 
 ## Base de cadena y límites
 
-- Tracker: feat/mvp-004-base-compra, base main, head da5282c. Su diff real es 31 archivos, +2.876/−21 = 2.897 líneas; no hay excepción de tamaño registrada. Abrirlo solo como borrador/no-merge y mantenerlo bloqueado hasta resolver tamaño y revisión.
+- Tracker: feat/mvp-004-base-compra, base main, head da5282c. Su diff real es 31 archivos, +2.876/−21 = 2.897 líneas; el usuario aprobó explícitamente esa excepción de tamaño. Sigue bloqueado para merge hasta revisión e integración verificables; abrir solo como borrador/no-merge.
 - feat/mvp-004-attempt-hold en c1e3605 es una rama hermana, no ancestro de la cadena activa; no usarla como base. feat/mvp-004 sigue en main. Alias antiguos y originales permanecen intactos.
 - Cada cuerpo indica base, head, conteo Git, dependencia anterior, siguiente corte, alcance, evidencia y reversión acotada. Los resultados históricos se citan como tales; esta preparación no repitió suites.
 - El orden de los borradores forma una cadena: cada base es el alias anterior seleccionado; el head aparece con el marcador 📍. Las dos combinaciones autorizadas son f599a70..0ee5507 (intentos HTTP + política) y 08004ca..d6b1500 (flujo Mobile + evidencia).
@@ -279,12 +279,22 @@ Cadena: fix/mvp-004-reintentos-compra → 📍 docs/mvp-004-verificacion-compra.
 Base: fix/mvp-004-reintentos-compra. Head: docs/mvp-004-verificacion-compra. Diff: 5 archivos, +395/−5 (400).
 Alcance: guía MySQL/TEST, corrección de correlación por pago, configuración, evidencia del backlog y estos cuerpos de PR. Asunto de este corte: docs: documentar verificaciones y límites de compra.
 Verificación: regresión del SQL extraído: Node v24.20 SQLite :memory:, RED antes/GREEN después; PG-R 0/0/0/0 y PG-A 1/2/2/2. No demuestra MySQL.
-Dependencia: fix/mvp-004-reintentos-compra. Siguiente: aceptación MVP-004 aún pendiente. Revertir solo este corte documental.
+Dependencia: fix/mvp-004-reintentos-compra. Siguiente: test/mvp-004-entorno-aislado. Revertir solo este corte documental.
+~~~~
+
+### 28 — MVP-004: preparar el entorno aislado de compra
+
+~~~~markdown
+Cadena: docs/mvp-004-verificacion-compra → 📍 test/mvp-004-entorno-aislado.
+Base: docs/mvp-004-verificacion-compra (d7b0a46). Head: test/mvp-004-entorno-aislado. Diff: 6 archivos, +167/−38 (205).
+Alcance: permitir solo la tupla PurchaseTests/berruticomprastests/berruti_purchase_test y preparar con opt-in una base externa vacía usando migraciones y el escenario existente. No crea DB/usuario ni limpia. Esta implementación no ejecutó MySQL, API ni proveedor.
+Verificación: AuthenticationSessions focused RED (9/10, exit 1) y GREEN (10/10, exit 0); MySqlPurchase build 0 warnings/errors; --plan exit 0; --prepare y --run sin opt-in exit 2. Sin conexión ni SQL.
+Dependencia: borradores locales MVP-004 en d7b0a46. Siguiente: solo después de autorización separada, provisión DBA y corrida manual; no publicar aún. Revertir solo el guard de entorno, preparación y pruebas.
 ~~~~
 
 ## Gate compartido y tamaño
 
-- La base main..da5282c (2.897 líneas) no tiene excepción aprobada y sigue bloqueada para merge; su partición conocida es contratos 269, inventario/migración/SQL/tests 1.262 y artefactos de paradas 1.368. No dividir generados ni inferir una excepción.
+- La base main..da5282c (2.897 líneas) tiene la excepción de tamaño aprobada; merge sigue bloqueado por revisión e integración pendientes. Su partición conocida es contratos 269, inventario/migración/SQL/tests 1.262 y artefactos de paradas 1.368; no dividir generados ni inferir otras excepciones.
 - RS-02 mide 1.072 incluyendo 17 líneas del tracker (+10/−7); su runtime aprobado es 1.055. Las excepciones existentes aplican solo a RS-01 (1.997), RS-02 (1.055), persistencia (2.664), inicio (1.030) y conciliación (454).
 - La lineage nativa review-57b85cc83735366a sigue correction_required: el STATUS nativo entregó el hallazgo R3-001 al preparar los documentos pendientes para versionarlos. Se registró el plan acotado de 80 líneas; la continuación posterior terminó en captured_artifacts_unverifiable. La corrección local y sus pruebas no equivalen a aprobación nativa. No hubo ACK; la recuperación de los artefactos sigue pendiente.
-- MVP-004 sigue in_progress. La API rechaza `berruticomprastests` y no hay provisionador seguro del fixture; una ejecución requiere aprobación explícita del nuevo entorno/guard y de su preparación. No se ejecutaron MySQL, pago real de Mercado Pago TEST, API startup, UI/E2E ni revisión humana de Diego. --plan y rechazo sin opt-in no son pruebas SQL.
+- MVP-004 sigue in_progress. El guard y modo de preparación aislada están implementados, pero el DBA aún debe provisionar DB/cuenta; ningún modo con opt-in ni migración/seed se ejecutó. No se ejecutaron MySQL, pago real de Mercado Pago TEST, API startup, UI/E2E ni revisión humana de Diego. --plan y rechazo sin opt-in no son pruebas SQL.

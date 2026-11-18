@@ -1,15 +1,16 @@
-using System.Net;
 using API_Berruti.Data;
+using API_Berruti.DTOs.Authentication;
 using API_Berruti.DTOs.Operational;
+using API_Berruti.Models.Authentication;
 using API_Berruti.Models.Operational;
 using API_Berruti.Repositories.Authentication;
 using API_Berruti.Repositories.Operational;
 using API_Berruti.Services.Identifiers;
 using API_Berruti.Services.Operational;
+using API_Berruti.Security.Authentication;
 using Microsoft.EntityFrameworkCore;
-using MySql.Data.MySqlClient;
 
-const string uso = "Use no arguments or --plan for a safe plan. Database writes require --run --allow-test-db-writes and an externally prepared isolated fixture.";
+const string uso = "Use no arguments or --plan for a safe plan. Prepare an externally created empty fixture with --prepare --allow-test-db-writes; purchase checks require --run --allow-test-db-writes.";
 
 if (args.Length == 0 || args.SequenceEqual(["--plan"]))
 {
@@ -18,16 +19,22 @@ if (args.Length == 0 || args.SequenceEqual(["--plan"]))
     return 0;
 }
 
-if (!args.Contains("--run", StringComparer.Ordinal) ||
-    !args.Contains("--allow-test-db-writes", StringComparer.Ordinal) || args.Length != 2)
+var preparar = args.SequenceEqual(["--prepare", "--allow-test-db-writes"]);
+var ejecutar = args.SequenceEqual(["--run", "--allow-test-db-writes"]);
+if (!preparar && !ejecutar)
 {
-    Console.Error.WriteLine("REFUSED: --run and --allow-test-db-writes are both required before configuration is read.");
+    Console.Error.WriteLine("REFUSED: choose exactly --prepare or --run together with --allow-test-db-writes before configuration is read.");
     Console.Error.WriteLine(uso);
     return 2;
 }
 
 try
 {
+    if (preparar)
+    {
+        await PrepararFixtureAsync();
+        return 0;
+    }
     var fixture = PurchaseFixture.FromEnvironment();
     await RunAsync(fixture);
     Console.WriteLine("MySQL purchase integration checks passed. Test rows and occupied seats were intentionally retained.");
@@ -160,6 +167,59 @@ static async Task RunAsync(PurchaseFixture fixture)
 static BerrutiDbContext CrearContexto(string connectionString) =>
     new(new DbContextOptionsBuilder<BerrutiDbContext>().UseMySQL(connectionString).Options);
 
+static async Task PrepararFixtureAsync()
+{
+    var connectionString = ConnectionSettings.Build();
+    await using var contexto = CrearContexto(connectionString);
+    await contexto.Database.OpenConnectionAsync();
+    await VerificarDestinoAsync(contexto);
+
+    await using (var command = contexto.Database.GetDbConnection().CreateCommand())
+    {
+        command.CommandText = "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()";
+        var tableCount = Convert.ToInt64(await command.ExecuteScalarAsync());
+        if (tableCount != 0)
+            throw new HarnessFailure("fixture preparation refused: database must contain no tables; no cleanup was attempted");
+    }
+
+    var password = Environment.GetEnvironmentVariable("DemoSeed__Contrasena");
+    if (string.IsNullOrWhiteSpace(password) || password.Length > 255)
+        throw new HarnessFailure("fixture preparation requires the existing private DemoSeed__Contrasena setting");
+
+    await contexto.Database.MigrateAsync();
+    var prefixes = new[] { "US-", "RO-", "SA-", "IC-", "PG-", "CO-", "CS-", "TI-" };
+    var presentPrefixes = await contexto.Contadores.Select(c => c.Prefijo).ToHashSetAsync();
+    contexto.Contadores.AddRange(prefixes.Where(prefix => !presentPrefixes.Contains(prefix))
+        .Select(prefix => new ContadorEntidad { Prefijo = prefix, Ultimo = prefix == "SA-" ? 1 : 0 }));
+    await contexto.SaveChangesAsync();
+    contexto.ChangeTracker.Clear();
+
+    var contadores = new ContadoresRepository(contexto, new Correlativo());
+    var cuentas = new CuentasRepository(contexto, contadores);
+    var rol = await cuentas.CrearRolAsync(RolIngreso.Pasajero);
+    var pasajero = await cuentas.CrearUsuarioAsync("pasajero.purchase@example.test", password, rol.Identificador);
+    var escenario = EscenarioOperativoDemo.Construir(DateTime.Today.AddDays(1));
+    contexto.Paradas.AddRange(escenario.Paradas);
+    contexto.Tramos.AddRange(escenario.Tramos);
+    contexto.Salidas.AddRange(escenario.Salidas);
+    contexto.ParadasSalida.AddRange(escenario.ParadasSalida);
+    contexto.AsientosSalida.AddRange(escenario.AsientosSalida);
+    contexto.Servicios.AddRange(escenario.Servicios);
+    contexto.Tarifas.AddRange(escenario.Tarifas);
+    await contexto.SaveChangesAsync();
+
+    var sinAsiento = escenario.Servicios.Single(s => s.PoliticaAsiento == PoliticaAsiento.SinAsiento);
+    var asignado = escenario.Servicios.Single(s => s.PoliticaAsiento == PoliticaAsiento.AsignacionAutomatica);
+    if (!pasajero.Activo) throw new HarnessFailure("prepared passenger is not active");
+    var fixture = new PurchaseFixture(connectionString, pasajero.IdentificadorPublico, sinAsiento.Id, asignado.Id);
+    await VerificarFixtureAsync(contexto, fixture, new RelojPrueba(DateTimeOffset.UtcNow));
+    Console.WriteLine("Purchase fixture prepared. Save these non-secret values for the later opted-in harness run:");
+    Console.WriteLine($"BERUTI_MYSQL_PURCHASE_TEST_PASSENGER_SUBJECT={pasajero.IdentificadorPublico}");
+    Console.WriteLine($"BERUTI_MYSQL_PURCHASE_TEST_SERVICE_NO_SEAT={sinAsiento.Id}");
+    Console.WriteLine($"BERUTI_MYSQL_PURCHASE_TEST_SERVICE_ASSIGNED={asignado.Id}");
+    Console.WriteLine("No password, token, connection string, or QR value was printed. Rows were retained; no cleanup is available.");
+}
+
 static async Task VerificarDestinoAsync(BerrutiDbContext contexto)
 {
     await using var command = contexto.Database.GetDbConnection().CreateCommand();
@@ -168,7 +228,8 @@ static async Task VerificarDestinoAsync(BerrutiDbContext contexto)
     Verificar(await reader.ReadAsync(), "database identity query returns a row");
     var database = reader.GetString(0);
     var databaseUser = reader.GetString(1).Split('@')[0];
-    Verificar(database == PurchaseFixture.DatabaseName && !databaseUser.Equals("root", StringComparison.OrdinalIgnoreCase),
+    Verificar(database == PurchaseFixture.DatabaseName &&
+        databaseUser.Equals(PurchaseFixture.DatabaseUser, StringComparison.OrdinalIgnoreCase),
         "connected server identity remains the dedicated non-root test database");
 }
 
@@ -318,21 +379,15 @@ static class ConnectionSettings
     {
         var raw = Environment.GetEnvironmentVariable("BERUTI_MYSQL_PURCHASE_TEST_CONNECTION");
         if (string.IsNullOrWhiteSpace(raw)) throw new HarnessFailure("required test connection environment variable is missing");
-        MySqlConnectionStringBuilder builder;
-        try { builder = new MySqlConnectionStringBuilder(raw); }
-        catch { throw new HarnessFailure("test connection string is invalid"); }
-        var loopback = builder.Server.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-            (IPAddress.TryParse(builder.Server, out var address) && IPAddress.IsLoopback(address));
-        if (!loopback || builder.Port != 3306 || builder.Database != PurchaseFixture.DatabaseName ||
-            builder.UserID.Equals("root", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(builder.Password))
-            throw new HarnessFailure("connection must target loopback:3306, the dedicated database, and a non-root user");
-        return builder.ConnectionString;
+        try { return ConfiguracionAutenticacion.ValidarConexion(raw, "PurchaseTests").ConnectionString; }
+        catch { throw new HarnessFailure("connection must match the dedicated loopback purchase-test environment tuple"); }
     }
 }
 
 sealed record PurchaseFixture(string ConnectionString, string Pasajero, string ServicioSinAsiento, string ServicioAsignado)
 {
     public const string DatabaseName = "berruticomprastests";
+    public const string DatabaseUser = "berruti_purchase_test";
 
     public static PurchaseFixture FromEnvironment()
     {

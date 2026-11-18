@@ -5,35 +5,41 @@ Esta guía separa evidencia local ya observada de pruebas futuras que requieren 
 ## Estado de evidencia
 
 - **Observado, offline/fake:** PaymentContracts 269/269; API build sin errores; WebPurchase 164/164 y build Web sin advertencias/errores; MobilePurchase 14/14 y `npm run typecheck` exit 0. Son harnesses deterministas, no prueban una base MySQL, HTTP integrado ni Checkout Pro real.
-- **Preparado, no ejecutado:** `tests/MySqlPurchase` compila y su `--plan` es de solo lectura; el modo de escritura no se ejecutó. No se ejecutaron consultas SQL, API iniciada, transacción MySQL ni pago del proveedor.
-- **Pendiente:** recorrido manual en Web y Mobile, verificación MySQL sobre fixture aislado y una transacción real del entorno TEST. La revisión humana cruzada también sigue pendiente.
+- **Preparado, no ejecutado:** `tests/MySqlPurchase` compila; `--plan` es de solo lectura y `--prepare` exige opt-in. No se ejecutaron consultas SQL, migraciones, seeds, API iniciada, transacción MySQL ni pago del proveedor.
+- **Pendiente:** provisión externa de DB/cuenta, fixture nuevo, verificación MySQL, recorrido manual Web/Mobile, una transacción real TEST y revisión humana cruzada.
 
 ## Bloqueos para ejecución real
 
-- `ConfiguracionAutenticacion.ValidarConexion` solo permite `Development/berrutilocal/berruti_app` o `AuthenticationTests/berrutiauthtests/berruti_test`; rechaza `berruticomprastests`, por lo que el harness y la API no pueden compartir hoy esa base aislada.
-- No existe un provisionador seguro para el fixture de compra. `scripts/reset-local-db.ps1` es destructivo y solo admite esos dos entornos; no lo uses para preparar o reutilizar otra base.
-- Antes de implementar esa capacidad hace falta aprobación explícita para un entorno de pruebas nuevo, su guard/allowlist de API y un preparador externo de esquema/fixture aislado. No se consultaron credenciales ni bases.
-- El túnel Cloudflare para Mobile no es una opción predeterminada y requeriría autorización separada. Checkout TEST usa un token privado solo en la API; no se ejecutaron API, UI ni proveedor.
+- `ConfiguracionAutenticacion.ValidarConexion` permite `PurchaseTests/berruticomprastests/berruti_purchase_test` solo en loopback:3306, además de los dos pares existentes. La DB y la cuenta deben crearse externamente por un DBA; el harness nunca las crea.
+- `--prepare --allow-test-db-writes` requiere una base vacía (cero tablas, incluida la historia de migraciones), aplica migraciones versionadas y siembra un pasajero de prueba más el escenario operativo existente. Si falla a mitad, no limpia ni reintenta: detente y pide revisión DBA. `scripts/reset-local-db.ps1` sigue siendo destructivo y no debe usarse.
+- La preparación lee `DemoSeed__Contrasena` solo tras opt-in. El flujo académico actual guarda y compara literalmente la contraseña; usa un valor de prueba desechable, nunca una contraseña real. No se imprime la contraseña; solo subject público e IDs de servicio.
+- Para API, configura `ConnectionStrings__Berruti` en el proceso y usa `ASPNETCORE_ENVIRONMENT=PurchaseTests` con el listener HTTPS existente; el arranque normal no migra ni siembra. Web usa InteractiveServer, así que sus llamadas al API son server-side y no requieren CORS de navegador. El listener/certificado TLS no se validó. El túnel Cloudflare para Mobile requiere autorización separada.
 - El review nativo sigue `correction_required`: `repair --preflight` fue de solo lectura y devolvió `unsupported`, una lineage, cero candidatos elegibles y ningún input requerido; no ofreció recuperación ni produjo ACK.
 
 ## Harness MySQL: solo con fixture aislado autorizado
 
-El harness no migra, crea esquema, reinicia ni limpia datos. Una corrida autorizada escribe compras, pagos, tickets y asientos y los conserva; no se debe reutilizar el fixture. El script de reinicio local es destructivo y no crea `berruticomprastests`; **no lo uses para preparar este harness**.
+El modo `--run` no migra, crea esquema, reinicia ni limpia datos. Una corrida autorizada escribe compras, pagos, tickets y asientos y los conserva; no se debe repetir sobre el mismo fixture. El modo separado `--prepare` solo aplica migraciones/seed tras opt-in explícito, provisión DBA previa y confirmación de base vacía. Si encuentra tablas o falla a mitad, rehúsa y no borra datos.
 
-Antes de cualquier corrida de escritura, una persona debe preparar por separado una base fresca `berruticomprastests` en MySQL de loopback, con usuario no-root y contraseña ficticia, esquema compatible ya aplicado, pasajero activo y dos servicios existentes que formen un itinerario conectado: primer tramo `sinAsiento`, segundo `asignacionAutomatica`. Los identificadores se obtienen del ambiente de prueba y nunca se codifican. La guarda requiere inventario inicial vacío de intentos, pagos, compras, tickets, holds y tramos de pago, contadores con capacidad y disponibilidad de asientos suficiente. La corrida deja filas y ocupaciones; no hay limpieza automática.
+Un DBA debe crear externamente la base fresca `berruticomprastests` y el usuario no-root `berruti_purchase_test` con acceso solo de loopback y permisos requeridos; el harness nunca crea la base ni el usuario. La preparación aplica migraciones versionadas y siembra el pasajero activo `pasajero.purchase@example.test` más el escenario existente de mañana: primer tramo `sinAsiento`, segundo `asignacionAutomatica`, salida con 46 asientos. Comprueba cero tablas antes de migrar. Ante cualquier error no limpia ni reintenta. Imprime solo el subject público y los IDs de ambos servicios para configurar el harness; nunca imprime la contraseña desechable.
 
-Las variables de proceso que consume el harness son `BERUTI_MYSQL_PURCHASE_TEST_CONNECTION`, `BERUTI_MYSQL_PURCHASE_TEST_PASSENGER_SUBJECT`, `BERUTI_MYSQL_PURCHASE_TEST_SERVICE_NO_SEAT` y `BERUTI_MYSQL_PURCHASE_TEST_SERVICE_ASSIGNED`. No leas valores de `.env` ni los pegues en comandos, documentación o chat. El guard valida loopback, puerto 3306, nombre exacto de base y usuario no-root; no reemplaza autorización del destino.
+La preparación lee `BERUTI_MYSQL_PURCHASE_TEST_CONNECTION` y `DemoSeed__Contrasena` solo después de ambos flags. El modo `--run` también requiere `BERUTI_MYSQL_PURCHASE_TEST_PASSENGER_SUBJECT`, `BERUTI_MYSQL_PURCHASE_TEST_SERVICE_NO_SEAT` y `BERUTI_MYSQL_PURCHASE_TEST_SERVICE_ASSIGNED`, configurados privadamente desde la salida segura. No leas valores de `.env` ni los pegues en comandos, documentación o chat. La conexión debe coincidir con la tupla exacta de API para `PurchaseTests` en loopback:3306.
 
 Consulta de plan, sin leer credenciales ni crear DbContext:
 
 ```powershell
-dotnet run --project tests/MySqlPurchase/MySqlPurchase.csproj -- --plan
+dotnet run --no-restore --project tests/MySqlPurchase/MySqlPurchase.csproj -- --plan
 ```
 
-Solo después de preparar y autorizar explícitamente el fixture de escritura, el modo opt-in es:
+Solo después de provisión DBA y autorización explícita, prepara la base vacía una vez:
 
 ```powershell
-dotnet run --project tests/MySqlPurchase/MySqlPurchase.csproj -- --run --allow-test-db-writes
+dotnet run --no-restore --project tests/MySqlPurchase/MySqlPurchase.csproj -- --prepare --allow-test-db-writes
+```
+
+Luego configura privadamente los tres valores públicos impresos. La verificación que escribe compras es otra operación y también requiere autorización explícita:
+
+```powershell
+dotnet run --no-restore --project tests/MySqlPurchase/MySqlPurchase.csproj -- --run --allow-test-db-writes
 ```
 
 El harness actual cubre aprobación con dos tickets (un tramo sin asiento y otro asignado), idempotencia concurrente del mismo pago, asignación concurrente sin colisión/reuso de asiento confirmado, estado desconocido y rechazo con reintento dentro del hold original, aprobación tardía con devolución pendiente/rollback de contadores y fallo inyectado con rollback. Los órdenes de proveedor son DTOs controlados: esta prueba **no llama a Mercado Pago**. No agregues `--run` solo ni repitas sobre datos ya escritos; ambos son una condición de rechazo o de fixture no fresco.
@@ -87,7 +93,14 @@ Para revisar solapamientos confirmados, el conteo debe ser cero cuando se compar
 
 ## Checkout Pro TEST y clientes
 
-Es un recorrido separado del harness MySQL. Requiere API configurada fuera del repositorio con `ConnectionStrings__Berruti` y credencial privada `MercadoPago__AccessToken` de TEST. Nunca uses estas claves en `EXPO_PUBLIC_*`; no guardes tarjeta/CVV, tokens, credenciales ni QR en logs o capturas. No se validó una URL de retorno común ni deep link: después de cerrar el checkout, vuelve manualmente a la misma pestaña Web o a la app Mobile y pulsa **Verificar pago** para sincronizar el mismo intento. El retorno del navegador no confirma la compra.
+Es un recorrido separado del harness MySQL. Requiere API configurada fuera del repositorio con `ConnectionStrings__Berruti` y credencial privada `MercadoPago__AccessToken` de TEST. Para usar la pareja aislada, configura esos valores privadamente en el proceso, configura `Api__BaseUrl` del Web como `https://localhost:7053` y arranca sin el perfil Development usando el listener HTTPS existente:
+
+```powershell
+$env:ASPNETCORE_ENVIRONMENT = 'PurchaseTests'
+dotnet run --no-restore --project src/Api/API-Berruti/API-Berruti/API-Berruti.csproj --no-launch-profile -- --urls https://localhost:7053
+```
+
+El puerto HTTPS proviene del perfil existente; este comando futuro no fue ejecutado y el listener/certificado TLS requiere verificación manual tras autorización. El arranque normal no migra ni siembra. Nunca uses estas claves en `EXPO_PUBLIC_*`; no guardes tarjeta/CVV, tokens, credenciales ni QR en logs o capturas. No se validó una URL de retorno común ni deep link: después de cerrar el checkout, vuelve manualmente a la misma pestaña Web o a la app Mobile y pulsa **Verificar pago** para sincronizar el mismo intento. El retorno del navegador no confirma la compra.
 
 En cada cliente, busca el itinerario de dos tramos, acepta explícitamente la cotización vigente, abre solo la URL HTTPS devuelta por la API y luego sincroniza el mismo intento. No crees otro intento/pago para resolver un resultado pendiente o desconocido. Confirma que el estado proviene de una respuesta autoritativa de la API, que la aprobación emite una compra con dos tickets distintos y el asiento esperado, y que rechazo/desconocido no emite tickets. Para aprobación tardía, confirma `DevolucionPendiente` y ausencia de compra/tickets; una solicitud de devolución no demuestra que el proveedor la completó.
 

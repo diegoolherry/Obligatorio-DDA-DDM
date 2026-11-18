@@ -22,9 +22,10 @@ using System.Security.Cryptography;
 using System.Text;
 using API_Berruti.Security.Authentication;
 
-if (!args.SequenceEqual(new[] { "--unit" }))
+var purchaseConfigurationOnly = args.SequenceEqual(new[] { "--purchase-configuration-unit" });
+if (!purchaseConfigurationOnly && !args.SequenceEqual(new[] { "--unit" }))
 {
-    Console.Error.WriteLine("Uso: --unit. Solo políticas puras; no inicia HTTP ni conecta MySQL.");
+    Console.Error.WriteLine("Uso: --unit o --purchase-configuration-unit. Solo pruebas puras; no inicia HTTP ni conecta MySQL.");
     return 1;
 }
 var fallos = 0;
@@ -38,6 +39,46 @@ void Prueba(string nombre, Func<bool> comprobar)
         Console.WriteLine($"PASS: {nombre}");
     }
     catch (Exception exception) { fallos++; Console.Error.WriteLine($"FAIL: {nombre} ({exception.GetType().Name}: {exception.Message})"); }
+}
+if (purchaseConfigurationOnly)
+{
+    const string purchase = "Server=localhost;Port=3306;Database=berruticomprastests;User ID=berruti_purchase_test;Password=ficticia";
+    Prueba("PurchaseTests acepta solo su tupla de loopback dedicada con flags endurecidos", () =>
+    {
+        var conexionCompra = ConfiguracionAutenticacion.ValidarConexion(purchase, "PurchaseTests");
+        return conexionCompra.Server == "localhost" && conexionCompra.Port == 3306 &&
+        conexionCompra.Database == "berruticomprastests" && conexionCompra.UserID == "berruti_purchase_test" &&
+        !conexionCompra.PersistSecurityInfo && !conexionCompra.AllowLoadLocalInfile;
+    });
+    Prueba("se conserva la tupla de Development existente", () =>
+    {
+        var connection = ConfiguracionAutenticacion.ValidarConexion(
+            "Server=127.0.0.1;Port=3306;Database=berrutilocal;User ID=berruti_app;Password=ficticia", "Development");
+        return connection.Database == "berrutilocal" && connection.UserID == "berruti_app";
+    });
+    Prueba("se conserva la tupla AuthenticationTests existente", () =>
+    {
+        var connection = ConfiguracionAutenticacion.ValidarConexion(
+            "Server=localhost;Port=3306;Database=berrutiauthtests;User ID=berruti_test;Password=ficticia", "AuthenticationTests");
+        return connection.Database == "berrutiauthtests" && connection.UserID == "berruti_test";
+    });
+    foreach (var (connectionString, environment) in new[]
+    {
+        (purchase, "Development"),
+        ("Server=localhost;Port=3306;Database=berrutiauthtests;User ID=berruti_purchase_test;Password=ficticia", "PurchaseTests"),
+        ("Server=localhost;Port=3306;Database=berruticomprastests;User ID=berruti_test;Password=ficticia", "PurchaseTests"),
+        ("Server=localhost;Port=3306;Database=berruticomprastests;User ID=root;Password=ficticia", "PurchaseTests"),
+        ("Server=remote;Port=3306;Database=berruticomprastests;User ID=berruti_purchase_test;Password=ficticia", "PurchaseTests"),
+        ("Server=localhost;Port=3307;Database=berruticomprastests;User ID=berruti_purchase_test;Password=ficticia", "PurchaseTests"),
+        ("Server=localhost;Port=3306;Database=berruticomprastests;User ID=berruti_purchase_test", "PurchaseTests"),
+    })
+        Prueba($"la tupla de compra rechaza combinaciones inválidas en {environment}", () =>
+        {
+            try { ConfiguracionAutenticacion.ValidarConexion(connectionString, environment); return false; }
+            catch (InvalidOperationException) { return true; }
+        });
+    Console.WriteLine($"Comprobaciones de configuración PurchaseTests: {pruebas - fallos} aprobadas, {fallos} fallidas.");
+    return fallos == 0 ? 0 : 1;
 }
 Prueba("S10 contratos específicos implementados y consumidos", () =>
 {
