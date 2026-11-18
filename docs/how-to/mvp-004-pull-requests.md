@@ -259,7 +259,7 @@ Cadena: fix/mvp-004-recuperacion-mobile → 📍 test/mvp-004-pruebas-mysql.
 Base: fix/mvp-004-recuperacion-mobile. Head: test/mvp-004-pruebas-mysql. Diff: 3 archivos, +397/−0 (397).
 Alcance: harness que exige fixture externo y opt-in explícito; sin migrar ni limpiar.
 Verificación: build offline 0 warnings/errors; --plan exit 0; --run sin opt-in exit 2. Ninguna consulta SQL/MySQL ejecutada.
-Dependencia: fix/mvp-004-recuperacion-mobile. Siguiente: test/mvp-004-reintento-rechazado. Revertir solo el harness.
+Dependencia: fix/mvp-004-recuperacion-mobile. Siguiente: fix/mvp-004-reintentos-compra. Revertir solo el harness.
 ~~~~
 
 ### 26 — MVP-004: proteger reintentos y aislar cada selección de compra Mobile
