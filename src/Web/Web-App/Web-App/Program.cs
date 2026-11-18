@@ -13,6 +13,7 @@ builder.Services.AddScoped<ISesionCliente, SesionCliente>();
 builder.Services.AddScoped<AdministracionOperativaCliente>();
 builder.Services.AddScoped<BusquedaItinerariosCliente>();
 builder.Services.AddScoped<CatalogoCliente>();
+builder.Services.AddScoped<AdministracionCatalogoCliente>();
 builder.Services.AddScoped<UbicacionPasajeroCliente>();
 builder.Services.AddHttpClient("Autenticacion", client =>
 {

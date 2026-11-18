@@ -21,9 +21,85 @@ public class CatalogoAdministracionService(ICatalogoRepository lectura, ICatalog
                 dto.Rutas = datos.Rutas.Where(r => r.BloqueId == b.Id).OrderBy(r => r.Clave, StringComparer.Ordinal)
                     .Select(r => Ruta(datos, r, servicios)).ToList();
                 return dto;
-            }).ToList()
+            }).ToList(),
+            Feriados = datos.Feriados.OrderBy(f => f.Fecha).Select(Feriado).ToList(),
+            Excepciones = datos.Excepciones.OrderBy(e => e.Desde).Select(Excepcion).ToList()
         };
     }
+
+    public async Task<FeriadoDto> CrearFeriadoAsync(FeriadoEscrituraDto dto)
+    {
+        var datos = await lectura.ObtenerAsync();
+        if (dto.Fecha is not { } fecha) throw new ArgumentException("La fecha es obligatoria.");
+        var feriado = new Feriado { Fecha = fecha.ToDateTime(TimeOnly.MinValue), Nombre = Texto(dto.Nombre, 100, "El nombre es obligatorio y tiene hasta 100 caracteres.") };
+        if (datos.Feriados.Any(f => f.Fecha == feriado.Fecha)) throw new CatalogoConflictoException($"Ya existe un feriado el {fecha:yyyy-MM-dd}.");
+        await escritura.AgregarFeriadoAsync(feriado);
+        return Feriado(feriado);
+    }
+
+    public async Task<FeriadoDto> ActualizarFeriadoAsync(DateOnly fecha, FeriadoEscrituraDto dto)
+    {
+        var dia = fecha.ToDateTime(TimeOnly.MinValue);
+        if ((await lectura.ObtenerAsync()).Feriados.All(f => f.Fecha != dia)) throw new KeyNotFoundException();
+        var feriado = new Feriado { Fecha = dia, Nombre = Texto(dto.Nombre, 100, "El nombre es obligatorio y tiene hasta 100 caracteres.") };
+        await escritura.ActualizarFeriadoAsync(feriado);
+        return Feriado(feriado);
+    }
+
+    public async Task EliminarFeriadoAsync(DateOnly fecha)
+    {
+        var dia = fecha.ToDateTime(TimeOnly.MinValue);
+        if ((await lectura.ObtenerAsync()).Feriados.All(f => f.Fecha != dia)) throw new KeyNotFoundException();
+        await escritura.EliminarFeriadoAsync(dia);
+    }
+
+    public async Task<ExcepcionAdministracionDto> CrearExcepcionAsync(ExcepcionEscrituraDto dto)
+    {
+        var excepcion = ValidarExcepcion(await lectura.ObtenerAsync(), new ExcepcionCalendario(), dto);
+        await escritura.AgregarExcepcionAsync(excepcion);
+        return Excepcion(excepcion);
+    }
+
+    public async Task<ExcepcionAdministracionDto> ActualizarExcepcionAsync(string id, ExcepcionEscrituraDto dto)
+    {
+        var datos = await lectura.ObtenerAsync();
+        ExcepcionVisible(datos, id);
+        var excepcion = ValidarExcepcion(datos, new ExcepcionCalendario { Id = id }, dto);
+        await escritura.ActualizarExcepcionAsync(excepcion);
+        return Excepcion(excepcion);
+    }
+
+    public async Task EliminarExcepcionAsync(string id)
+    {
+        ExcepcionVisible(await lectura.ObtenerAsync(), id);
+        await escritura.EliminarExcepcionAsync(id);
+    }
+
+    private static ExcepcionCalendario ValidarExcepcion(DatosCatalogo datos, ExcepcionCalendario excepcion, ExcepcionEscrituraDto dto)
+    {
+        if (dto.Desde is not { } desde || dto.Hasta is not { } hasta) throw new ArgumentException("Las fechas desde y hasta son obligatorias.");
+        if (hasta < desde) throw new ArgumentException("La fecha hasta no puede ser anterior a la fecha desde.");
+        if (dto.Tipo is not { } tipo || !Enum.IsDefined(tipo)) throw new ArgumentException("El tipo de excepción es obligatorio.");
+        var bloqueId = string.IsNullOrWhiteSpace(dto.BloqueId) ? null : dto.BloqueId;
+        if (bloqueId is not null && !datos.Bloques.Any(b => b.Id == bloqueId && b.Activo)) throw new ArgumentException("El bloque no existe o fue dado de baja.");
+        excepcion.BloqueId = bloqueId;
+        excepcion.Desde = desde.ToDateTime(TimeOnly.MinValue);
+        excepcion.Hasta = hasta.ToDateTime(TimeOnly.MinValue);
+        excepcion.Tipo = tipo;
+        excepcion.Motivo = Texto(dto.Motivo, 200, "El motivo es obligatorio y tiene hasta 200 caracteres.");
+        return excepcion;
+    }
+
+    // Una excepción de un bloque dado de baja queda oculta, igual que en la lectura pública.
+    private static ExcepcionCalendario ExcepcionVisible(DatosCatalogo datos, string id) =>
+        CatalogoActivo.Filtrar(datos).Excepciones.FirstOrDefault(e => e.Id == id) ?? throw new KeyNotFoundException();
+
+    private static FeriadoDto Feriado(Feriado f) => new() { Fecha = DateOnly.FromDateTime(f.Fecha), Nombre = f.Nombre };
+
+    private static ExcepcionAdministracionDto Excepcion(ExcepcionCalendario e) => new()
+    {
+        Id = e.Id, BloqueId = e.BloqueId, Desde = DateOnly.FromDateTime(e.Desde), Hasta = DateOnly.FromDateTime(e.Hasta), Tipo = e.Tipo, Motivo = e.Motivo
+    };
 
     public async Task<BloqueAdministracionDto> CrearBloqueAsync(BloqueEscrituraDto dto)
     {

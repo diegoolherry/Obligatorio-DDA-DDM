@@ -45,6 +45,18 @@ public class CatalogoAdministracionRepository(BerrutiDbContext contexto) : ICata
         contexto.HorasSalida.AddRange(horas);
     });
 
+    public Task AgregarFeriadoAsync(Feriado feriado) => GuardarAsync(() => { contexto.Feriados.Add(feriado); return Task.CompletedTask; });
+
+    public Task ActualizarFeriadoAsync(Feriado feriado) => GuardarAsync(() => { contexto.Feriados.Update(feriado); return Task.CompletedTask; });
+
+    public Task EliminarFeriadoAsync(DateTime fecha) => GuardarAsync(() => contexto.Feriados.Where(f => f.Fecha == fecha).ExecuteDeleteAsync());
+
+    public Task AgregarExcepcionAsync(ExcepcionCalendario excepcion) => GuardarAsync(() => { contexto.ExcepcionesCalendario.Add(excepcion); return Task.CompletedTask; });
+
+    public Task ActualizarExcepcionAsync(ExcepcionCalendario excepcion) => GuardarAsync(() => { contexto.ExcepcionesCalendario.Update(excepcion); return Task.CompletedTask; });
+
+    public Task EliminarExcepcionAsync(string id) => GuardarAsync(() => contexto.ExcepcionesCalendario.Where(e => e.Id == id).ExecuteDeleteAsync());
+
     // Cada cambio va en una transacción: si falla, no quedan paradas u horas a medias.
     private async Task GuardarAsync(Func<Task> cambios)
     {

@@ -7,6 +7,36 @@ namespace API_Berruti.DTOs.Catalogo;
 public class CatalogoAdministracionDto
 {
     public List<BloqueAdministracionDto> Bloques { get; set; } = [];
+    public List<FeriadoDto> Feriados { get; set; } = [];
+    // Excepciones globales y de bloques activos.
+    public List<ExcepcionAdministracionDto> Excepciones { get; set; } = [];
+}
+
+public class ExcepcionAdministracionDto
+{
+    public string Id { get; set; } = string.Empty;
+    // Nulo: aplica a todos los bloques.
+    public string? BloqueId { get; set; }
+    public DateOnly Desde { get; set; }
+    public DateOnly Hasta { get; set; }
+    public TipoExcepcion Tipo { get; set; }
+    public string Motivo { get; set; } = string.Empty;
+}
+
+public class FeriadoEscrituraDto
+{
+    // En PUT la fecha va en la ruta: no se puede cambiar.
+    public DateOnly? Fecha { get; set; }
+    public string? Nombre { get; set; }
+}
+
+public class ExcepcionEscrituraDto
+{
+    public string? BloqueId { get; set; }
+    public DateOnly? Desde { get; set; }
+    public DateOnly? Hasta { get; set; }
+    public TipoExcepcion? Tipo { get; set; }
+    public string? Motivo { get; set; }
 }
 
 public class BloqueAdministracionDto

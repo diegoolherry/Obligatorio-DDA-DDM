@@ -18,4 +18,11 @@ public interface ICatalogoAdministracionRepository
     Task ActualizarRutaAsync(RutaCatalogo ruta, IReadOnlyList<ParadaRuta>? paradas);
     Task AgregarSalidaAsync(SalidaCatalogo salida, IReadOnlyList<HoraSalida> horas);
     Task ActualizarSalidaAsync(SalidaCatalogo salida, IReadOnlyList<HoraSalida> horas);
+    // FIN-008-02: feriados y excepciones no tienen Servicios que dependan de ellos; se borran de verdad.
+    Task AgregarFeriadoAsync(Feriado feriado);
+    Task ActualizarFeriadoAsync(Feriado feriado);
+    Task EliminarFeriadoAsync(DateTime fecha);
+    Task AgregarExcepcionAsync(ExcepcionCalendario excepcion);
+    Task ActualizarExcepcionAsync(ExcepcionCalendario excepcion);
+    Task EliminarExcepcionAsync(string id);
 }

@@ -31,6 +31,18 @@ public class CatalogoAdministracionController(ICatalogoAdministracionService ser
         Ejecutar(() => service.ActualizarSalidaAsync(id, dto), Ok);
     [HttpDelete("salidas/{id}")] public Task<IActionResult> EliminarSalida(string id) => Eliminar(() => service.EliminarSalidaAsync(id));
 
+    [HttpPost("feriados")] public Task<ActionResult<FeriadoDto>> CrearFeriado(FeriadoEscrituraDto dto) =>
+        Ejecutar(() => service.CrearFeriadoAsync(dto), creado => CreatedAtAction(nameof(Obtener), creado));
+    [HttpPut("feriados/{fecha}")] public Task<ActionResult<FeriadoDto>> ActualizarFeriado(DateOnly fecha, FeriadoEscrituraDto dto) =>
+        Ejecutar(() => service.ActualizarFeriadoAsync(fecha, dto), Ok);
+    [HttpDelete("feriados/{fecha}")] public Task<IActionResult> EliminarFeriado(DateOnly fecha) => Eliminar(() => service.EliminarFeriadoAsync(fecha));
+
+    [HttpPost("excepciones")] public Task<ActionResult<ExcepcionAdministracionDto>> CrearExcepcion(ExcepcionEscrituraDto dto) =>
+        Ejecutar(() => service.CrearExcepcionAsync(dto), creada => CreatedAtAction(nameof(Obtener), creada));
+    [HttpPut("excepciones/{id}")] public Task<ActionResult<ExcepcionAdministracionDto>> ActualizarExcepcion(string id, ExcepcionEscrituraDto dto) =>
+        Ejecutar(() => service.ActualizarExcepcionAsync(id, dto), Ok);
+    [HttpDelete("excepciones/{id}")] public Task<IActionResult> EliminarExcepcion(string id) => Eliminar(() => service.EliminarExcepcionAsync(id));
+
     // El Service valida y lanza; acá se traduce cada caso esperado a su código HTTP.
     private async Task<ActionResult<T>> Ejecutar<T>(Func<Task<T>> accion, Func<T, ActionResult> exito)
     {

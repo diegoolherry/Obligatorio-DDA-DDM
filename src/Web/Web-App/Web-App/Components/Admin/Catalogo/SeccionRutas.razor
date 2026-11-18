@@ -1,0 +1,199 @@
+@using Web_App.Models.Catalogo
+@using Web_App.Models.Operational
+
+<section class="card mb-section" aria-labelledby="titulo-rutas">
+    <h2 id="titulo-rutas">Rutas y paradas</h2>
+    @if (Bloques.Count == 0)
+    {
+        <Alerta>Creá primero un bloque para poder cargar rutas.</Alerta>
+    }
+    else
+    {
+        <EditForm Model="_form" OnValidSubmit="GuardarAsync">
+            <DataAnnotationsValidator />
+            <ResumenValidacion />
+            @if (ServiciosEditados > 0)
+            {
+                <Alerta Tipo="TipoAviso.Advertencia" Titulo="Cambios solo para futuras generaciones">
+                    Esta ruta tiene @ServiciosEditados @(ServiciosEditados == 1 ? "Servicio generado" : "Servicios generados").
+                    Los cambios no modifican los Servicios que ya existen: se aplican solo a las próximas generaciones.
+                </Alerta>
+            }
+            <div class="grid-form">
+                <div class="field">
+                    <label for="ruta-bloque">Bloque</label>
+                    <InputSelect id="ruta-bloque" @bind-Value="_form.BloqueId">
+                        <option value="">Seleccioná un bloque</option>
+                        @foreach (var b in Bloques) { <option value="@b.Id">@b.Clave · @b.Nombre</option> }
+                    </InputSelect>
+                    <ValidationMessage For="() => _form.BloqueId" />
+                </div>
+                <div class="field">
+                    <label for="ruta-clave">Clave</label>
+                    <InputText id="ruta-clave" @ref="_primerCampo" @bind-Value="_form.Clave" />
+                    <ValidationMessage For="() => _form.Clave" />
+                </div>
+                <div class="field">
+                    <label for="ruta-familia">Familia</label>
+                    <InputText id="ruta-familia" @bind-Value="_form.Familia" />
+                    <ValidationMessage For="() => _form.Familia" />
+                </div>
+                <div class="field">
+                    <label for="ruta-nombre">Nombre</label>
+                    <InputText id="ruta-nombre" @bind-Value="_form.Nombre" />
+                    <ValidationMessage For="() => _form.Nombre" />
+                </div>
+            </div>
+            <fieldset class="field" aria-describedby="ruta-paradas-ayuda">
+                <legend>Paradas en orden de recorrido</legend>
+                <p id="ruta-paradas-ayuda">Una ruta necesita al menos dos paradas, sin repetir la misma de forma consecutiva.</p>
+                @if (ParadasBloqueadas)
+                {
+                    <Alerta Tipo="TipoAviso.Advertencia">
+                        Esta ruta tiene salidas activas: las paradas no se pueden cambiar hasta dar de baja sus salidas.
+                        Podés editar clave, familia y nombre.
+                    </Alerta>
+                }
+                @if (_form.ParadaIds.Count == 0)
+                {
+                    <p>Todavía no agregaste paradas.</p>
+                }
+                else
+                {
+                    <ol class="list-plain list-rows">
+                        @for (int i = 0; i < _form.ParadaIds.Count; i++)
+                        {
+                            int posicion = i;
+                            <li class="row-actions">
+                                <span>@(posicion + 1). @NombreParada(_form.ParadaIds[posicion])</span>
+                                <span>
+                                    <button type="button" class="btn btn-link" disabled="@(Ocupado || ParadasBloqueadas || posicion == 0)"
+                                            aria-label="Subir @NombreParada(_form.ParadaIds[posicion])" @onclick="() => Mover(posicion, -1)">Subir</button>
+                                    <button type="button" class="btn btn-link" disabled="@(Ocupado || ParadasBloqueadas || posicion == _form.ParadaIds.Count - 1)"
+                                            aria-label="Bajar @NombreParada(_form.ParadaIds[posicion])" @onclick="() => Mover(posicion, 1)">Bajar</button>
+                                    <button type="button" class="btn btn-link btn-danger-text" disabled="@(Ocupado || ParadasBloqueadas)"
+                                            aria-label="Quitar @NombreParada(_form.ParadaIds[posicion])" @onclick="() => Quitar(posicion)">Quitar</button>
+                                </span>
+                            </li>
+                        }
+                    </ol>
+                }
+                <div class="cluster">
+                    <label for="ruta-parada-nueva">Parada a agregar</label>
+                    <select id="ruta-parada-nueva" @bind="_paradaNueva" disabled="@(Ocupado || ParadasBloqueadas)">
+                        <option value="">Seleccioná una parada</option>
+                        @foreach (var p in Paradas) { <option value="@p.Id">@p.Nombre</option> }
+                    </select>
+                    <button type="button" class="btn btn-secondary" disabled="@(Ocupado || ParadasBloqueadas || string.IsNullOrEmpty(_paradaNueva))" @onclick="Agregar">Agregar parada</button>
+                </div>
+                @if (_errorParadas != null) { <p class="validation-message" role="alert">@_errorParadas</p> }
+            </fieldset>
+            <div class="cluster">
+                <button class="btn btn-primary" disabled="@Ocupado">@(_form.Id == null ? "Crear ruta" : "Guardar ruta")</button>
+                @if (_form.Id != null) { <button type="button" class="btn btn-secondary" disabled="@Ocupado" @onclick="Limpiar">Cancelar edición</button> }
+            </div>
+        </EditForm>
+        @if (Rutas.Count == 0)
+        {
+            <Alerta>No hay rutas cargadas.</Alerta>
+        }
+        else
+        {
+            <ul class="list-plain list-rows">
+                @foreach (var (bloque, ruta) in Rutas)
+                {
+                    int servicios = ruta.Salidas.Sum(s => s.ServiciosGenerados);
+                    <li class="row-actions">
+                        <span>
+                            <strong>@ruta.Clave</strong> · @ruta.Nombre (@ruta.Familia, bloque @bloque.Clave)<br />
+                            @string.Join(" → ", ruta.Paradas.OrderBy(p => p.Orden).Select(p => p.Nombre)) ·
+                            @ruta.Salidas.Count @(ruta.Salidas.Count == 1 ? "salida" : "salidas") · @servicios @(servicios == 1 ? "Servicio generado" : "Servicios generados")
+                        </span>
+                        <span>
+                            <button type="button" class="btn btn-link" disabled="@Ocupado" @onclick="() => Editar(ruta)">Editar</button>
+                            <button type="button" class="btn btn-link btn-danger-text" disabled="@Ocupado" @onclick="() => SolicitarBajaAsync(ruta)">Dar de baja</button>
+                        </span>
+                    </li>
+                }
+            </ul>
+        }
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<BloqueAdministracionDto> Bloques { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<ParadaDto> Paradas { get; set; } = [];
+    [Parameter] public bool Ocupado { get; set; }
+    [Parameter, EditorRequired] public Func<string?, RutaEscrituraDto, Task<bool>> Guardar { get; set; } = (_, _) => Task.FromResult(false);
+    [Parameter] public EventCallback<BajaCatalogo> AlSolicitarBaja { get; set; }
+
+    private readonly FormularioRuta _form = new();
+    private string _paradaNueva = string.Empty;
+    private string? _errorParadas;
+    private readonly Dictionary<string, string> _nombresExtra = [];
+
+    private List<(BloqueAdministracionDto Bloque, RutaAdministracionDto Ruta)> Rutas =>
+        Bloques.SelectMany(b => b.Rutas.Select(r => (b, r))).ToList();
+    // Con salidas activas la API rechaza (409) cambiar las paradas; se bloquea el editor para evitar el intento.
+    private RutaAdministracionDto? Actual => _form.Id == null ? null : Rutas.Select(x => x.Ruta).FirstOrDefault(r => r.Id == _form.Id);
+    private bool ParadasBloqueadas => Actual?.Salidas.Count > 0;
+    private int ServiciosEditados => Actual?.Salidas.Sum(s => s.ServiciosGenerados) ?? 0;
+    private string NombreParada(string id) =>
+        Paradas.FirstOrDefault(p => p.Id == id)?.Nombre ?? (_nombresExtra.TryGetValue(id, out var nombre) ? nombre : id);
+
+    private void Agregar()
+    {
+        if (string.IsNullOrEmpty(_paradaNueva)) return;
+        _form.ParadaIds.Add(_paradaNueva);
+        _paradaNueva = string.Empty; _errorParadas = null;
+    }
+
+    private void Quitar(int posicion) => _form.ParadaIds.RemoveAt(posicion);
+
+    private void Mover(int posicion, int delta)
+    {
+        int destino = posicion + delta;
+        if (destino < 0 || destino >= _form.ParadaIds.Count) return;
+        (_form.ParadaIds[posicion], _form.ParadaIds[destino]) = (_form.ParadaIds[destino], _form.ParadaIds[posicion]);
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (_form.ParadaIds.Count < 2) { _errorParadas = "Agregá al menos dos paradas."; return; }
+        _errorParadas = null;
+        var dto = new RutaEscrituraDto
+        {
+            BloqueId = _form.BloqueId, Clave = _form.Clave, Familia = _form.Familia, Nombre = _form.Nombre,
+            ParadaIds = [.. _form.ParadaIds]
+        };
+        if (await Guardar(_form.Id, dto)) Limpiar();
+    }
+
+    private void Editar(RutaAdministracionDto ruta)
+    { _enfocar = true;
+        _form.Id = ruta.Id; _form.BloqueId = ruta.BloqueId; _form.Clave = ruta.Clave; _form.Familia = ruta.Familia; _form.Nombre = ruta.Nombre;
+        _form.ParadaIds = ruta.Paradas.OrderBy(p => p.Orden).Select(p => p.ParadaId).ToList();
+        foreach (var p in ruta.Paradas) _nombresExtra[p.ParadaId] = p.Nombre;
+        _errorParadas = null;
+    }
+
+    private void Limpiar()
+    {
+        _form.Id = null; _form.BloqueId = _form.Clave = _form.Familia = _form.Nombre = string.Empty; _form.ParadaIds = [];
+        _paradaNueva = string.Empty; _errorParadas = null;
+    }
+
+    private Task SolicitarBajaAsync(RutaAdministracionDto ruta) =>
+        AlSolicitarBaja.InvokeAsync(new BajaCatalogo("rutas", ruta.Id, $"la ruta {ruta.Clave}", true));
+
+    // «Editar» llena el formulario arriba de la lista: se le pasa el foco para que quede a la vista.
+    private InputText? _primerCampo;
+    private bool _enfocar;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_enfocar) return;
+        _enfocar = false;
+        if (_primerCampo?.Element is { } campo) await campo.FocusAsync();
+    }
+}
