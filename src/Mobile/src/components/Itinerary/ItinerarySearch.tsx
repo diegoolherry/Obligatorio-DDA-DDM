@@ -60,6 +60,10 @@ function money(value: number): string {
   return `$ ${whole.replace(/\B(?=(\d{3})+(?!\d))/g, '.')},${cents}`;
 }
 
+export function purchaseFlowInstanceKey(sessionEpoch: number, selectionRevision: number): string {
+  return `${sessionEpoch}:${selectionRevision}`;
+}
+
 export function ItinerarySearch({ service, authentication, purchase, sessionEpoch }: {
   service: IItinerarySearchService; authentication: IAuthenticationService; purchase: PurchaseService; sessionEpoch: number;
 }) {
@@ -71,6 +75,7 @@ export function ItinerarySearch({ service, authentication, purchase, sessionEpoc
   const [search, setSearch] = useState<SearchState>({ status: 'idle' });
   const [purchaseItinerary, setPurchaseItinerary] = useState<ItinerarioDto>();
   const [purchaseSessionEpoch, setPurchaseSessionEpoch] = useState(sessionEpoch);
+  const [purchaseRevision, setPurchaseRevision] = useState(0);
   const [purchaseVisible, setPurchaseVisible] = useState(true);
   const lastRequest = useRef<BusquedaItinerarioRequest | undefined>(undefined);
   const active = useRef<AbortController | undefined>(undefined);
@@ -181,7 +186,7 @@ export function ItinerarySearch({ service, authentication, purchase, sessionEpoc
     ? (
       <View className="gap-3">
         <View className={purchaseVisible ? '' : 'hidden'}>
-          <PurchaseFlow key={sessionEpoch} itinerary={activePurchaseItinerary} authentication={authentication} service={purchase}
+          <PurchaseFlow key={purchaseFlowInstanceKey(sessionEpoch, purchaseRevision)} itinerary={activePurchaseItinerary} authentication={authentication} service={purchase}
             onClose={() => setPurchaseVisible(false)} onFinalize={(_reason: PurchaseFinalization) => {
               setPurchaseItinerary(undefined);
               setPurchaseVisible(false);
@@ -202,6 +207,7 @@ export function ItinerarySearch({ service, authentication, purchase, sessionEpoc
         keyExtractor={(item, index) => `${item.salida}-${item.tramos.map(leg => leg.servicioId).join('-')}-${index}`}
         renderItem={({ item }) => <ItineraryCard itinerary={item} onPurchase={() => {
           if (activePurchaseItinerary) return;
+          setPurchaseRevision(revision => revision + 1);
           setPurchaseItinerary(item);
           setPurchaseSessionEpoch(sessionEpoch);
           setPurchaseVisible(true);

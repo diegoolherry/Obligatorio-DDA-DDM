@@ -5,6 +5,7 @@ import { stripTypeScriptTypes } from 'node:module';
 
 const source = await readFile(new URL('../../src/Mobile/src/services/Purchase/PurchaseService.ts', import.meta.url), 'utf8');
 const { PurchaseService, canFinishPurchase } = await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(source)).toString('base64')}`);
+const itinerarySearchSource = await readFile(new URL('../../src/Mobile/src/components/Itinerary/ItinerarySearch.tsx', import.meta.url), 'utf8');
 const itinerary = { salida: '2026-11-18T09:00:00', llegada: '2026-11-18T10:00:00', precioTotal: 125,
   transbordo: null, tramos: [
     { orden: 1, servicioId: 'SV-01', tramoId: 'TR-01', origen: { id: 1, nombre: 'A' }, destino: { id: 2, nombre: 'B' }, salida: '2026-11-18T09:00:00', llegada: '2026-11-18T09:30:00', importe: 50, politicaAsiento: 'sinAsiento' },
@@ -155,4 +156,24 @@ test('only confirmed, refunded, or known expired nonblocking purchases can finis
   assert.equal(canFinishPurchase('unknown', expired, 'rechazado', now), false);
   assert.equal(canFinishPurchase('refundPending', expired, 'devolucionPendiente', now), false);
   assert.equal(canFinishPurchase('expired', expired, 'pendiente', now), false);
+});
+
+test('purchase-flow identity follows itinerary selection', async () => {
+  const identitySource = itinerarySearchSource.match(/export function purchaseFlowInstanceKey\([\s\S]*?\n\}/);
+  assert.ok(identitySource, 'the itinerary screen must expose its pure purchase-flow identity policy');
+  const { purchaseFlowInstanceKey } = await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(identitySource[0])).toString('base64')}`);
+
+  const activeSelectionKey = purchaseFlowInstanceKey(7, 1);
+  assert.equal(purchaseFlowInstanceKey(7, 1), activeSelectionKey, 'hiding and reopening the same flow preserves its identity');
+  assert.notEqual(purchaseFlowInstanceKey(7, 2), activeSelectionKey, 'a new selection in the same session gets a fresh identity');
+  assert.notEqual(purchaseFlowInstanceKey(8, 1), activeSelectionKey, 'a new authenticated session stays isolated');
+  assert.match(itinerarySearchSource, /key=\{purchaseFlowInstanceKey\(sessionEpoch, purchaseRevision\)\}/);
+  assert.match(itinerarySearchSource, /activePurchaseItinerary = purchaseSessionEpoch === sessionEpoch/);
+  assert.match(itinerarySearchSource, /<View className=\{purchaseVisible \? '' : 'hidden'\}>/);
+  assert.match(itinerarySearchSource, /onClose=\{\(\) => setPurchaseVisible\(false\)\}/);
+  assert.match(itinerarySearchSource, /setPurchaseVisible\(true\)/);
+  const selectionHandler = itinerarySearchSource.match(/onPurchase=\{\(\) => \{([\s\S]*?)\}\} \/>/);
+  assert.ok(selectionHandler, 'the new revision must be tied to a purchase selection');
+  assert.match(selectionHandler[1], /setPurchaseRevision\(revision => revision \+ 1\)/);
+  assert.equal((itinerarySearchSource.match(/setPurchaseRevision\(/g) ?? []).length, 1);
 });
