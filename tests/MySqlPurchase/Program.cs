@@ -14,7 +14,6 @@ const string uso = "Use no arguments or --plan for a safe plan. Database writes 
 if (args.Length == 0 || args.SequenceEqual(["--plan"]))
 {
     Console.WriteLine("PLANNED ONLY: no environment secrets read, DbContext created, SQL executed, or tests run.");
-    Console.WriteLine("Planned scenarios only (not executed): approved two-leg issuance/idempotency; competing-seat allocation; exact-deadline refund savepoint; counter rollback.");
     Console.WriteLine(uso);
     return 0;
 }
@@ -100,6 +99,21 @@ static async Task RunAsync(PurchaseFixture fixture)
     Verificar(conciliadas.Select(r => r.Compra!.Tickets.Single(t => t.NumeroAsiento.HasValue).NumeroAsiento)
             .Distinct().Count() == 2,
         "concurrent confirmed purchases retain different assigned seats");
+
+    var rechazo = await PrepararPagoAsync(fixture, reloj);
+    var desconocida = await ConciliarAsync(fixture, reloj, rechazo,
+        rechazo.OrdenPendiente with { Estado = EstadoPago.Desconocido });
+    Verificar(desconocida.Compra is null && desconocida.Registro.Pago.Estado == EstadoPago.Desconocido,
+        "unknown provider state does not issue tickets");
+    var bloqueante = await ReservarDeNuevoAsync(fixture, reloj, rechazo);
+    Verificar(bloqueante.Pago.Id == rechazo.PagoId, "unknown payment blocks creating a second payment");
+    var rechazado = await ConciliarAsync(fixture, reloj, rechazo,
+        rechazo.OrdenPendiente with { Estado = EstadoPago.Rechazado });
+    Verificar(rechazado.Compra is null && rechazado.Registro.Pago.Estado == EstadoPago.Rechazado,
+        "definite rejection does not issue tickets");
+    var reintento = await ReservarDeNuevoAsync(fixture, reloj, rechazo);
+    Verificar(reintento.Pago.Id != rechazo.PagoId && reintento.HoldVenceEn == rechazo.HoldVenceEn,
+        "definite rejection allows a new payment without extending the original hold");
 
     var tardia = await PrepararPagoAsync(fixture, reloj);
     var countersBeforeLate = await LeerContadoresAsync(fixture.ConnectionString);
@@ -225,9 +239,17 @@ static async Task<CompraPrueba> PrepararPagoAsync(PurchaseFixture fixture, Reloj
     };
     registro = await pagos.RegistrarOrdenAsync(fixture.Pasajero, registro.Pago.Id, pendiente);
     return new CompraPrueba(intento.IntentoId, registro.Pago.Id, registro.HoldVenceEn,
-        registro.Pago.ImporteEsperado, pendiente, asientoAsignado);
+        registro.Pago.ImporteEsperado, cotizacion, pendiente, asientoAsignado);
 }
 
+static async Task<RegistroPago> ReservarDeNuevoAsync(PurchaseFixture fixture, RelojPrueba reloj, CompraPrueba prueba)
+{
+    await using var contexto = CrearContexto(fixture.ConnectionString);
+    var contadores = new ContadoresRepository(contexto, new Correlativo());
+    var intentos = new IntentosCompraRepository(contexto, contadores, new ParametrosCompra { HoldMinutos = 15 }, reloj);
+    return await new PagosRepository(contexto, intentos, contadores, new Correlativo(), reloj)
+        .ReservarAsync(fixture.Pasajero, prueba.Cotizacion, prueba.Cotizacion.HuellaCotizacion);
+}
 
 static async Task<ResultadoConciliacionPago> ConciliarAsync(
     PurchaseFixture fixture,
@@ -330,6 +352,7 @@ sealed record CompraPrueba(
     string PagoId,
     DateTime HoldVenceEn,
     decimal ImporteEsperado,
+    CotizarCompraResponseDto Cotizacion,
     OrdenCheckoutMercadoPago OrdenPendiente,
     int? AsientoAsignado);
 
