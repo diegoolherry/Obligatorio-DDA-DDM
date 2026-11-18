@@ -1,4 +1,5 @@
 ﻿import type { IAuthenticationService } from '../Authentication/IAuthenticationService';
+import type { ItinerarioDto, TramoItinerarioDto } from '../../contracts/itinerary';
 import type {
   CotizarCompraResponseDto, IniciarIntentoCompraResponseDto, PagoResponseDto,
   PurchaseResult, PurchaseStartResult, SeleccionTramoCompraDto, SincronizarPagoResponseDto,
@@ -12,8 +13,23 @@ type ApiReply = { outcome: string; status?: number; body?: unknown };
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 const nonEmpty = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
-const isItinerary = (value: unknown): value is { tramos: unknown[]; precioTotal: number } => isRecord(value)
-  && Array.isArray(value.tramos) && typeof value.precioTotal === 'number';
+const isDateString = (value: unknown): value is string => nonEmpty(value) && Number.isFinite(Date.parse(value));
+const isPlace = (value: unknown): boolean => isRecord(value) && nonEmpty(value.nombre);
+const isLeg = (value: unknown): value is TramoItinerarioDto => isRecord(value)
+  && Number.isInteger(value.orden) && Number(value.orden) > 0
+  && nonEmpty(value.servicioId) && nonEmpty(value.tramoId)
+  && isPlace(value.origen) && isPlace(value.destino)
+  && isDateString(value.salida) && isDateString(value.llegada)
+  && typeof value.importe === 'number' && Number.isFinite(value.importe)
+  && (value.politicaAsiento === 'sinAsiento' || value.politicaAsiento === 'asignacionAutomatica');
+const isTransfer = (value: unknown): boolean => isRecord(value) && isPlace(value.parada)
+  && Number.isInteger(value.minutos);
+const isItinerary = (value: unknown): value is ItinerarioDto => isRecord(value)
+  && isDateString(value.salida) && isDateString(value.llegada)
+  && typeof value.precioTotal === 'number' && Number.isFinite(value.precioTotal)
+  && Array.isArray(value.tramos) && value.tramos.length > 0 && value.tramos.every(isLeg)
+  && new Set(value.tramos.map(tramo => tramo.orden)).size === value.tramos.length
+  && (value.transbordo === null || isTransfer(value.transbordo));
 const isAttempt = (value: unknown): value is IniciarIntentoCompraResponseDto => isRecord(value)
   && nonEmpty(value.intentoId) && nonEmpty(value.holdVenceEn) && isItinerary(value.itinerario);
 const isQuote = (value: unknown): value is CotizarCompraResponseDto => isRecord(value)
@@ -35,6 +51,18 @@ const isSync = (value: unknown): value is SincronizarPagoResponseDto => isRecord
   && isPayment(value.pago) && (value.compra === null || isPurchase(value.compra));
 const attemptPath = (id: string): string | undefined => /^[A-Za-z0-9-]+$/.test(id)
   ? `/api/intentos-compra/${id}` : undefined;
+
+export type PurchaseFinalization = 'confirmed' | 'refunded' | 'expired';
+
+export function canFinishPurchase(state: string, holdUntil: string | undefined, paymentState: string | undefined, now: number): boolean {
+  if (state === 'confirmed' || state === 'refunded') return true;
+  if (state !== 'expired' && state !== 'rejected' && state !== 'error') return false;
+  if (state === 'rejected' && paymentState !== 'rechazado') return false;
+  if (paymentState !== undefined && paymentState !== 'rechazado') return false;
+  if (!holdUntil) return false;
+  const deadline = Date.parse(holdUntil);
+  return Number.isFinite(deadline) && deadline <= now;
+}
 
 export class PurchaseService {
   private readonly authentication: IAuthenticationService;

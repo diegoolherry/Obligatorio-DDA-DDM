@@ -11,7 +11,7 @@ import { Button } from '../ui/Button';
 import { StatusBadge } from '../ui/StatusBadge';
 import { TextField } from '../ui/TextField';
 import type { IAuthenticationService } from '../../services/Authentication/IAuthenticationService';
-import type { PurchaseService } from '../../services/Purchase/PurchaseService';
+import type { PurchaseFinalization, PurchaseService } from '../../services/Purchase/PurchaseService';
 import { PurchaseFlow } from '../Purchase/PurchaseFlow';
 
 type StopsState =
@@ -182,7 +182,10 @@ export function ItinerarySearch({ service, authentication, purchase, sessionEpoc
       <View className="gap-3">
         <View className={purchaseVisible ? '' : 'hidden'}>
           <PurchaseFlow key={sessionEpoch} itinerary={activePurchaseItinerary} authentication={authentication} service={purchase}
-            onClose={() => setPurchaseVisible(false)} />
+            onClose={() => setPurchaseVisible(false)} onFinalize={(_reason: PurchaseFinalization) => {
+              setPurchaseItinerary(undefined);
+              setPurchaseVisible(false);
+            }} />
         </View>
         {!purchaseVisible && (
           <View className="gap-2">

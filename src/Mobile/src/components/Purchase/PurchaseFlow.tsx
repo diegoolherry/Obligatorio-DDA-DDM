@@ -1,7 +1,8 @@
 ﻿import { Linking, Text, View } from 'react-native';
 import { useState } from 'react';
 import type { IAuthenticationService } from '../../services/Authentication/IAuthenticationService';
-import type { PurchaseService } from '../../services/Purchase/PurchaseService';
+import { canFinishPurchase } from '../../services/Purchase/PurchaseService';
+import type { PurchaseFinalization, PurchaseService } from '../../services/Purchase/PurchaseService';
 import type {
   CompraConfirmadaResponseDto, CotizarCompraResponseDto, IniciarIntentoCompraResponseDto, PagoResponseDto,
 } from '../../contracts/purchase';
@@ -28,8 +29,9 @@ const deadline = (value: string) => {
     : 'no disponible';
 };
 
-export function PurchaseFlow({ itinerary, authentication, service, onClose }: {
+export function PurchaseFlow({ itinerary, authentication, service, onClose, onFinalize }: {
   itinerary: ItinerarioDto; authentication: IAuthenticationService; service: PurchaseService; onClose: () => void;
+  onFinalize: (reason: PurchaseFinalization) => void;
 }) {
   const [state, setState] = useState<FlowState>('idle');
   const [attempt, setAttempt] = useState<IniciarIntentoCompraResponseDto>();
@@ -41,6 +43,7 @@ export function PurchaseFlow({ itinerary, authentication, service, onClose }: {
   const holdUntil = attempt?.holdVenceEn ?? quote?.holdVenceEn;
   const expired = holdUntil !== undefined && new Date(holdUntil).getTime() <= Date.now();
   const link = safeCheckoutUrl(payment?.checkoutUrl);
+  const canFinalize = canFinishPurchase(state, holdUntil, payment?.estado, Date.now());
 
   async function createAttempt() {
     if (busy || attempt || state === 'uncertainCreate') return;
@@ -141,7 +144,9 @@ export function PurchaseFlow({ itinerary, authentication, service, onClose }: {
           <Text className="text-lg font-bold text-ink-900">Total: {money(currentQuote.precioTotal)}</Text>
           {quote?.cambioPrecio && <Banner kind="warning">El precio cambió desde la reserva. Revise el valor vigente antes de continuar.</Banner>}
           {expired ? <Banner kind="error">El hold original venció. No se puede extender.</Banner>
-            : <Button label="Acepto el precio y continuar" disabled={state !== 'consent'} onPress={() => void acceptQuote()} />}
+            : state === 'rejected'
+              ? <Button label="Revisar precio y reintentar" disabled={busy} onPress={() => void loadQuote()} />
+              : <Button label="Acepto el precio y continuar" disabled={state !== 'consent'} onPress={() => void acceptQuote()} />}
         </View>
       )}
       {state === 'startingPayment' && <Text accessibilityLiveRegion="polite" className="text-base text-ink-900">Iniciando el pago…</Text>}
@@ -169,7 +174,13 @@ export function PurchaseFlow({ itinerary, authentication, service, onClose }: {
       {state === 'uncertainCreate' && <Banner kind="warning">No vuelva a crear otro intento automáticamente.</Banner>}
       {message && state !== 'error' && state !== 'uncertainCreate' && <Text accessibilityLiveRegion="polite" className="text-sm text-error-700">{message}</Text>}
       {state === 'error' && attempt && <Button label="Reintentar consulta de precio" disabled={busy} onPress={() => void loadQuote()} />}
-      {state !== 'confirmed' && <Button label="Volver a itinerarios" variant="secondary" disabled={busy} onPress={onClose} />}
+      {canFinalize ? (
+        <Button label={state === 'confirmed' ? 'Finalizar compra y buscar otro viaje' : state === 'refunded' ? 'Cerrar devolución y buscar otro viaje' : 'Cerrar intento y elegir otro viaje'} variant="secondary" disabled={busy} onPress={() => {
+          if (!canFinishPurchase(state, holdUntil, payment?.estado, Date.now())) return;
+          const reason: PurchaseFinalization = state === 'confirmed' ? 'confirmed' : state === 'refunded' ? 'refunded' : 'expired';
+          onFinalize(reason);
+        }} />
+      ) : <Button label="Volver a itinerarios" variant="secondary" disabled={busy} onPress={onClose} />}
     </View>
   );
 }
