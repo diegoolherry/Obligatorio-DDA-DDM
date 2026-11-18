@@ -19,8 +19,10 @@ void Check(bool condition, string name)
     if (!condition) { failures++; Console.Error.WriteLine($"FAIL {name}"); }
     else Console.WriteLine($"PASS {name}");
 }
-const string token = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-string Success() => JsonSerializer.Serialize(new { identificadorUsuario = token, roles = new[] { "pasajero" }, token, venceEnUtc = new TestClock().GetUtcNow().AddDays(1).ToString("yyyy-MM-ddTHH:mm:ss.ffffff'Z'") });
+// El identificador público sigue siendo opaco (43 caracteres); el token ahora es un JWT compacto (header.payload.firma).
+const string id = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+const string token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3VhcmlvLV8tIn0.c2lnbmF0dXJlLV8";
+string Success() => JsonSerializer.Serialize(new { identificadorUsuario = id, roles = new[] { "pasajero" }, token, venceEnUtc = new TestClock().GetUtcNow().AddDays(1).ToString("yyyy-MM-ddTHH:mm:ss.ffffff'Z'") });
 const string identity = "{\"identificadorUsuario\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"roles\":[\"pasajero\"]}";
 SolicitudIngresoDto Input() => new() { Correo = "prueba@example.invalid", Contrasena = "ficticia" };
 HttpResponseMessage Response(int status, string body = "") => new((HttpStatusCode)status) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
@@ -93,7 +95,7 @@ using (var adminScope = adminProvider.CreateScope())
         Check(!isolated.ServiceProvider.GetRequiredService<ISesionCliente>().Estado.Autenticada, "administrator session isolated from another circuit");
     adminTransport.Reply = _ => Task.FromResult(Response(204));
     var logout = await admin.SalirAsync();
-    Check(logout == new ResultadoAutenticacion(true, 204, "salidaConfirmada", "Sesión cerrada en el servidor.") &&
+    Check(logout == new ResultadoAutenticacion(true, 204, "salidaConfirmada", "Sesión cerrada.") &&
         !admin.Estado.Autenticada && adminTransport.LastMethod == "POST" &&
         adminTransport.LastPath == "/api/autenticacion/salida" && adminTransport.LastBearer == "Bearer " + token,
         "administrator confirmed logout clears only its circuit");
@@ -154,6 +156,19 @@ foreach (var body in new[] { "null", "{}", "not-json", Success().Replace(token, 
     result = await service.IngresarAsync(Input());
     Check(!result.Exito && !service.Estado.Autenticada, "invalid response shape/token/roles/UTC/expiry rejected");
 }
+foreach (string malformed in new[] { "aaa.bbb", "aaa.bbb.ccc.ddd", "aaa..ccc", ".bbb.ccc", "aaa.bbb.", "aaa.bbb.ccc=", "aaa.bb=.ccc", "aaa. bbb.ccc", "aaa.bbb.ccc\\n", "aaa.b+b.ccc", "aaa.b/b.ccc", "aaa.bbb.cñc", id, "aaa.bbb." + new string('c', 4096) })
+{
+    fake.Reply = _ => Task.FromResult(Response(200, Success().Replace(token, malformed)));
+    result = await service.IngresarAsync(Input());
+    Check(!result.Exito && result.Codigo == "respuestaInvalida" && !service.Estado.Autenticada, $"malformed JWT rejected: {(malformed.Length > 20 ? malformed[..20] + "..." : malformed)}");
+}
+string maxJwt = "aaa.bbb." + new string('c', 4096 - 8);
+fake.Reply = _ => Task.FromResult(Response(200, Success().Replace(token, maxJwt)));
+result = await service.IngresarAsync(Input());
+Check(result.Exito && service.Estado.Autenticada, "JWT at the 4096-char bound accepted");
+fake.Reply = _ => Task.FromResult(Response(204));
+await service.SalirAsync();
+Check(!service.Estado.Autenticada, "session cleared after bound test");
 foreach (bool timeout in new[] { false, true })
 {
     fake.Reply = _ => timeout ? throw new TaskCanceledException() : throw new HttpRequestException();
@@ -212,7 +227,7 @@ calls = fake.Calls;
 result = await service.ProbarPasajeroAsync();
 Check(!result.Exito && !service.Estado.Autenticada && fake.Calls == calls, "exact local expiry boundary forbids bearer request");
 clock.Now = clock.Now.AddDays(-1);
-foreach (string body in new[] { Success().Replace("2030-01-02", "2030-01-01"), Success().Replace("2030-01-02", "2030-01-09"), Success().Replace(token, token[..42] + "B"), Success().Replace("[\"pasajero\"]", "[\"0\"]"), "{\"roles\":[]}" })
+foreach (string body in new[] { Success().Replace("2030-01-02", "2030-01-01"), Success().Replace("2030-01-02", "2030-01-09"), Success().Replace(token, id), Success().Replace("[\"pasajero\"]", "[\"0\"]"), "{\"roles\":[]}" })
 {
     fake.Reply = _ => Task.FromResult(Response(200, body));
     result = await service.IngresarAsync(Input());
