@@ -12,7 +12,7 @@ public class TramosController(ITramosService service) : ControllerBase
     [HttpPost] public async Task<ActionResult<TramoDto>> Crear(TramoDto dto)
     { try { var creado = await service.CrearAsync(dto); return CreatedAtAction(nameof(Listar), creado); } catch (ArgumentException e) { return BadRequest(e.Message); } }
     [HttpPut("{id}")] public async Task<ActionResult<TramoDto>> Actualizar(string id, TramoDto dto)
-    { try { return Ok(await service.ActualizarAsync(id, dto)); } catch (KeyNotFoundException) { return NotFound(); } catch (ArgumentException e) { return BadRequest(e.Message); } }
+    { try { return Ok(await service.ActualizarAsync(id, dto)); } catch (KeyNotFoundException) { return NotFound(); } catch (ArgumentException e) { return BadRequest(e.Message); } catch (Microsoft.EntityFrameworkCore.DbUpdateException) { return Conflict("No se pudo guardar porque otra operación está usando el mismo dato. Volvé a intentarlo."); } }
     [HttpDelete("{id}")] public async Task<IActionResult> Eliminar(string id)
     { try { await service.EliminarAsync(id); return NoContent(); } catch (KeyNotFoundException) { return NotFound(); } catch (Microsoft.EntityFrameworkCore.DbUpdateException) { return Conflict("No se puede eliminar un tramo utilizado por otros datos."); } }
 }

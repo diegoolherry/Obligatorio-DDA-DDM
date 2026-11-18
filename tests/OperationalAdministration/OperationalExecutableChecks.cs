@@ -23,6 +23,7 @@ internal static class OperationalExecutableChecks
         CheckDecimalRangeValidation(check);
         await ItinerarySearchChecks.RunAsync(check);
         await ServiciosFechaChecks.RunAsync(check);
+        await LockTimeoutChecks.RunAsync(check);
     }
 
     private static async Task CheckServiceScheduleAsync(Action<bool, string> check)
