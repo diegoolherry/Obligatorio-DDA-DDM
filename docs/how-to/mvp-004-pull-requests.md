@@ -300,7 +300,7 @@ Base: test/mvp-004-entorno-aislado (2d458ca). Head: fix/mvp-004-validacion-merca
 Título: Validar identidad TEST antes de operar con pagos.
 Alcance: reemplazar la validación obsoleta por prefijo con confirmación explícita del origen TEST y validar, antes de cada creación/consulta/búsqueda/devolución, la identidad de solo lectura del vendedor, tag `test_user` y `site_id` configurados. Errores, redirects o discrepancias bloquean la operación; sin caché ni fallback.
 Verificación: `--mercado-pago-test-identity` 59/59, exit 0 (suite inicial 4/34 RED, exit 1); `PaymentContracts` 269/269, exit 0. HTTP simulado únicamente; no usar el token de origen no confirmado, no llamar al proveedor, no ejecutar MySQL ni iniciar API/UI.
-Commit propuesto: `fix(api): validar identidad TEST antes de pagos`. No hay PR remoto ni publicación autorizada.
+Commit local: `9024601`, `fix(payments): verificar la cuenta TEST antes de operar`. Evaluación nativa: medium, bajo presupuesto; sin nueva revisión ni aprobación nativa. No hay PR remoto ni publicación autorizada.
 Dependencia: test/mvp-004-entorno-aislado. Después: autorización humana aparte para credencial privada confirmada y recorrido manual TEST/API/Web/Mobile; Diego cross-review. Revertir solo el guard de credenciales, preflight y sus pruebas/documentación.
 ~~~~
 
