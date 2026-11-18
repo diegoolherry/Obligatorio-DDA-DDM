@@ -35,6 +35,8 @@ Las rutas operativas están protegidas con `[Authorize(Roles = "Administrador")]
 | `GET/POST/PUT/DELETE /api/administracion/servicios[/{id}]` | CRUD de `ServicioDto`: tramo, `salida` y `llegada` (fecha y hora local de Uruguay, sin conversión UTC; la llegada debe ser posterior a la salida y puede caer al día siguiente), capacidad y política `SinAsiento` o `AsignacionAutomatica`; `201/200/204`, validación `400`, ausencia `404`. `GET` acepta el parámetro opcional `fecha=yyyy-MM-dd` (día local de la `salida`): con él devuelve solo los servicios de ese día, ordenados por `salida`, y `400` si el formato no es válido; sin él devuelve todos, como antes. |
 | `GET/POST/PUT/DELETE /api/administracion/tarifas[/{id}]` | CRUD de `TarifaDto`: tramo, importe y vigencia; `201/200/204`, validación `400`, ausencia `404`. |
 
+Si otra sesión MySQL retiene la fila, las escrituras `PUT`/`DELETE` de paradas, tramos y servicios (y la generación de Servicios) responden `409` en unos 3 s en vez de quedar sin respuesta; ver [problemas conocidos](../how-to/troubleshooting.md#api-una-escritura-queda-sin-respuesta-cuando-otra-sesión-retiene-filas) (FIN-012).
+
 Los datos operativos de demostración no se cargan por la API: según el código de [`ReinicioLocal`](../../src/Api/API-Berruti/API-Berruti/Data/ReinicioLocal.cs) y [`EscenarioOperativoDemo`](../../src/Api/API-Berruti/API-Berruti/Data/EscenarioOperativoDemo.cs), recrear la base de Development con [`scripts/reset-local-db.ps1`](../../scripts/reset-local-db.ps1) siembra 3 paradas, 2 tramos, 2 servicios y 2 tarifas para el día siguiente al reinicio. Esto describe el código; no es evidencia de una ejecución contra MySQL.
 
 ### Comprobación local de autorización operativa

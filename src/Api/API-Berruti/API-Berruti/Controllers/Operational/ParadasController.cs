@@ -12,7 +12,7 @@ public class ParadasController(IParadasService service) : ControllerBase
     [HttpPost] public async Task<ActionResult<ParadaDto>> Crear(ParadaDto dto)
     { try { var creada = await service.CrearAsync(dto); return CreatedAtAction(nameof(Listar), creada); } catch (ArgumentException e) { return BadRequest(e.Message); } }
     [HttpPut("{id}")] public async Task<ActionResult<ParadaDto>> Actualizar(string id, ParadaDto dto)
-    { try { return Ok(await service.ActualizarAsync(id, dto)); } catch (ArgumentException) { return BadRequest("Los datos de la parada no son válidos."); } catch (KeyNotFoundException) { return NotFound(); } }
+    { try { return Ok(await service.ActualizarAsync(id, dto)); } catch (ArgumentException) { return BadRequest("Los datos de la parada no son válidos."); } catch (KeyNotFoundException) { return NotFound(); } catch (Microsoft.EntityFrameworkCore.DbUpdateException) { return Conflict("No se pudo guardar porque otra operación está usando el mismo dato. Volvé a intentarlo."); } }
     [HttpDelete("{id}")] public async Task<IActionResult> Eliminar(string id)
     { try { await service.EliminarAsync(id); return NoContent(); } catch (KeyNotFoundException) { return NotFound(); } catch (Microsoft.EntityFrameworkCore.DbUpdateException) { return Conflict("No se puede eliminar una parada que ya pertenece a un tramo."); } }
 }

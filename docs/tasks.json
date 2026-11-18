@@ -1091,6 +1091,29 @@
         "Los textos «Datos ficticios y aproximados», «Parámetros académicos usados» y el mensaje en inglés del importe de tarifa se reemplazan por textos neutros en español, y los tests que los exigían verifican el comportamiento en lugar del texto anterior."
       ],
       "evidence": "PR #81 (commits 07e1f6e..04dfa41; merge 3bebba7): errores de validación en regiones role=\"alert\" sin duplicar, enlaces con sesión ocultos del menú y textos neutros en español.\nWebAuthentication 126/126, OperationalAdministration 137, build Web sin advertencias; recorrido en ego-browser con API y MySQL locales (sin lector de pantalla real).\nRevisor Enzo: aprobó el PR según el reporte de Diego; sin review registrada en GitHub."
+    },
+    {
+      "id": "FIN-012",
+      "name": "Respuesta acotada cuando MySQL retiene filas bloqueadas",
+      "description": "Hallazgo de FIN-008 (PR #82): el timeout de comando del cliente (5 s, ConfiguracionAutenticacion.cs) vence antes que innodb_lock_wait_timeout (50 s) y MySql.Data deja la request async sin respuesta. FIN-008 lo corrigió solo en el ABM del catálogo; la generación de Servicios y los repositorios operativos y de ubicación pueden colgarse igual. Pedido de Diego (2026-11-17): «si, y ya la realizas».",
+      "priority": "media",
+      "area": [
+        "API"
+      ],
+      "status": "in_progress",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-11-17T20:44:59-03:00",
+      "startedAt": "2026-11-17T20:44:59-03:00",
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "Con filas bloqueadas por otra sesión, una escritura de la API responde un error HTTP acotado en pocos segundos en vez de quedar sin respuesta, sin cambiar datos.",
+        "La corrección aplica a todas las conexiones de la API y no deja valores de sesión alterados para otros pedidos.",
+        "Hay una reproducción documentada para la generación de Servicios y al menos una escritura operativa, antes y después del cambio."
+      ],
+      "evidence": "Rama feature/fin-012-mysql-lock-timeout (be7f807, 062233d); PR #85.\nBloqueo forzado en MySQL local: generación y PUT de parada pasaron de sin respuesta a 409 en ~3 s sin cambiar datos; global 50; AuthenticationSessions --unit 48/48, OperationalAdministration 139, RouteCatalog 129/129, Geolocation 27/27; verificación independiente sin bloqueos.\nPendiente: revisión cruzada de Enzo."
     }
   ]
 }

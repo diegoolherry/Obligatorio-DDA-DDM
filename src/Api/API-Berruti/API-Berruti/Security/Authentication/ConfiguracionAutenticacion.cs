@@ -34,6 +34,7 @@ public static class ConfiguracionAutenticacion
         {
             var conexion = ValidarConexion(configuracion.GetConnectionString("Berruti"), entorno.EnvironmentName);
             opciones.UseMySQL(conexion.ConnectionString);
+            opciones.AddInterceptors(new EsperaBloqueoInterceptor());
             opciones.EnableSensitiveDataLogging(false);
         });
         servicios.AddScoped<ICorrelativo, Correlativo>();

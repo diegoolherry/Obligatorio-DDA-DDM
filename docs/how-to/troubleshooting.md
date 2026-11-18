@@ -36,3 +36,7 @@ Comprobá `dotnet --list-sdks` y que exista un SDK .NET 10 compatible con `net10
 ## Mobile: auditoría o Metro sin confirmación
 
 La auditoría histórica pendiente registró 22 paquetes afectados (15 altos, 7 moderados), con tres avisos distintos, descritos en el [informe §7](../project-report.md#7-calidad-pruebas-y-gestión-de-configuración); no es una auditoría nueva. No se aplicó `npm audit fix`; un aviso no demuestra por sí solo explotabilidad ni explica el timeout histórico de Metro. Conservá logs, entorno y resultado observado; no declares readiness por logs sin verificar conexión. Detené solo los servidores que iniciaste y evitá cambios de paquetes o settings hasta tener un diagnóstico acotado.
+
+## API: una escritura queda sin respuesta cuando otra sesión retiene filas
+
+Causa: MySQL espera 50 s un bloqueo de fila (`innodb_lock_wait_timeout`) y el comando del cliente vence a los 5 s (`DefaultCommandTimeout`); cuando vence primero, MySql.Data nunca completa la tarea y el pedido queda colgado. Desde FIN-012, [`EsperaBloqueoInterceptor`](../../src/Api/API-Berruti/API-Berruti/Data/EsperaBloqueoInterceptor.cs) ejecuta `SET SESSION innodb_lock_wait_timeout = 3` al abrir cada conexión del `BerrutiDbContext`, y las escrituras operativas y la generación de Servicios responden `409` a los ~3 s sin cambiar datos. Si ves un pedido colgado, buscá una sesión MySQL con transacción abierta (`SHOW PROCESSLIST` o reiniciá esa sesión). El valor global del servidor no se modifica.

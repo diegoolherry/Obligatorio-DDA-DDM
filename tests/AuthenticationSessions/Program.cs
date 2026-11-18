@@ -334,6 +334,26 @@ Prueba("middleware: excepción privada se convierte en 500 sanitizado", () =>
         ctx.Response.Headers.CacheControl.ToString() == "no-store" &&
         json == "{\"codigo\":\"autenticacionNoDisponible\",\"mensaje\":\"La autenticación no está disponible. Intentá nuevamente.\"}";
 });
+Prueba("FIN-012 el DbContext registra el interceptor de espera de bloqueo", () =>
+{
+    var db = alcance.ServiceProvider.GetRequiredService<BerrutiDbContext>();
+    var nucleo = ((Microsoft.EntityFrameworkCore.Infrastructure.IInfrastructure<IServiceProvider>)db).Instance
+        .GetRequiredService<Microsoft.EntityFrameworkCore.Infrastructure.IDbContextOptions>()
+        .FindExtension<Microsoft.EntityFrameworkCore.Infrastructure.CoreOptionsExtension>();
+    return nucleo!.Interceptors!.OfType<EsperaBloqueoInterceptor>().Count() == 1 &&
+        EsperaBloqueoInterceptor.Sentencia == "SET SESSION innodb_lock_wait_timeout = 3";
+});
+Prueba("FIN-012 al abrir una conexión (sync y async) se fija la espera de bloqueo por debajo de 5 s", () =>
+{
+    var conexion = new ConexionRegistradora();
+    var interceptor = new EsperaBloqueoInterceptor();
+    interceptor.ConnectionOpened(conexion, null!);
+    interceptor.ConnectionOpenedAsync(conexion, null!).GetAwaiter().GetResult();
+    return conexion.Sentencias.SequenceEqual(new[] { EsperaBloqueoInterceptor.Sentencia, EsperaBloqueoInterceptor.Sentencia }) &&
+        ConfiguracionAutenticacion.ValidarConexion(
+            "Server=localhost;Database=berrutiauthtests;User ID=berruti_test;Password=ficticia", "AuthenticationTests")
+            .DefaultCommandTimeout > 3;
+});
 Console.WriteLine($"{pruebas - fallos}/{pruebas} comprobaciones unitarias PASS. No demuestra HTTP público, durabilidad ni revocación MySQL.");
 return fallos == 0 ? 0 : 1;
 
@@ -378,4 +398,37 @@ class RelojMutable(DateTime ahora) : TimeProvider
 class Reloj(DateTime ahora) : TimeProvider
 {
     public override DateTimeOffset GetUtcNow() => new(ahora);
+}
+
+class ConexionRegistradora : System.Data.Common.DbConnection
+{
+    public List<string> Sentencias { get; } = new();
+    [System.Diagnostics.CodeAnalysis.AllowNull] public override string ConnectionString { get; set; } = "";
+    public override string Database => "";
+    public override string DataSource => "";
+    public override string ServerVersion => "";
+    public override System.Data.ConnectionState State => System.Data.ConnectionState.Open;
+    public override void ChangeDatabase(string databaseName) { }
+    public override void Close() { }
+    public override void Open() { }
+    protected override System.Data.Common.DbTransaction BeginDbTransaction(System.Data.IsolationLevel isolationLevel) => throw new NotSupportedException();
+    protected override System.Data.Common.DbCommand CreateDbCommand() => new ComandoRegistrador(Sentencias);
+}
+
+class ComandoRegistrador(List<string> sentencias) : System.Data.Common.DbCommand
+{
+    [System.Diagnostics.CodeAnalysis.AllowNull] public override string CommandText { get; set; } = "";
+    public override int CommandTimeout { get; set; }
+    public override System.Data.CommandType CommandType { get; set; }
+    public override bool DesignTimeVisible { get; set; }
+    public override System.Data.UpdateRowSource UpdatedRowSource { get; set; }
+    protected override System.Data.Common.DbConnection? DbConnection { get; set; }
+    protected override System.Data.Common.DbParameterCollection DbParameterCollection => throw new NotSupportedException();
+    protected override System.Data.Common.DbTransaction? DbTransaction { get; set; }
+    public override void Cancel() { }
+    public override int ExecuteNonQuery() { sentencias.Add(CommandText); return 0; }
+    public override object? ExecuteScalar() => throw new NotSupportedException();
+    public override void Prepare() { }
+    protected override System.Data.Common.DbParameter CreateDbParameter() => throw new NotSupportedException();
+    protected override System.Data.Common.DbDataReader ExecuteDbDataReader(System.Data.CommandBehavior behavior) => throw new NotSupportedException();
 }
