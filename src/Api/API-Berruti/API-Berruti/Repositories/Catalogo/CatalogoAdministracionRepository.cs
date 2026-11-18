@@ -1,0 +1,86 @@
+using API_Berruti.Data;
+using API_Berruti.Models.Catalogo;
+using Microsoft.EntityFrameworkCore;
+
+namespace API_Berruti.Repositories.Catalogo;
+
+public class CatalogoAdministracionRepository(BerrutiDbContext contexto) : ICatalogoAdministracionRepository
+{
+    public Task<Dictionary<string, int>> ContarServiciosPorSalidaAsync() =>
+        contexto.Servicios.AsNoTracking().Where(s => s.SalidaCatalogoId != null)
+            .GroupBy(s => s.SalidaCatalogoId!).Select(g => new { g.Key, Cantidad = g.Count() })
+            .ToDictionaryAsync(g => g.Key, g => g.Cantidad);
+
+    public Task AgregarBloqueAsync(BloqueHorario bloque) => GuardarAsync(() => { contexto.BloquesHorario.Add(bloque); return Task.CompletedTask; });
+
+    public Task ActualizarBloqueAsync(BloqueHorario bloque) => GuardarAsync(() => { contexto.BloquesHorario.Update(bloque); return Task.CompletedTask; });
+
+    public Task AgregarRutaAsync(RutaCatalogo ruta, IReadOnlyList<ParadaRuta> paradas) => GuardarAsync(() =>
+    {
+        contexto.Rutas.Add(ruta);
+        contexto.ParadasRuta.AddRange(paradas);
+        return Task.CompletedTask;
+    });
+
+    public Task ActualizarRutaAsync(RutaCatalogo ruta, IReadOnlyList<ParadaRuta>? paradas) => GuardarAsync(async () =>
+    {
+        contexto.Rutas.Update(ruta);
+        if (paradas is null) return;
+        // La clave de parada_ruta es (ruta, orden): se reemplaza la lista completa dentro de la transacción.
+        await contexto.ParadasRuta.Where(p => p.RutaId == ruta.Id).ExecuteDeleteAsync();
+        contexto.ParadasRuta.AddRange(paradas);
+    });
+
+    public Task AgregarSalidaAsync(SalidaCatalogo salida, IReadOnlyList<HoraSalida> horas) => GuardarAsync(() =>
+    {
+        contexto.SalidasCatalogo.Add(salida);
+        contexto.HorasSalida.AddRange(horas);
+        return Task.CompletedTask;
+    });
+
+    public Task ActualizarSalidaAsync(SalidaCatalogo salida, IReadOnlyList<HoraSalida> horas) => GuardarAsync(async () =>
+    {
+        contexto.SalidasCatalogo.Update(salida);
+        await contexto.HorasSalida.Where(h => h.SalidaId == salida.Id).ExecuteDeleteAsync();
+        contexto.HorasSalida.AddRange(horas);
+    });
+
+    public Task AgregarFeriadoAsync(Feriado feriado) => GuardarAsync(() => { contexto.Feriados.Add(feriado); return Task.CompletedTask; });
+
+    public Task ActualizarFeriadoAsync(Feriado feriado) => GuardarAsync(() => { contexto.Feriados.Update(feriado); return Task.CompletedTask; });
+
+    public Task EliminarFeriadoAsync(DateTime fecha) => GuardarAsync(() => contexto.Feriados.Where(f => f.Fecha == fecha).ExecuteDeleteAsync());
+
+    public Task AgregarExcepcionAsync(ExcepcionCalendario excepcion) => GuardarAsync(() => { contexto.ExcepcionesCalendario.Add(excepcion); return Task.CompletedTask; });
+
+    public Task ActualizarExcepcionAsync(ExcepcionCalendario excepcion) => GuardarAsync(() => { contexto.ExcepcionesCalendario.Update(excepcion); return Task.CompletedTask; });
+
+    public Task EliminarExcepcionAsync(string id) => GuardarAsync(() => contexto.ExcepcionesCalendario.Where(e => e.Id == id).ExecuteDeleteAsync());
+
+    // Cada cambio va en una transacción: si falla, no quedan paradas u horas a medias.
+    private async Task GuardarAsync(Func<Task> cambios)
+    {
+        await using var transaccion = await contexto.Database.BeginTransactionAsync();
+        try
+        {
+            // Si otra sesión retiene filas, MySQL debe responder el error 1205 antes de que venza el timeout de comando
+            // del cliente (5 s): cuando vence primero, MySql.Data no completa la tarea async y la request queda colgada.
+            await contexto.Database.ExecuteSqlRawAsync("SET SESSION innodb_lock_wait_timeout = 3");
+            await cambios();
+            await contexto.SaveChangesAsync();
+            await transaccion.CommitAsync();
+        }
+        // ExecuteDeleteAsync no pasa por SaveChanges: su error llega como DbException del proveedor, no DbUpdateException.
+        catch (Exception e) when (e is DbUpdateException or System.Data.Common.DbException)
+        {
+            contexto.ChangeTracker.Clear();
+            throw new CatalogoConcurrenteException(e);
+        }
+        finally
+        {
+            // La conexión vuelve al pool: se restaura el valor del servidor para no afectar otros usos.
+            try { await contexto.Database.ExecuteSqlRawAsync("SET SESSION innodb_lock_wait_timeout = DEFAULT"); }
+            catch (System.Data.Common.DbException) { }
+        }
+    }
+}

@@ -62,10 +62,30 @@ public class SesionCliente(IHttpClientFactory factory, IConfiguration configurat
                 ? new(true, (int)response.StatusCode, body, "Operación completada.")
                 : new(false, (int)response.StatusCode, null, response.StatusCode == System.Net.HttpStatusCode.Forbidden
                     ? textoDenegado : response.StatusCode == System.Net.HttpStatusCode.Unauthorized
-                    ? "La sesión venció o no es válida. Ingresá nuevamente." : "La API no pudo completar la operación.");
+                    ? "La sesión venció o no es válida. Ingresá nuevamente." : "La API no pudo completar la operación.",
+                    MotivoDeApi(response, body));
         }
         catch (HttpRequestException) { return new(false, null, null, "No se pudo contactar con la API. Revisá la conexión y reintentá."); }
         catch (TaskCanceledException) { return new(false, null, null, "La solicitud agotó el tiempo de espera. Reintentá."); }
+    }
+
+    // Opt-in: solo 400 y 409 con cuerpo de texto plano (o una cadena JSON) exponen el motivo de la API; el resto de
+    // las respuestas conserva su mensaje fijo. El texto se recorta y se acota para no volcar cuerpos arbitrarios.
+    private const int LimiteMotivoApi = 300;
+    private static string? MotivoDeApi(HttpResponseMessage response, string body)
+    {
+        if (response.StatusCode is not (System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.Conflict)) return null;
+        string? media = response.Content.Headers.ContentType?.MediaType;
+        string? texto = null;
+        if (string.Equals(media, "text/plain", StringComparison.OrdinalIgnoreCase)) texto = body;
+        else if (body.TrimStart().StartsWith('"'))
+        {
+            try { texto = System.Text.Json.JsonSerializer.Deserialize<string>(body); }
+            catch (System.Text.Json.JsonException) { texto = null; }
+        }
+        texto = texto?.Trim();
+        if (string.IsNullOrEmpty(texto)) return null;
+        return texto.Length > LimiteMotivoApi ? texto[..LimiteMotivoApi] : texto;
     }
 
     private async Task<ResultadoAutenticacion> EjecutarAsync(string operacion, SolicitudIngresoDto? solicitud = null)

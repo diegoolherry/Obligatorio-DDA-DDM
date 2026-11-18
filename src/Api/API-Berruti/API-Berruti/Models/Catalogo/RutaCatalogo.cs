@@ -8,4 +8,6 @@ public class RutaCatalogo
     public string Clave { get; set; } = string.Empty;
     public string Familia { get; set; } = string.Empty;
     public string Nombre { get; set; } = string.Empty;
+    // FIN-008: eliminar desde la administración es una baja lógica; los Servicios ya generados se conservan.
+    public bool Activo { get; set; } = true;
 }

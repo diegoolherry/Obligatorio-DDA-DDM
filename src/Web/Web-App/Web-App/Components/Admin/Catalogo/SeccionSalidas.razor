@@ -1,0 +1,198 @@
+@using System.Globalization
+@using Web_App.Models.Catalogo
+
+<section class="card mb-section" aria-labelledby="titulo-salidas">
+    <h2 id="titulo-salidas">Salidas y horarios</h2>
+    @if (Rutas.Count == 0)
+    {
+        <Alerta>Creá primero una ruta para poder cargar salidas.</Alerta>
+    }
+    else
+    {
+        <EditForm Model="_form" OnValidSubmit="GuardarAsync">
+            <DataAnnotationsValidator />
+            <ResumenValidacion />
+            @if (ServiciosEditados > 0)
+            {
+                <Alerta Tipo="TipoAviso.Advertencia" Titulo="Cambios solo para futuras generaciones">
+                    Esta salida tiene @ServiciosEditados @(ServiciosEditados == 1 ? "Servicio generado" : "Servicios generados").
+                    Los cambios no modifican los Servicios que ya existen: se aplican solo a las próximas generaciones.
+                </Alerta>
+            }
+            <div class="grid-form">
+                <div class="field">
+                    <label for="salida-ruta">Ruta</label>
+                    <select id="salida-ruta" value="@_form.RutaId" @onchange="CambiarRuta" disabled="@(Ocupado || _form.Id != null)">
+                        <option value="">Seleccioná una ruta</option>
+                        @foreach (var (bloque, ruta) in Rutas) { <option value="@ruta.Id">@ruta.Clave · @ruta.Nombre (@bloque.Clave)</option> }
+                    </select>
+                    @if (_form.Id != null) { <p class="field-hint">Una salida no cambia de ruta.</p> }
+                    <ValidationMessage For="() => _form.RutaId" />
+                </div>
+                <div class="field">
+                    <label for="salida-dias">Días de operación</label>
+                    <InputSelect id="salida-dias" @ref="_primerCampo" @bind-Value="_form.Dias">
+                        @foreach (var dias in Enum.GetValues<DiasOperacion>()) { <option value="@dias">@EtiquetaDias(dias)</option> }
+                    </InputSelect>
+                </div>
+                <div class="field">
+                    <label for="salida-codigos">Códigos (opcional)</label>
+                    <InputText id="salida-codigos" @bind-Value="_form.Codigos" />
+                    <ValidationMessage For="() => _form.Codigos" />
+                </div>
+                <div class="field">
+                    <label for="salida-nota">Nota (opcional)</label>
+                    <InputText id="salida-nota" @bind-Value="_form.Nota" />
+                    <ValidationMessage For="() => _form.Nota" />
+                </div>
+            </div>
+            @if (RutaElegida is { } elegida)
+            {
+                <fieldset class="field" aria-describedby="salida-horas-ayuda">
+                    <legend>Hora en cada parada</legend>
+                    <p id="salida-horas-ayuda">La primera parada necesita hora. Dejá vacías las paradas sin hora publicada; las horas tienen que ir creciendo.</p>
+                    <div class="grid-form">
+                        @foreach (var parada in elegida.Paradas.OrderBy(p => p.Orden))
+                        {
+                            int orden = parada.Orden;
+                            <div class="field">
+                                <label for="@($"salida-hora-{orden}")">@orden. @parada.Nombre@(orden == 1 ? " (obligatoria)" : " (opcional)")</label>
+                                <input id="@($"salida-hora-{orden}")" type="time" value="@Hora(orden)" disabled="@Ocupado"
+                                       @onchange="e => CambiarHora(orden, e.Value as string)" />
+                            </div>
+                        }
+                    </div>
+                    @if (_errorHoras != null) { <p class="validation-message" role="alert">@_errorHoras</p> }
+                </fieldset>
+            }
+            <div class="cluster">
+                <button class="btn btn-primary" disabled="@Ocupado">@(_form.Id == null ? "Crear salida" : "Guardar salida")</button>
+                @if (_form.Id != null) { <button type="button" class="btn btn-secondary" disabled="@Ocupado" @onclick="Limpiar">Cancelar edición</button> }
+            </div>
+        </EditForm>
+        @if (Rutas.All(x => x.Ruta.Salidas.Count == 0))
+        {
+            <Alerta>No hay salidas cargadas.</Alerta>
+        }
+        else
+        {
+            @foreach (var (bloque, ruta) in Rutas.Where(x => x.Ruta.Salidas.Count > 0))
+            {
+                <h3>@ruta.Clave · @ruta.Nombre <small>(@bloque.Clave)</small></h3>
+                <ul class="list-plain list-rows">
+                    @foreach (var salida in ruta.Salidas)
+                    {
+                        <li class="row-actions">
+                            <span>
+                                <strong>@EtiquetaDias(salida.Dias)</strong>
+                                @if (!string.IsNullOrWhiteSpace(salida.Codigos)) { <text> · códigos @salida.Codigos</text> }
+                                @if (!string.IsNullOrWhiteSpace(salida.Nota)) { <text> · @salida.Nota</text> }<br />
+                                @ResumenHoras(ruta, salida) ·
+                                @salida.ServiciosGenerados @(salida.ServiciosGenerados == 1 ? "Servicio generado" : "Servicios generados")
+                            </span>
+                            <span>
+                                <button type="button" class="btn btn-link" disabled="@Ocupado" @onclick="() => Editar(salida)">Editar</button>
+                                <button type="button" class="btn btn-link btn-danger-text" disabled="@Ocupado" @onclick="() => SolicitarBajaAsync(ruta, salida)">Dar de baja</button>
+                            </span>
+                        </li>
+                    }
+                </ul>
+            }
+        }
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<BloqueAdministracionDto> Bloques { get; set; } = [];
+    [Parameter] public bool Ocupado { get; set; }
+    [Parameter, EditorRequired] public Func<string?, SalidaEscrituraDto, Task<bool>> Guardar { get; set; } = (_, _) => Task.FromResult(false);
+    [Parameter] public EventCallback<BajaCatalogo> AlSolicitarBaja { get; set; }
+
+    private readonly FormularioSalida _form = new();
+    private string? _errorHoras;
+
+    private List<(BloqueAdministracionDto Bloque, RutaAdministracionDto Ruta)> Rutas =>
+        Bloques.SelectMany(b => b.Rutas.Select(r => (b, r))).ToList();
+    private RutaAdministracionDto? RutaElegida => Rutas.Select(x => x.Ruta).FirstOrDefault(r => r.Id == _form.RutaId);
+    private int ServiciosEditados => _form.Id == null ? 0
+        : RutaElegida?.Salidas.FirstOrDefault(s => s.Id == _form.Id)?.ServiciosGenerados ?? 0;
+
+    internal static string EtiquetaDias(DiasOperacion dias) => dias switch
+    {
+        DiasOperacion.LunesAViernes => "Lunes a viernes",
+        DiasOperacion.Sabados => "Sábados",
+        DiasOperacion.DomingosYFeriados => "Domingos y feriados",
+        DiasOperacion.LunesASabado => "Lunes a sábado",
+        DiasOperacion.LunesYViernes => "Lunes y viernes",
+        _ => dias.ToString()
+    };
+
+    private string? Hora(int orden) => _form.Horas.TryGetValue(orden, out var hora) ? hora : null;
+    private void CambiarHora(int orden, string? hora) => _form.Horas[orden] = hora;
+
+    private void CambiarRuta(ChangeEventArgs e)
+    {
+        _form.RutaId = e.Value as string ?? string.Empty;
+        _form.Horas = [];
+        _errorHoras = null;
+    }
+
+    private static string ResumenHoras(RutaAdministracionDto ruta, SalidaAdministracionDto salida) =>
+        string.Join(" · ", salida.Horas.OrderBy(h => h.Orden).Select(h =>
+            $"{ruta.Paradas.FirstOrDefault(p => p.Orden == h.Orden)?.Nombre ?? $"parada {h.Orden}"} {h.Hora?.ToString("HH:mm", CultureInfo.InvariantCulture)}"));
+
+    private async Task GuardarAsync()
+    {
+        var horas = new List<HoraEscrituraDto>();
+        foreach (var (orden, texto) in _form.Horas.OrderBy(h => h.Key))
+        {
+            if (string.IsNullOrWhiteSpace(texto)) continue;
+            if (!TimeOnly.TryParse(texto, CultureInfo.InvariantCulture, DateTimeStyles.None, out var hora))
+            { _errorHoras = $"La hora de la parada {orden} no es válida."; return; }
+            horas.Add(new HoraEscrituraDto { Orden = orden, Hora = hora });
+        }
+        // Mismas reglas que la API (la API vuelve a validar): primera parada con hora, al menos dos horas, estrictamente crecientes.
+        if (horas.All(h => h.Orden != 1)) { _errorHoras = "La primera parada necesita hora de salida."; return; }
+        if (horas.Count < 2) { _errorHoras = "Una salida necesita al menos dos horas."; return; }
+        for (int i = 1; i < horas.Count; i++)
+            if (horas[i].Hora <= horas[i - 1].Hora) { _errorHoras = "Las horas tienen que ser crecientes a lo largo de la ruta."; return; }
+        _errorHoras = null;
+        var dto = new SalidaEscrituraDto
+        {
+            RutaId = _form.RutaId, Dias = _form.Dias,
+            Codigos = string.IsNullOrWhiteSpace(_form.Codigos) ? null : _form.Codigos,
+            Nota = string.IsNullOrWhiteSpace(_form.Nota) ? null : _form.Nota,
+            Horas = horas
+        };
+        if (await Guardar(_form.Id, dto)) Limpiar();
+    }
+
+    private void Editar(SalidaAdministracionDto salida)
+    { _enfocar = true;
+        _form.Id = salida.Id; _form.RutaId = salida.RutaId; _form.Dias = salida.Dias;
+        _form.Codigos = salida.Codigos; _form.Nota = salida.Nota;
+        _form.Horas = salida.Horas.Where(h => h.Hora != null)
+            .ToDictionary(h => h.Orden, h => (string?)h.Hora!.Value.ToString("HH:mm", CultureInfo.InvariantCulture));
+        _errorHoras = null;
+    }
+
+    private void Limpiar()
+    {
+        _form.Id = null; _form.RutaId = string.Empty; _form.Dias = default; _form.Codigos = _form.Nota = null; _form.Horas = [];
+        _errorHoras = null;
+    }
+
+    private Task SolicitarBajaAsync(RutaAdministracionDto ruta, SalidaAdministracionDto salida) =>
+        AlSolicitarBaja.InvokeAsync(new BajaCatalogo("salidas", salida.Id, $"la salida {EtiquetaDias(salida.Dias)} de la ruta {ruta.Clave}", true));
+
+    // «Editar» llena el formulario arriba de la lista: se le pasa el foco para que quede a la vista.
+    private InputSelect<DiasOperacion>? _primerCampo;
+    private bool _enfocar;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_enfocar) return;
+        _enfocar = false;
+        if (_primerCampo?.Element is { } campo) await campo.FocusAsync();
+    }
+}
