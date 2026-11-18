@@ -1,41 +1,61 @@
 # Autenticación básica local y contratos iniciales de ingreso
 
-## Dirección vigente (implementación API en fuente; prueba integrada pendiente)
+## Dirección vigente: JWT sin estado (FIN-005)
 
-Decisión del usuario: el proyecto se limita a una demostración local y aislada con cuentas totalmente ficticias. **No está autorizado desplegarlo en ninguna plataforma ni usar credenciales o usuarios reales.** Las contraseñas ficticias podrán almacenarse temporalmente en texto plano hasta revisar en clase el mecanismo esperado; esto no constituye almacenamiento seguro. No devolverlas en respuestas ni registrarlas en logs.
+Decisión del usuario: el proyecto se limita a una demostración local y aislada con cuentas totalmente ficticias. **No está autorizado desplegarlo en ninguna plataforma ni usar credenciales o usuarios reales** hasta una autorización humana explícita e independiente. Las contraseñas se guardan solo como hash (abajo); no devolverlas en respuestas ni registrarlas en logs.
 
-La implementación actual prevista no usará Identity. OpenIddict y las mejoras del login se aplazan a `FIN-005` del [backlog](../tasks.json); no se promete incorporar Identity en el futuro. Esta decisión reemplaza la dirección previa Identity/OpenIddict para este corte, sin eliminar los requisitos de autenticación y autorización del MVP.
+### Decisiones de FIN-005: JWT y hash de contraseñas
 
-- Mantener Controller → Service → Repository → DbContext para las operaciones de cuentas y negocio. Por exigencia explícita del usuario, **cada Service y Repository de C# tendrá su propia interfaz**, implementada por su clase; los consumidores y el registro de DI dependerán de esa interfaz, no de construcciones directas de repositorios/servicios. Aplica también a los componentes de cuentas y contadores ya escritos y a los futuros servicios Web. No se introduce un repositorio genérico; la API registra interfaces específicas para cuentas, contadores, sesiones, correlativo y autenticación; su prueba integrada sigue pendiente. La aprobación del usuario no se presenta como evidencia docente.
-- Los DTOs ya aprobados siguen siendo contratos separados de las entidades persistidas: clases propias en API y Web y tipos equivalentes en Mobile, sin reintroducir Shared.
-- Comprobar correo y contraseña en la API y crear una sesión de servidor vinculada al usuario. La credencial de sesión será opaca, aleatoria e impredecible, no un ID correlativo como `US-1` ni una contraseña; no se ha seleccionado JWT.
-- Validar la sesión en cada operación protegida y obtener el rol desde datos autoritativos del servidor, nunca desde un rol declarado por el cliente. Sin sesión válida, responder `401`; con sesión válida pero sin permiso, `403`, sin modificar datos protegidos. Los servicios conservan las comprobaciones específicas de negocio, como pertenencia de una compra.
-- Invalidar la sesión correspondiente al cerrar sesión; las peticiones posteriores con esa credencial deben rechazarse. Mantener el rechazo genérico de credenciales incorrectas y distinguir errores de disponibilidad.
-- API y Web ya tienen sus propias clases de contrato, compatibles en JSON, sin biblioteca Shared. La separación está implementada y `MVP-001-06` está cerrada con aprobación de Enzo reportada por el usuario; el ingreso agrega `token` y `venceEnUtc` en los tres contratos propios; no implementa consumidores Web/Mobile.
+Decisiones de Diego del 2026-11-18 en el chat de trabajo de FIN-005 (el [backlog](../tasks.json) conserva el estado de la tarea). Son decisiones, no resultados de prueba.
 
-### Política de sesión aprobada
+| Tema | Decisión |
+| --- | --- |
+| Mecanismo | **JWT adoptado**, sin estado: «Migramos a JWT», «JWT puro, sin estado». Reemplaza la sesión de servidor con token opaco y la tabla `sesion`. |
+| OpenIddict | **No adoptado.** |
+| Identity | **No adoptado.** Solo se usa `IPasswordHasher<Usuario>` del framework compartido, registrado sin el sistema de usuarios de Identity. |
+| Contraseñas | Hash con sal mediante `IPasswordHasher<Usuario>`; se retira la excepción de texto plano. |
+| Vigencia | **7 días**, «como hoy». Las diapositivas docentes recomiendan tokens cortos; ver riesgo aceptado. |
+| Contrato de ingreso | «Mantener la actual»: `{identificadorUsuario, roles[], token, venceEnUtc}`; solo cambia el formato del token. |
+| Logout | «Igual a la clase»: el cliente descarta el token y el servidor no revoca. |
 
-El usuario aprobó explícitamente en el chat el siguiente comportamiento para el corte básico local:
+**Riesgo aceptado (Diego).** Cerrar sesión solo descarta el token en el cliente. Un token robado, un cambio de rol o una cuenta desactivada **siguen surtiendo efecto hasta el vencimiento (7 días)**: no hay revocación, lista de bloqueo ni refresh token. Los roles viajan en el token y no se reconsultan en cada solicitud. Reducir la vigencia o agregar revocación requiere una nueva decisión del equipo.
 
-- Tras comprobar las credenciales, la API entrega una credencial de sesión aleatoria, distinta del ID del usuario.
-- Las sesiones se persisten en **MySQL**, vinculadas al usuario y con vencimiento y estado de invalidación. Reiniciar la API no las elimina; una sesión vencida o invalidada sigue siendo rechazada.
-- Vencimiento **absoluto de siete días desde el ingreso**, sin extenderlo por actividad.
-- El cliente envía el token opaco en el encabezado HTTP `Authorization: Bearer <token>` de las operaciones protegidas; la API consulta la sesión para comprobar su validez y los permisos del usuario. Este transporte fue aprobado explícitamente por el usuario, quien además reportó haberlo visto en clase; ese reporte no acredita la generación ni el almacenamiento del token. No se adopta JWT.
-- El token es una credencial: no debe incluirse en URLs, logs ni compartirse. Se requiere proteger la conexión para evitar su exposición; la configuración concreta del canal sigue pendiente.
-- Cerrar sesión invalida la sesión correspondiente en el servidor.
-- Los clientes conservan la credencial **solo en memoria**, sin almacenamiento persistente ni función «recordarme». Reabrir la app o recargar la Web requiere ingresar nuevamente. La pérdida de la credencial en el cliente no equivale a revocación en el servidor: sin un logout confirmado, la sesión puede seguir vigente hasta su vencimiento, aunque el cliente ya no la recupere.
+### Mecanismo implementado en fuente
 
-**Mecanismos técnicos aprobados por el usuario (API implementada en fuente; integración y clientes pendientes):** token generado con aleatoriedad criptográfica y persistencia de su huella SHA-256, no del token recuperable; contador durable por entidad con incremento transaccional protegido ante concurrencia; custodia de credenciales en memoria aislada por circuito InteractiveServer de Web y estado de la aplicación Mobile, sin cookies ni almacenamiento persistente; HTTPS sin desactivar la validación de certificados; si falla el logout por red, informar que no se confirmó la revocación, sin mostrar éxito ficticio. El usuario confirmó que su dispositivo Expo es un **iPhone**.
+- **Ingreso.** `POST /api/autenticacion/ingreso` verifica correo y contraseña con `IPasswordHasher<Usuario>`. Usuario inexistente, inactivo, contraseña incorrecta o una fila heredada que no es un hash (texto plano anterior) reciben el mismo `401` y rechazo genérico. Si coincide, [`EmisorJwt`](../../src/Api/API-Berruti/API-Berruti/Security/Authentication/EmisorJwt.cs) firma un JWT HS256.
+- **Claims.** `sub` = identificador público del usuario (no el ID correlativo `US-1` ni el correo), `jti` aleatorio y un claim de rol por cada rol, leídos de MySQL al ingresar, nunca del cliente. Sin correo ni datos personales: **un JWT está firmado, no cifrado**.
+- **Vencimiento.** 7 días en segundos enteros; `exp` coincide con `venceEnUtc`.
+- **Validación.** [`ConfiguracionAutenticacion`](../../src/Api/API-Berruti/API-Berruti/Security/Authentication/ConfiguracionAutenticacion.cs) usa `AddJwtBearer` y valida emisor, audiencia, clave de firma y vencimiento; acepta solo HS256 (rechaza `alg: none`). Token ausente, alterado o vencido recibe el mismo `401` con `WWW-Authenticate: Bearer`, sin revelar el motivo; con identidad válida pero sin el rol, `403`. Los rechazos no modifican datos protegidos y conocer un ID o declarar un rol desde el cliente no concede acceso.
+- **Salida.** `POST /api/autenticacion/salida` exige un Bearer válido y responde `204` **sin estado en el servidor**; el token sigue siendo válido hasta `exp` si alguien lo conserva.
+- **Clave y configuración.** [`ConfiguracionJwt`](../../src/Api/API-Berruti/API-Berruti/Security/Authentication/ConfiguracionJwt.cs): `Jwt__Key` de al menos 32 bytes, solo en el `.env` local (nunca versionado; ver [`api-local-config.example.txt`](../../src/Api/API-Berruti/API-Berruti/api-local-config.example.txt)). `Jwt:Issuer` y `Jwt:Audience` están en `appsettings.json`. Sin clave válida el arranque normal termina con código 2 y [`scripts/start-api-local.ps1`](../../scripts/start-api-local.ps1) rechaza el `.env`. La clave no viaja a Web ni a Mobile y no usa `EXPO_PUBLIC_*`.
+- **Contraseñas y transición.** Las bases locales son descartables: con el cambio, recrearlas con `--reset-local` ([guía](../how-to/local-database-reset.md)). La migración `QuitarSesion` elimina la tabla `sesion` ([script generado](../../scripts/database/20261118162624_QuitarSesion.sql)); se eliminaron `seed-auth-demo-passenger.sql` y `review-demo-admin-creation.sql`, que escribían contraseñas legibles. Una base anterior con contraseñas en texto plano no autentica: se recrea, no se migra.
 
-**Detalles técnicos pendientes de comprobar/integrar:** esquema y SQL concretos, proveedor EF compatible con .NET 10 comprobado mediante restauración y ejecución, configuración de HTTPS y confianza del certificado en iPhone, manejo preciso del ciclo de vida y fallos, y pruebas aisladas. Persistir la sesión en el servidor no autoriza persistir su credencial en el cliente. No se ha aprobado un mecanismo de recuperación de sesión ni renovación automática. Los IDs string prefijados de entidades no convierten credenciales, QR ni referencias externas en correlativos.
+### Reglas que se conservan
 
-Hay código API para ingreso, sesión, salida y pruebas de rol; no hay autenticación HTTPS/MySQL integrada acreditada. Ver [rutas/status](api.md) y [comprobaciones y límites](../how-to/api-session-checks.md). `MVP-001-03`, `MVP-001-04` y `MVP-001-05` conservan sus criterios, estados y dependencias; `FIN-005` es trabajo futuro y no bloquea su cierre cuando se demuestre el corte básico local.
+- Mantener Controller → Service → Repository → DbContext. Por exigencia explícita del usuario, **cada Service y Repository de C# tiene su propia interfaz**, y los consumidores y la DI dependen de ella. No se introduce un repositorio genérico. La aprobación del usuario no se presenta como evidencia docente.
+- Los DTOs son contratos separados de las entidades: clases propias en API y Web y tipos equivalentes en Mobile, sin Shared.
+- Los clientes conservan el token **solo en memoria**, sin almacenamiento persistente ni «recordarme». Reabrir la app o recargar la Web requiere ingresar de nuevo. Los clientes validan solo la forma del token (tres segmentos base64url) y no decodifican su contenido; los roles de la respuesta sirven para adaptar la UI, no para autorizar.
+- Sin sesión válida, `401`; con sesión válida pero sin permiso, `403`. Si falla la salida por red, el cliente informa que **no se confirmó el cierre** y no muestra un éxito ficticio.
+- HTTPS sin desactivar la validación de certificados. El token es una credencial: no va en URLs ni logs. El usuario confirmó que su dispositivo Expo es un **iPhone**.
+- Los IDs string prefijados de entidades no convierten credenciales ni referencias externas en correlativos.
+
+### Estado de verificación
+
+| Afirmación | Categoría | Fuente |
+| --- | --- | --- |
+| JWT, sin OpenIddict ni Identity, 7 días, contrato mantenido, logout sin estado, riesgo aceptado | Decisión | Diego, 2026-11-18, FIN-005 |
+| Emisión, validación, hash y salida `204` sin estado | Implementado en fuente | Archivos enlazados arriba |
+| Clientes: forma del token y textos de cierre sin afirmar revocación | Observado por quien redactó esta documentación | `dotnet run --project tests/WebAuthentication/WebAuthentication.csproj --no-launch-profile` → 177/177; `node --test tests/MobileAuthentication/*.test.mjs` → 26/26; `npm run typecheck` en `src/Mobile` → sin errores |
+| Pruebas API (`tests/AuthenticationSessions` 64/64, `tests/DemoAdministratorPreparation` 55/55, `tests/ApiLocalEnv` 32/32) | Reportado por el coordinador (FIN-005, L8); no repetido al redactar esto | PR de FIN-005 |
+| Recorrido real HTTPS/MySQL contra la API con JWT; `--mysql` de `tests/MySqlPersistence` | **Pendiente**: no ejecutado | — |
+
+Las pruebas automatizadas protegen los invariantes de autorización; este texto no las sustituye. Ver [rutas](api.md) y [comprobaciones](../how-to/api-session-checks.md).
 
 ## Estado del código existente
 
  Contratos iniciales de ingreso
 
-**Implementado:** clases propias de API y Web, DataAnnotations y roles enum con el mismo contrato JSON de MVP-001-02; ya no existe el proyecto Shared. La verificación independiente y aprobación de Enzo reportada para MVP-001-02 pertenecen al corte anterior. **Separación cerrada:** el usuario confirmó que Enzo aprobó todos los criterios de `MVP-001-06`. **En fuente:** endpoints API de sesión y autorización; **pendiente:** prueba pública HTTPS/MySQL y consumidores. El [backlog](../tasks.json) conserva la autoridad del cierre; ver [API](api.md).
+**Implementado:** clases propias de API y Web, DataAnnotations y roles enum con el mismo contrato JSON de MVP-001-02; ya no existe el proyecto Shared. La verificación independiente y aprobación de Enzo reportada para MVP-001-02 pertenecen al corte anterior. **Separación cerrada:** el usuario confirmó que Enzo aprobó todos los criterios de `MVP-001-06`. **En fuente:** endpoints API de sesión y autorización; **pendiente:** prueba pública HTTPS/MySQL con JWT. El [backlog](../tasks.json) conserva la autoridad del cierre; ver [API](api.md).
 
 ## Aprobación y límites
 
@@ -65,14 +85,14 @@ Cada aplicación mantiene también su propio `RolIngreso`. Cambiar un lado requi
 | --- | --- | --- | --- |
 | Solicitud | `Correo: string` | `correo: string` | `Required`: `El correo es obligatorio.`; `EmailAddress`: `El correo no es válido.` |
 | Solicitud | `Contrasena: string` | `contrasena: string` | `Required`: `La contraseña es obligatoria.`; no devolver ni registrar la credencial. |
-| Éxito | `IdentificadorUsuario: string` | `identificadorUsuario: string` | Identificador público opaco interno; nunca visible al usuario ni credencial de sesión. No expone PK. `Usuario.IdentificadorPublico` se genera aleatoriamente una sola vez al alta (32 bytes Base64url), se persiste con índice único y no autentica solicitudes. |
+| Éxito | `IdentificadorUsuario: string` | `identificadorUsuario: string` | Identificador público opaco; nunca visible al usuario. No expone PK. `Usuario.IdentificadorPublico` se genera aleatoriamente una sola vez al alta (32 bytes Base64url), se persiste con índice único y es el claim `sub` del JWT; por sí solo no autentica solicitudes. |
 | Éxito | `Roles: RolIngreso[]` | `roles: RolIngreso[]` | Array de textos españoles por el conversor MVC. Inicializador `new RolIngreso[0]`; sin cardinalidad mínima, orden obligatorio ni rol principal. |
-| Éxito | `Token: string` | `token: string` | 32 bytes aleatorios en Base64url canónico (43 caracteres sin padding); solo respuesta de ingreso. Default vacío; no guardar/loguear ni enviar por URL. |
-| Éxito | `VenceEnUtc: string` | `venceEnUtc: string` | UTC ISO 8601 `yyyy-MM-ddTHH:mm:ss.ffffffZ`, precisión microsegundos; siete días absolutos, default vacío. |
+| Éxito | `Token: string` | `token: string` | JWT HS256 compacto (`header.payload.signature`, tres segmentos base64url sin padding; los clientes aceptan hasta 4096 caracteres); solo respuesta de ingreso. Default vacío; no guardar/loguear ni enviar por URL. |
+| Éxito | `VenceEnUtc: string` | `venceEnUtc: string` | UTC ISO 8601 `yyyy-MM-ddTHH:mm:ss.ffffffZ`, precisión microsegundos (en segundos enteros); siete días absolutos y coincide con el `exp` del JWT; default vacío. |
 | Rechazo | `Codigo: string` | `codigo: string` | Código genérico elegido: `ingresoRechazado`. |
 | Rechazo | `Mensaje: string` | `mensaje: string` | `No se pudo ingresar con las credenciales proporcionadas.` |
 
-Éxito y rechazo siguen separados, sin envelope. Solo el éxito de ingreso contiene la credencial opaca. Email desconocido, contraseña incorrecta y cuenta inactiva reciben el mismo `401` y rechazo genérico. DataAnnotations conserva los `400` y mensajes originales; no normaliza credenciales. Los fallos inesperados capturados por el límite de autenticación, incluidos los de proveedor/configuración, devuelven `500` sanitizado, no rechazo de credenciales: `{"codigo":"autenticacionNoDisponible","mensaje":"La autenticación no está disponible. Intentá nuevamente."}`, con `Cache-Control: no-store`. Identidad y pruebas de rol devuelven `RespuestaSesionDto` (`identificadorUsuario`, `roles`), nunca token, PK ni contraseña.
+Éxito y rechazo siguen separados, sin envelope. Solo el éxito de ingreso contiene el token. Email desconocido, contraseña incorrecta y cuenta inactiva reciben el mismo `401` y rechazo genérico. DataAnnotations conserva los `400` y mensajes originales; no normaliza credenciales. Los fallos inesperados capturados por el límite de autenticación, incluidos los de proveedor/configuración, devuelven `500` sanitizado, no rechazo de credenciales: `{"codigo":"autenticacionNoDisponible","mensaje":"La autenticación no está disponible. Intentá nuevamente."}`, con `Cache-Control: no-store`. Identidad y pruebas de rol devuelven `RespuestaSesionDto` (`identificadorUsuario`, `roles`), nunca token, PK ni contraseña.
 
 Las cadenas comienzan vacías, no validadas por el inicializador. `Required` rechaza null/vacío/espacios cuando se invoca validación. Las propiedades siguen siendo mutables; no garantizan nulabilidad runtime. TypeScript no ejecuta DataAnnotations ni valida JSON recibido.
 

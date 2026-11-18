@@ -1,5 +1,7 @@
 # Preparar el pasajero ficticio de demo para revisión manual
 
+> **Procedimiento retirado por FIN-005 (historial).** El seed `seed-auth-demo-passenger.sql` se eliminó porque guardaba la contraseña en texto plano y el esquema vigente ya no tiene la tabla `sesion`. Hoy las cuentas demo (pasajero, cobrador y administrador) las crea `.\scripts\reset-local-db.ps1`, con la contraseña guardada solo como hash de `IPasswordHasher<Usuario>`; ver [recrear la base local](local-database-reset.md). Una cuenta demo con contraseña legible no autentica: no se migra, se recrea. Lo que sigue es el registro del procedimiento anterior, no instrucciones vigentes.
+
 ## Evidencia posterior de la demo existente
 
 El esquema y bootstrap de esta demo ya fueron ejecutados según las autorizaciones y evidencia [L39–L45](../../odd/tasks/mvp-001-03-passenger-auth.md): cinco tablas, un pasajero ficticio activo, un rol/membresía, contadores US-/RO- en 1 y cero sesiones. **No repetir CREATE ni seed sobre este estado.** Las instrucciones de revisión manual de abajo se conservan como procedimiento original, no como autorización para reejecutar.
@@ -23,7 +25,7 @@ Las bases y cuentas existentes **no se reprovisionan**: no repetir [prepare-loca
 | Artefacto | Finalidad | Condición previa |
 | --- | --- | --- |
 | [create-auth-demo.sql](../../scripts/database/create-auth-demo.sql) | Cinco definiciones InnoDB, solo `berrutilocal.*` | Versión compatible y esquema sin objetos, confirmados por la persona |
-| [seed-auth-demo-passenger.sql](../../scripts/database/seed-auth-demo-passenger.sql) | Un pasajero y rol, sin sesiones | Cinco tablas recién creadas, definiciones exactas y completamente vacías, sin uso anterior |
+| `seed-auth-demo-passenger.sql` (eliminado) | Un pasajero y rol, sin sesiones | Cinco tablas recién creadas, definiciones exactas y completamente vacías, sin uso anterior |
 
 Ambos son propuestas nuevas; los scripts [foundation](../../scripts/database/create-auth-foundation.sql), [sessions](../../scripts/database/create-auth-sessions.sql) y fixtures existentes siguen siendo **solo de pruebas**, no instrucciones para demo. No modificarlos, ejecutarlos en demo ni reemplazar nombres a mano.
 

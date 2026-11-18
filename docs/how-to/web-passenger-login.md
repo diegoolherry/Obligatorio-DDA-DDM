@@ -4,7 +4,7 @@
 
 Anónimo → enviar correo y contraseña ficticios → ocupado (sin envíos duplicados) → sesión confirmada por respuesta válida, o validación/rechazo/red/servidor/configuración → reintentar conservando el correo. La contraseña nunca se muestra como texto ni se devuelve en mensajes; se borra después del envío.
 
-Sesión → cerrar sesión → ocupado → anónimo solo tras `204`; si falla, indicar **revocación no confirmada** y conservar la credencial solo en memoria para reintentar. Un `401` autenticado elimina la sesión local inválida, pero no acredita revocación. Descartar memoria no equivale a cerrar en el servidor. Respuestas tardías no recuperan sesiones descartadas.
+Sesión → cerrar sesión → ocupado → anónimo solo tras `204`; si falla, indicar **salida no confirmada** y conservar el token solo en memoria para reintentar. Un `401` autenticado elimina la sesión local inválida. Con JWT sin estado (FIN-005) la salida `204` no revoca nada en el servidor: el token descartado sigue válido hasta su vencimiento (7 días, riesgo aceptado, ver [contratos](../reference/auth-contracts.md#decisiones-de-fin-005-jwt-y-hash-de-contraseñas)). Respuestas tardías no recuperan sesiones descartadas.
 
 Una vez autenticado, **Comprobar acceso de administrador** consulta la prueba de lectura existente `GET /api/autenticacion/prueba-administrador`. No elige ni concede roles y no abre un panel operativo: la API decide `200`, `403` o `401`. El botón comparte el bloqueo de solicitudes y muestra progreso y resultado; tras fallo de red/servidor puede reintentarse. Un `403` no borra la sesión. Ingreso y salida siguen siendo los mismos para pasajero y administrador.
 
@@ -18,7 +18,7 @@ Las demás páginas y el hub compartido `/_blazor` conservan su comportamiento p
 
 El cliente consume `Api:BaseUrl` (variable pública `Api__BaseUrl`). Debe ser una URL HTTPS absoluta sin credenciales, query ni fragmento. Ausencia o valor inválido produce un error local accionable, sin enviar solicitudes. Ejemplo configurable del perfil existente: `https://localhost:7053/`; no demuestra certificado confiable ni API disponible. No colocar tokens, contraseñas ni datos de DB en esa opción.
 
-El servicio es scoped por circuito InteractiveServer; una instancia/circuito nuevos son anónimos. Una reconexión del mismo circuito puede conservar memoria. No usa cookies ni almacenamiento persistente, encabezados Authorization globales ni redirecciones automáticas. El token viaja únicamente en cada solicitud protegida. La pérdida del circuito no confirma revocación remota.
+El servicio es scoped por circuito InteractiveServer; una instancia/circuito nuevos son anónimos. Una reconexión del mismo circuito puede conservar memoria. No usa cookies ni almacenamiento persistente, encabezados Authorization globales ni redirecciones automáticas. El token viaja únicamente en cada solicitud protegida. La pérdida del circuito descarta el token en el cliente; el servidor no guarda estado. El cliente solo valida la forma del JWT (tres segmentos base64url) y no lo decodifica.
 
 `/ingreso` usa los estilos del sistema de diseño (`wwwroot/app.css`) y declara InteractiveServer solo por página. Usar únicamente cuentas ficticias locales.
 

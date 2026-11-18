@@ -86,9 +86,8 @@ Devuelve únicamente:
 - Nombres/tipos de restricciones, columnas de claves y referencias FK; nombres,
   tabla, momento y evento de triggers, **nunca cuerpos ni expresiones CHECK**.
 - Conteos solo de `BASE TABLE` conocidas: `usuario`, `rol`, `usuario_rol`,
-  `contador_entidad`, `sesion`. No cuenta vistas (incluso con esos nombres) ni
-  tablas desconocidas. No consulta filas de cuentas/sesiones, correos, contraseñas,
-  huellas ni tokens.
+  `contador_entidad` (desde FIN-005 ya no se inspecciona `sesion`: la migración `QuitarSesion` la elimina). No cuenta vistas (incluso con esos nombres) ni
+  tablas desconocidas. No consulta filas de cuentas, correos, contraseñas ni tokens.
 - `Contadores: [inválidas,cantidadUS,mínimoUS,máximoUS,cantidadRO,mínimoRO,máximoRO]`.
   Los mínimos/máximos solo consideran valores entre 0 y 50000; sin filas válidas
   son `null`. Prefijos desconocidos/nulos y valores nulos/fuera de rango se cuentan

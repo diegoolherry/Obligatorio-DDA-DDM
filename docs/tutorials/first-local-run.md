@@ -59,7 +59,7 @@ PowerShell 5.1, reemplazá solo el arranque API por este bloque desde la raíz:
 
 ```powershell
 Copy-Item src/Api/API-Berruti/API-Berruti/api-local-config.example.txt src/Api/API-Berruti/API-Berruti/.env
-# Completar privadamente la unica clave; nunca pegar su valor en chat/logs.
+# Completar privadamente ConnectionStrings__Berruti y Jwt__Key (aleatoria, >= 32 bytes); nunca pegar sus valores en chat/logs.
 .\scripts\start-api-local.ps1
 ```
 
@@ -69,7 +69,7 @@ copia nuevamente sobre configuración ya completada. La copia vacía no configur
 una DB sin contraseña, no cambia cuentas ni demuestra login/TLS. El archivo es
 texto plano, no una bóveda; es solo API, nunca Mobile ni `EXPO_PUBLIC`. La
 [sintaxis limitada y las garantías de entorno](../how-to/api-session-checks.md#arranque-opcional-con-env-solo-api-powershell-51)
-aceptan comentarios/líneas vacías y una clave exacta con valor literal, sin
+aceptan comentarios/líneas vacías y exactamente esas dos claves con valor literal, sin
 comillas exteriores, `export` ni interpolación. El guard API sigue vigente.
 
 ## 3. Iniciá Mobile

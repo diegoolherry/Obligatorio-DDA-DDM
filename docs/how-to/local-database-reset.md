@@ -28,7 +28,7 @@ Verificación de esta preparación: restauración solo desde la caché local, AP
 
 ## Una sola vez: permiso de esquema
 
-Requiere las bases y cuentas de [Bases MySQL locales](local-auth-database.md) y el `.env` privado de la API con `ConnectionStrings__Berruti`.
+Requiere las bases y cuentas de [Bases MySQL locales](local-auth-database.md) y el `.env` privado de la API con `ConnectionStrings__Berruti` y `Jwt__Key` (clave aleatoria de al menos 32 bytes; la exige `start-api-local.ps1`).
 
 En Workbench, con la cuenta administradora local, ejecutá [`scripts/database/grant-local-ddl.sql`](../../scripts/database/grant-local-ddl.sql). Esto da a `berruti_app` y `berruti_test` permiso para crear y borrar tablas en sus bases.
 
@@ -43,7 +43,7 @@ En Workbench, con la cuenta administradora local, ejecutá [`scripts/database/gr
 - Borra **todas** las tablas de `berrutilocal`, aplica las migraciones y crea las cuentas `pasajero.demo@example.test`, `cobrador.demo@example.test` y `admin.demo@example.test`.
 - En Development también siembra el escenario operativo ficticio (paradas Ombúes, Radial de Conchillas y Colonia; dos tramos encadenados; dos servicios de 08:00–08:30 y 08:45–10:00; tarifas de 100.00 y 250.00). Los servicios quedan en la fecha de **mañana** respecto del día del reinicio (`DateTime.Today.AddDays(1)`, hora local) y las tarifas rigen desde ese día por un año; hay que volver a reiniciar para que la fecha siga siendo futura. `-Environment AuthenticationTests` no lo siembra.
 - También siembra el catálogo de horarios de FIN-001 desde `Data/Catalogo/horarios-invierno-2026.json`: 4 bloques, rutas dirigidas con sus paradas ordenadas, salidas, feriados y excepciones. Reutiliza por nombre las paradas del escenario y agrega las que faltan. No genera servicios ni tarifas: para eso está `POST /api/administracion/catalogo/servicios` ([API](../reference/api.md#catálogo-de-horarios-fin-001)).
-- Pide una contraseña ficticia para las tres cuentas: no se muestra ni se guarda. No uses una contraseña real.
+- Pide una contraseña ficticia para las tres cuentas: no se muestra y se guarda solo como hash de `IPasswordHasher<Usuario>`, nunca legible. No uses una contraseña real. Desde FIN-005 las bases locales son descartables y una con contraseñas en texto plano no autentica: recrearla con este comando; la tabla `sesion` ya no existe.
 - `.\scripts\reset-local-db.ps1 -Environment AuthenticationTests` recrea solo el esquema de `berrutiauthtests`, sin cuentas. Necesita un `.env` con la cadena de `berruti_test`.
 - El guard de la API rechaza cualquier servidor que no sea `localhost:3306` o una base distinta de esas dos.
 
@@ -70,7 +70,7 @@ Con la API corriendo (`.\scripts\start-api-local.ps1`):
 
 ```powershell
 .\scripts\check-demo-login.ps1 -Save   # una vez: guarda la contraseña demo cifrada con DPAPI en .local/
-.\scripts\check-demo-login.ps1         # pasajero, cobrador y admin: ingreso, rol permitido/denegado, sin sesión, salida y token revocado
+.\scripts\check-demo-login.ps1         # pasajero, cobrador y admin: ingreso, rol permitido/denegado, sin sesión y salida (`204`, sin revocación en el servidor)
 ```
 
 Solo imprime códigos HTTP; nunca la contraseña ni el token. El archivo cifrado está fuera de git y solo lo descifra tu usuario de Windows.
