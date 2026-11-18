@@ -49,6 +49,14 @@ var app = builder.Build();
 if (args.Contains(ReinicioLocal.Argumento))
     return await ReinicioLocal.EjecutarAsync(app.Services, builder.Configuration, app.Environment);
 
+// El arranque normal exige una clave JWT válida (Jwt__Key, fuera de Git); el reinicio local no firma tokens.
+try { ConfiguracionJwt.Leer(builder.Configuration); }
+catch (InvalidOperationException error)
+{
+    Console.Error.WriteLine("Configuración JWT inválida: " + error.Message);
+    return 2;
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {

@@ -12,7 +12,6 @@ public class BerrutiDbContext : DbContext
     public BerrutiDbContext(DbContextOptions<BerrutiDbContext> opciones) : base(opciones) { }
 
     public DbSet<Usuario> Usuarios => Set<Usuario>();
-    public DbSet<Sesion> Sesiones => Set<Sesion>();
     public DbSet<Rol> Roles => Set<Rol>();
     public DbSet<UsuarioRol> UsuariosRoles => Set<UsuarioRol>();
     public DbSet<ContadorEntidad> Contadores => Set<ContadorEntidad>();
@@ -73,18 +72,6 @@ public class BerrutiDbContext : DbContext
             .HasConstraintName("fk_usuario_rol_usuario");
         membresia.HasOne<Rol>().WithMany().HasForeignKey(m => m.RolId).OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("fk_usuario_rol_rol");
-
-        var sesion = modelo.Entity<Sesion>();
-        sesion.ToTable("sesion", t =>
-            t.HasCheckConstraint("ck_sesion_vence", "vence_utc = DATE_ADD(creada_utc, INTERVAL 7 DAY)"));
-        sesion.HasKey(s => s.Huella);
-        sesion.Property(s => s.Huella).HasColumnName("huella").HasColumnType("char(64)").ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).ValueGeneratedNever();
-        sesion.Property(s => s.UsuarioId).HasColumnName("usuario_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii);
-        sesion.Property(s => s.CreadaUtc).HasColumnName("creada_utc").HasColumnType("datetime(6)");
-        sesion.Property(s => s.VenceUtc).HasColumnName("vence_utc").HasColumnType("datetime(6)");
-        sesion.Property(s => s.RevocadaUtc).HasColumnName("revocada_utc").HasColumnType("datetime(6)");
-        sesion.HasOne<Usuario>().WithMany().HasForeignKey(s => s.UsuarioId).OnDelete(DeleteBehavior.Restrict)
-            .HasConstraintName("fk_sesion_usuario");
 
         var contador = modelo.Entity<ContadorEntidad>();
         contador.ToTable("contador_entidad", t =>

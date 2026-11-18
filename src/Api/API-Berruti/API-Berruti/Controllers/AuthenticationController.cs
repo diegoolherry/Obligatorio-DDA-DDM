@@ -28,13 +28,11 @@ public class AuthenticationController : ControllerBase
             Mensaje = "No se pudo ingresar con las credenciales proporcionadas." });
     }
 
+    // JWT sin estado: el servidor no guarda ni revoca nada. El cliente descarta el token, que sigue
+    // siendo válido hasta su vencimiento (`exp`) si alguien lo conserva.
     [Authorize]
     [HttpPost("salida")]
-    public async Task<IActionResult> Salir()
-    {
-        await _autenticacion.SalirAsync(EncabezadoBearer.Token(Request.Headers.Authorization.ToString())!);
-        return NoContent();
-    }
+    public IActionResult Salir() => NoContent();
 
     [Authorize]
     [HttpGet("identidad")]
