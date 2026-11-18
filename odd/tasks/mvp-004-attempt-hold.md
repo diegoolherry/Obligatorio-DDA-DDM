@@ -305,3 +305,7 @@ These checkboxes record local implementation cuts only; they do not complete MVP
 - GREEN: node --test tests/MobilePurchase/purchase-service.test.mjs reported 14/14 passing, exit 0; npm run typecheck exited 0; git diff --check passed.
 - The first post-implementation harness invocation had one test-only stale helper-name failure (13/14); corrected the test reference and reran the final suite. No React Native rendering proof is claimed.
 - Proof plan: deterministic Node cases for malformed route payloads and terminal-versus-active finalization policy; full Mobile typecheck; no React Native render, API/provider/DB integration, or new route/persistence mechanism is claimed.
+
+
+### PAY-01k1 - Guarded MySQL purchase persistence checks
+- Prepared checks: approved two-leg issuance/idempotency, concurrent seat occupancy, exact-deadline savepoint refund and counter rollback. Retry behavior is reserved for the follow-up slice; no database/provider execution is claimed.
