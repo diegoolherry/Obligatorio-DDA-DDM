@@ -289,7 +289,19 @@ Cadena: docs/mvp-004-verificacion-compra → 📍 test/mvp-004-entorno-aislado.
 Base: docs/mvp-004-verificacion-compra (d7b0a46). Head: test/mvp-004-entorno-aislado. Diff: 7 archivos, +180/−46 (226).
 Alcance: permitir solo la tupla PurchaseTests/berruticomprastests/berruti_purchase_test y preparar con opt-in una base externa vacía usando migraciones y el escenario existente. No crea DB/usuario ni limpia. La ejecución MySQL posterior está registrada abajo; no se inició API/UI ni se llamó al proveedor.
 Verificación: AuthenticationSessions focused RED (9/10, exit 1) y GREEN (10/10, exit 0); build sin advertencias/errores; --plan 0 y negativas sin opt-in 2 (evidencia de preparación, no repetida). Después, corrida autorizada: `--prepare --allow-test-db-writes` exit 0/12 PASS y `--run --allow-test-db-writes` exit 0/40 PASS en la DB aislada, con DTOs de pago controlados y sin llamada al proveedor. Filas/asientos retenidos; no repetir sobre ese fixture. Revisión nativa aprobada solo para `9b204c3`; no prueba Checkout Pro TEST, API/UI ni devolución completada.
-Dependencia: borradores locales MVP-004 en d7b0a46. Siguiente: autorización separada de API/Web/Mobile y Checkout Pro TEST, y revisión de Diego; no publicar aún. Revertir solo el guard de entorno, preparación y pruebas.
+Dependencia: borradores locales MVP-004 en d7b0a46. Siguiente: `fix/mvp-004-validacion-mercado-pago-test`, luego autorización separada de API/Web/Mobile y Checkout Pro TEST, y revisión de Diego; no publicar aún. Revertir solo el guard de entorno, preparación y pruebas.
+~~~~
+
+### 29 — MVP-004: validar la identidad TEST antes de operar con pagos
+
+~~~~markdown
+Cadena: test/mvp-004-entorno-aislado → 📍 fix/mvp-004-validacion-mercado-pago-test.
+Base: test/mvp-004-entorno-aislado (2d458ca). Head: fix/mvp-004-validacion-mercado-pago-test. Diff local observado: 7 archivos, +283/−14 (297 líneas cambiadas).
+Título: Validar identidad TEST antes de operar con pagos.
+Alcance: reemplazar la validación obsoleta por prefijo con confirmación explícita del origen TEST y validar, antes de cada creación/consulta/búsqueda/devolución, la identidad de solo lectura del vendedor, tag `test_user` y `site_id` configurados. Errores, redirects o discrepancias bloquean la operación; sin caché ni fallback.
+Verificación: `--mercado-pago-test-identity` 59/59, exit 0 (suite inicial 4/34 RED, exit 1); `PaymentContracts` 269/269, exit 0. HTTP simulado únicamente; no usar el token de origen no confirmado, no llamar al proveedor, no ejecutar MySQL ni iniciar API/UI.
+Commit propuesto: `fix(api): validar identidad TEST antes de pagos`. No hay PR remoto ni publicación autorizada.
+Dependencia: test/mvp-004-entorno-aislado. Después: autorización humana aparte para credencial privada confirmada y recorrido manual TEST/API/Web/Mobile; Diego cross-review. Revertir solo el guard de credenciales, preflight y sus pruebas/documentación.
 ~~~~
 
 ## Gate compartido y tamaño

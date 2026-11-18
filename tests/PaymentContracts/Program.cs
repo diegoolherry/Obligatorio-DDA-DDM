@@ -35,6 +35,173 @@ void Check(bool condition, string name)
     }
 }
 
+if (args.Length == 1 && args[0] == "--mercado-pago-test-identity")
+{
+    await RunMercadoPagoIdentityChecksAsync();
+    Console.WriteLine($"{checks - failures}/{checks} focused provider identity checks passed.");
+    return failures == 0 ? 0 : 1;
+}
+
+async Task RunMercadoPagoIdentityChecksAsync()
+{
+    const string opaqueTestToken = "mock-token-not-a-credential";
+    const string sellerId = "987654321";
+    const string siteId = "SITE_TEST_FIXTURE";
+    const string validIdentity = "{\"id\":987654321,\"site_id\":\"SITE_TEST_FIXTURE\",\"tags\":[\"normal\",\"test_user\"]}";
+    const string validOrder = "{\"id\":\"order-1\",\"external_reference\":\"attempt-reference\",\"total_amount\":\"125.50\",\"total_paid_amount\":\"125.50\",\"currency\":\"UYU\",\"status\":\"processed\",\"status_detail\":\"accredited\",\"checkout_url\":\"https://www.mercadopago.com.uy/checkout/v1/redirect?order_id=order-1\"}";
+    const string validSearch = "{\"data\":[{\"id\":\"order-1\",\"external_reference\":\"attempt-reference\",\"total_amount\":\"125.50\",\"total_paid_amount\":\"125.50\",\"currency\":\"UYU\",\"status\":\"processed\",\"status_detail\":\"accredited\"}],\"paging\":{\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":2}}";
+
+    ParametrosMercadoPago CreateParameters(string token = opaqueTestToken, bool confirmed = true,
+        string configuredSeller = sellerId, string configuredSite = siteId)
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["MercadoPago:AccessToken"] = token,
+            ["MercadoPago:TestCredentialOriginConfirmed"] = confirmed.ToString(),
+            ["MercadoPago:ExpectedSellerId"] = configuredSeller,
+            ["MercadoPago:ExpectedSiteId"] = configuredSite
+        }).Build();
+        return ParametrosMercadoPago.Desde(configuration);
+    }
+
+    var opaqueTokenAccepted = false;
+    try
+    {
+        opaqueTokenAccepted = CreateParameters().AccessToken == opaqueTestToken;
+    }
+    catch (InvalidOperationException)
+    {
+        // The focused assertion below reports the unsupported credential format as RED.
+    }
+    Check(opaqueTokenAccepted, "explicitly confirmed opaque test credential is not classified by token prefix");
+
+    foreach (var invalidConfiguration in new (string Name, string Token, bool Confirmed, string Seller, string Site)[]
+    {
+        ("missing token", "", true, sellerId, siteId),
+        ("missing test-origin confirmation", opaqueTestToken, false, sellerId, siteId),
+        ("missing expected seller", opaqueTestToken, true, "", siteId),
+        ("invalid expected seller", opaqueTestToken, true, "not-numeric", siteId),
+        ("missing expected site", opaqueTestToken, true, sellerId, "")
+    })
+    {
+        var rejected = false;
+        try
+        {
+            _ = CreateParameters(invalidConfiguration.Token, invalidConfiguration.Confirmed,
+                invalidConfiguration.Seller, invalidConfiguration.Site);
+        }
+        catch (InvalidOperationException)
+        {
+            rejected = true;
+        }
+        Check(rejected, $"configuration fails closed for {invalidConfiguration.Name}");
+    }
+
+    var operations = new (string Name, Func<MercadoPagoCheckoutClient, Task> Invoke)[]
+    {
+        ("create", client => client.CrearOrdenAsync(Guid.NewGuid(), "attempt-reference", 125.50m)),
+        ("get", client => client.ConsultarOrdenAsync("order-1", "attempt-reference", 125.50m)),
+        ("search", client => client.BuscarOrdenAsync("attempt-reference",
+            new DateTime(2026, 11, 17, 12, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 11, 17, 12, 1, 0, DateTimeKind.Utc), 125.50m)),
+        ("refund", client => client.SolicitarDevolucionCompletaAsync("order-1", Guid.NewGuid()))
+    };
+
+    foreach (var operation in operations)
+    {
+        var validRequests = new List<Uri>();
+        var identityAuthorizationValid = false;
+        var validHandler = new MockHttpMessageHandler((request, _) =>
+        {
+            validRequests.Add(request.RequestUri!);
+            if (request.RequestUri!.Host == "api.mercadopago.com")
+            {
+                var body = request.RequestUri.Query.Contains("external_reference", StringComparison.Ordinal)
+                    ? validSearch : validOrder;
+                return JsonResponse(HttpStatusCode.OK, body);
+            }
+            return JsonResponse(HttpStatusCode.InternalServerError, "unexpected endpoint");
+        })
+        {
+            IdentityResponseFactory = (request, _) =>
+            {
+                identityAuthorizationValid = request.Method == HttpMethod.Get
+                    && request.RequestUri == new Uri("https://api.mercadolibre.com/users/me")
+                    && request.Headers.Authorization?.Scheme == "Bearer"
+                    && request.Headers.Authorization.Parameter == "TEST-contract-token";
+                return JsonResponse(HttpStatusCode.OK, validIdentity);
+            }
+        };
+        var validClient = new MercadoPagoCheckoutClient(new HttpClient(validHandler), CreateParameters("TEST-contract-token"));
+        await operation.Invoke(validClient);
+        Check(validHandler.IdentityRequestCount == 1 && validRequests.Count == 1
+            && validRequests[0].Host == "api.mercadopago.com",
+            $"{operation.Name} verifies identity before its provider request");
+        Check(identityAuthorizationValid, $"{operation.Name} sends the private token only to the fixed identity endpoint");
+
+        var invalidIdentities = new (string Name, HttpStatusCode Status, string Body)[]
+        {
+            ("missing test_user tag", HttpStatusCode.OK, "{\"id\":987654321,\"site_id\":\"SITE_TEST_FIXTURE\",\"tags\":[\"normal\"]}"),
+            ("wrong seller", HttpStatusCode.OK, "{\"id\":987654322,\"site_id\":\"SITE_TEST_FIXTURE\",\"tags\":[\"test_user\"]}"),
+            ("wrong site", HttpStatusCode.OK, "{\"id\":987654321,\"site_id\":\"OTHER_SITE\",\"tags\":[\"test_user\"]}"),
+            ("missing seller ID", HttpStatusCode.OK, "{\"site_id\":\"SITE_TEST_FIXTURE\",\"tags\":[\"test_user\"]}"),
+            ("non-numeric seller ID", HttpStatusCode.OK, "{\"id\":\"987654321\",\"site_id\":\"SITE_TEST_FIXTURE\",\"tags\":[\"test_user\"]}"),
+            ("missing site", HttpStatusCode.OK, "{\"id\":987654321,\"tags\":[\"test_user\"]}"),
+            ("null tags", HttpStatusCode.OK, "{\"id\":987654321,\"site_id\":\"SITE_TEST_FIXTURE\",\"tags\":null}"),
+            ("null profile", HttpStatusCode.OK, "null"),
+            ("malformed identity", HttpStatusCode.OK, "not-json"),
+            ("provider error", HttpStatusCode.Unauthorized, "{}"),
+            ("redirect", HttpStatusCode.Redirect, "{}")
+        };
+
+        foreach (var invalidIdentity in invalidIdentities)
+        {
+            var providerRequests = 0;
+            var invalidHandler = new MockHttpMessageHandler((request, _) =>
+            {
+                providerRequests++;
+                if (request.RequestUri!.Query.Contains("external_reference", StringComparison.Ordinal))
+                    return JsonResponse(HttpStatusCode.OK, validSearch);
+                return request.Method == HttpMethod.Post && request.RequestUri.AbsolutePath.EndsWith("/refund", StringComparison.Ordinal)
+                    ? new HttpResponseMessage(HttpStatusCode.NoContent)
+                    : JsonResponse(HttpStatusCode.OK, validOrder);
+            })
+            {
+                IdentityResponseFactory = (_, _) => JsonResponse(invalidIdentity.Status, invalidIdentity.Body)
+            };
+            var invalidClient = new MercadoPagoCheckoutClient(new HttpClient(invalidHandler), CreateParameters("TEST-contract-token"));
+            var rejected = false;
+            try
+            {
+                await operation.Invoke(invalidClient);
+            }
+            catch (InvalidOperationException)
+            {
+                rejected = true;
+            }
+            Check(rejected && invalidHandler.IdentityRequestCount == 1 && providerRequests == 0,
+                $"{operation.Name} fails closed before provider call for {invalidIdentity.Name}");
+        }
+    }
+
+    var canceledHandler = new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, validOrder))
+    {
+        IdentityResponseFactory = (_, _) => throw new OperationCanceledException()
+    };
+    var canceledClient = new MercadoPagoCheckoutClient(new HttpClient(canceledHandler), CreateParameters("TEST-contract-token"));
+    var cancellationPropagated = false;
+    try
+    {
+        await canceledClient.CrearOrdenAsync(Guid.NewGuid(), "attempt-reference", 125.50m);
+    }
+    catch (OperationCanceledException)
+    {
+        cancellationPropagated = true;
+    }
+    Check(cancellationPropagated && canceledHandler.RequestCount == 0,
+        "identity preflight cancellation propagates without a provider operation");
+}
+
 List<ValidationResult> Validate<TRequest>(TRequest request) where TRequest : class
 {
     var results = new List<ValidationResult>();
@@ -988,12 +1155,20 @@ await CreateCheckoutClient(refundHandler).SolicitarDevolucionCompletaAsync(
     "order-1", Guid.Parse("22222222-2222-2222-2222-222222222222"));
 Check(refundHandler.RequestCount == 1, "refund operation only submits a request and does not claim domain completion");
 
+var opaqueTokenHandler = new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, checkoutResponse));
+await CreateCheckoutClient(opaqueTokenHandler, "opaque-token-fixture")
+    .CrearOrdenAsync(Guid.NewGuid(), checkoutReference, checkoutAmount);
+Check(opaqueTokenHandler.IdentityRequestCount == 1 && opaqueTokenHandler.RequestCount == 1,
+    "opaque credential format proceeds only after the mocked test identity matches");
+var missingTokenConfiguration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+{
+    ["MercadoPago:TestCredentialOriginConfirmed"] = "true",
+    ["MercadoPago:ExpectedSellerId"] = "987654321",
+    ["MercadoPago:ExpectedSiteId"] = "SITE_TEST_FIXTURE"
+}).Build();
 CheckThrows<InvalidOperationException>(
-    () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, checkoutResponse)), "PROD-secret"),
-    "production credential is rejected when client resolves");
-CheckThrows<InvalidOperationException>(
-    () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, checkoutResponse)), ""),
-    "missing TEST credential is rejected when client resolves");
+    () => ParametrosMercadoPago.Desde(missingTokenConfiguration),
+    "missing private credential is rejected when client resolves");
 
 await CheckThrowsAsync<InvalidOperationException>(
     () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.InternalServerError, "secret response")))
@@ -1514,8 +1689,13 @@ static MercadoPagoCheckoutClient CreateCheckoutClient(MockHttpMessageHandler han
 {
     var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
     {
-        ["MercadoPago:AccessToken"] = token
+        ["MercadoPago:AccessToken"] = token,
+        ["MercadoPago:TestCredentialOriginConfirmed"] = "true",
+        ["MercadoPago:ExpectedSellerId"] = "987654321",
+        ["MercadoPago:ExpectedSiteId"] = "SITE_TEST_FIXTURE"
     }).Build();
+    handler.IdentityResponseFactory ??= (_, _) => JsonResponse(HttpStatusCode.OK,
+        "{\"id\":987654321,\"site_id\":\"SITE_TEST_FIXTURE\",\"tags\":[\"test_user\"]}");
     return new MercadoPagoCheckoutClient(new HttpClient(handler), ParametrosMercadoPago.Desde(configuration));
 }
 
@@ -1616,9 +1796,18 @@ catch (Exception exception)
 sealed class MockHttpMessageHandler(Func<HttpRequestMessage, CancellationToken, HttpResponseMessage> responseFactory) : HttpMessageHandler
 {
     public int RequestCount { get; private set; }
+    public int IdentityRequestCount { get; private set; }
+    public Func<HttpRequestMessage, CancellationToken, HttpResponseMessage>? IdentityResponseFactory { get; set; }
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        if (request.RequestUri?.Host == "api.mercadolibre.com"
+            && request.RequestUri.AbsolutePath == "/users/me"
+            && IdentityResponseFactory is not null)
+        {
+            IdentityRequestCount++;
+            return Task.FromResult(IdentityResponseFactory(request, cancellationToken));
+        }
         RequestCount++;
         return Task.FromResult(responseFactory(request, cancellationToken));
     }

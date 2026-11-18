@@ -93,7 +93,7 @@ Para revisar solapamientos confirmados, el conteo debe ser cero cuando se compar
 
 ## Checkout Pro TEST y clientes
 
-Es un recorrido separado del harness MySQL. Requiere API configurada fuera del repositorio con `ConnectionStrings__Berruti` y credencial privada `MercadoPago__AccessToken` de TEST. Para usar la pareja aislada, configura esos valores privadamente en el proceso, configura `Api__BaseUrl` del Web como `https://localhost:7053` y arranca sin el perfil Development usando el listener HTTPS existente:
+Es un recorrido separado del harness MySQL y requiere autorización futura. Además de `ConnectionStrings__Berruti`, configura privadamente la credencial `MercadoPago__AccessToken`, la confirmación humana `MercadoPago__TestCredentialOriginConfirmed=true` y los valores esperados `MercadoPago__ExpectedSellerId`/`MercadoPago__ExpectedSiteId`, previamente verificados en el panel de TEST. La API valida cada operación con el endpoint de identidad; un prefijo del token no acredita TEST. No uses el token disponible cuyo origen no está confirmado. Para la pareja aislada, configura `Api__BaseUrl` del Web como `https://localhost:7053` y arranca sin el perfil Development usando el listener HTTPS existente:
 
 ```powershell
 $env:ASPNETCORE_ENVIRONMENT = 'PurchaseTests'

@@ -10,15 +10,20 @@ namespace API_Berruti.Services.Operational;
 public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
 {
     private static readonly Uri OrdersEndpoint = new("https://api.mercadopago.com/v1/orders");
+    private static readonly Uri UserProfileEndpoint = new("https://api.mercadolibre.com/users/me");
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(20);
     private readonly HttpClient _httpClient;
     private readonly string _accessToken;
+    private readonly long _expectedSellerId;
+    private readonly string _expectedSiteId;
 
     public MercadoPagoCheckoutClient(HttpClient httpClient, ParametrosMercadoPago parametros)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         ArgumentNullException.ThrowIfNull(parametros);
         _accessToken = parametros.AccessToken;
+        _expectedSellerId = parametros.ExpectedSellerId;
+        _expectedSiteId = parametros.ExpectedSiteId;
         _httpClient.Timeout = RequestTimeout;
     }
 
@@ -30,6 +35,7 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
     {
         ValidarClaveIdempotencia(claveIdempotencia);
         ValidarDatosEsperados(referenciaExterna, importe);
+        await VerificarIdentidadTestAsync(cancellationToken);
 
         var body = new CrearOrdenRequest
         {
@@ -59,6 +65,7 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
     {
         ValidarIdOrden(ordenId);
         ValidarDatosEsperados(referenciaExternaEsperada, importeEsperado);
+        await VerificarIdentidadTestAsync(cancellationToken);
 
         var endpoint = new Uri($"{OrdersEndpoint.AbsoluteUri}/{Uri.EscapeDataString(ordenId)}");
         using var request = CrearRequest(HttpMethod.Get, endpoint);
@@ -76,6 +83,8 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         ValidarDatosEsperados(referenciaExternaEsperada, importeEsperado);
         if (desdeUtc.Kind != DateTimeKind.Utc || hastaUtc.Kind != DateTimeKind.Utc || hastaUtc <= desdeUtc)
             throw new ArgumentException("La ventana de recuperaciÃ³n debe ser UTC y creciente.");
+
+        await VerificarIdentidadTestAsync(cancellationToken);
 
         static string Formatear(DateTime valorUtc) =>
             new DateTimeOffset(valorUtc).ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture);
@@ -125,6 +134,7 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
     {
         ValidarIdOrden(ordenId);
         ValidarClaveIdempotencia(claveIdempotencia);
+        await VerificarIdentidadTestAsync(cancellationToken);
 
         var endpoint = new Uri($"{OrdersEndpoint.AbsoluteUri}/{Uri.EscapeDataString(ordenId)}/refund");
         using var request = CrearRequest(HttpMethod.Post, endpoint);
@@ -140,6 +150,40 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         return request;
+    }
+
+    private async Task VerificarIdentidadTestAsync(CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, UserProfileEndpoint);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            throw ErrorProveedor();
+
+        try
+        {
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object
+                || !root.TryGetProperty("id", out var id)
+                || id.ValueKind != JsonValueKind.Number
+                || !id.TryGetInt64(out var sellerId)
+                || sellerId != _expectedSellerId
+                || !root.TryGetProperty("site_id", out var siteId)
+                || siteId.ValueKind != JsonValueKind.String
+                || !string.Equals(siteId.GetString(), _expectedSiteId, StringComparison.Ordinal)
+                || !root.TryGetProperty("tags", out var tags)
+                || tags.ValueKind != JsonValueKind.Array
+                || !tags.EnumerateArray().Any(tag =>
+                    tag.ValueKind == JsonValueKind.String
+                    && string.Equals(tag.GetString(), "test_user", StringComparison.Ordinal)))
+                throw ErrorProveedor();
+        }
+        catch (JsonException)
+        {
+            throw ErrorProveedor();
+        }
     }
 
     private async Task<JsonDocument> EnviarAsync(HttpRequestMessage request, CancellationToken cancellationToken)
