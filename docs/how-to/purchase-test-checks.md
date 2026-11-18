@@ -5,8 +5,8 @@ Esta guía separa evidencia local ya observada de pruebas futuras que requieren 
 ## Estado de evidencia
 
 - **Observado, offline/fake:** PaymentContracts 269/269; API build sin errores; WebPurchase 164/164 y build Web sin advertencias/errores; MobilePurchase 14/14 y `npm run typecheck` exit 0. Son harnesses deterministas, no prueban una base MySQL, HTTP integrado ni Checkout Pro real.
-- **Preparado, no ejecutado:** `tests/MySqlPurchase` compila; `--plan` es de solo lectura y `--prepare` exige opt-in. No se ejecutaron consultas SQL, migraciones, seeds, API iniciada, transacción MySQL ni pago del proveedor.
-- **Pendiente:** provisión externa de DB/cuenta, fixture nuevo, verificación MySQL, recorrido manual Web/Mobile, una transacción real TEST y revisión humana cruzada.
+- **Observado, MySQL local:** con autorización limitada a `berruticomprastests` en loopback:3306 y el usuario no-root `berruti_purchase_test`, `--prepare --allow-test-db-writes` terminó con exit 0 y 12 PASS; luego `--run --allow-test-db-writes` terminó con exit 0 y 40 PASS. La preparación aplicó migraciones versionadas y seed; la suite ejercitó persistencia real. Las filas y asientos ocupados se conservaron; no se hizo reset ni limpieza.
+- **Límites aún pendientes:** órdenes de pago controladas por DTO; no hubo llamadas a Mercado Pago ni confirmación de devolución por el proveedor. Siguen pendientes transacción real de Checkout Pro TEST, recorrido API/Web/Mobile, render/UI y revisión humana cruzada. La evidencia previa de harnesses offline/fake no se presenta como prueba de proveedor ni de UI integrada.
 
 ## Bloqueos para ejecución real
 
@@ -20,7 +20,7 @@ Esta guía separa evidencia local ya observada de pruebas futuras que requieren 
 
 El modo `--run` no migra, crea esquema, reinicia ni limpia datos. Una corrida autorizada escribe compras, pagos, tickets y asientos y los conserva; no se debe repetir sobre el mismo fixture. El modo separado `--prepare` solo aplica migraciones/seed tras opt-in explícito, provisión DBA previa y confirmación de base vacía. Si encuentra tablas o falla a mitad, rehúsa y no borra datos.
 
-Un DBA debe crear externamente la base fresca `berruticomprastests` y el usuario no-root `berruti_purchase_test` con acceso solo de loopback y permisos requeridos; el harness nunca crea la base ni el usuario. La preparación aplica migraciones versionadas y siembra el pasajero activo `pasajero.purchase@example.test` más el escenario existente de mañana: primer tramo `sinAsiento`, segundo `asignacionAutomatica`, salida con 46 asientos. Comprueba cero tablas antes de migrar. Ante cualquier error no limpia ni reintenta. Imprime solo el subject público y los IDs de ambos servicios para configurar el harness; nunca imprime la contraseña desechable.
+La corrida autorizada usó una DB y usuario previamente provisionados; la preparación comprobó cero tablas, aplicó migraciones versionadas y reutilizó el seed/escenario existente. La salida segura de preparación se pasó privadamente al proceso de prueba; no se guardan aquí IDs de fixture. El harness no crea DB/usuario ni imprime contraseña desechable, conexión, token o QR. Esa DB ahora contiene resultados retenidos: los comandos de abajo describen el flujo para una futura DB nueva, no una invitación a repetirlo en el fixture usado.
 
 La preparación lee `BERUTI_MYSQL_PURCHASE_TEST_CONNECTION` y `DemoSeed__Contrasena` solo después de ambos flags. El modo `--run` también requiere `BERUTI_MYSQL_PURCHASE_TEST_PASSENGER_SUBJECT`, `BERUTI_MYSQL_PURCHASE_TEST_SERVICE_NO_SEAT` y `BERUTI_MYSQL_PURCHASE_TEST_SERVICE_ASSIGNED`, configurados privadamente desde la salida segura. No leas valores de `.env` ni los pegues en comandos, documentación o chat. La conexión debe coincidir con la tupla exacta de API para `PurchaseTests` en loopback:3306.
 
@@ -42,20 +42,20 @@ Luego configura privadamente los tres valores públicos impresos. La verificaci�
 dotnet run --no-restore --project tests/MySqlPurchase/MySqlPurchase.csproj -- --run --allow-test-db-writes
 ```
 
-El harness actual cubre aprobación con dos tickets (un tramo sin asiento y otro asignado), idempotencia concurrente del mismo pago, asignación concurrente sin colisión/reuso de asiento confirmado, estado desconocido y rechazo con reintento dentro del hold original, aprobación tardía con devolución pendiente/rollback de contadores y fallo inyectado con rollback. Los órdenes de proveedor son DTOs controlados: esta prueba **no llama a Mercado Pago**. No agregues `--run` solo ni repitas sobre datos ya escritos; ambos son una condición de rechazo o de fixture no fresco.
+El harness ejecutado cubre aprobación con dos tickets (un tramo sin asiento y otro asignado), idempotencia concurrente del mismo pago, asignación concurrente sin colisión/reuso de asiento confirmado, estado desconocido y rechazo con reintento dentro del hold original, aprobación tardía con devolución pendiente/rollback de contadores y fallo inyectado con rollback. Los órdenes son DTOs controlados: la prueba **no llama a Mercado Pago** ni demuestra que el proveedor haya completado una devolución. La ejecución observada fue `--prepare --allow-test-db-writes` (exit 0, 12 PASS) seguida por `--run --allow-test-db-writes` (exit 0, 40 PASS). Las filas y asientos ocupados permanecen; el fixture ya no es fresco y el guard debe rechazar un nuevo prepare. No repitas la suite sobre esta DB.
 
 | Escenario por verificar | Resultado requerido | Evidencia disponible / pendiente |
 | --- | --- | --- |
-| Aprobación en ambos clientes | API confirma; una compra, dos tickets distintos, primer tramo sin asiento y segundo con asignación automática. | Harness cubre persistencia con DTO aprobado; falta Checkout Pro TEST y recorrido UI real. |
-| Rechazo y resultado desconocido | Cero tickets; desconocido bloquea otro pago; solo rechazo definitivo permite reintento con el mismo vencimiento original. | Harness usa órdenes controladas; falta transacción real TEST. |
-| Aprobación tardía | Sin compra/tickets; devolución pendiente con clave estable y sin avance de contadores de emisión. | Harness controla el reloj y persiste contra MySQL; no acredita que Mercado Pago complete una devolución. |
-| Reconciliación repetida/concurrente y asientos | Mismo pago conserva compra/tickets/contadores; reservas simultáneas no solapan ni reutilizan asiento confirmado tras vencer el hold. | Harness preparado; no ejecutado. |
+| Aprobación en ambos clientes | API confirma; una compra, dos tickets distintos, primer tramo sin asiento y segundo con asignación automática. | Persistencia con DTO aprobado verificada en MySQL (40 PASS); falta Checkout Pro TEST y recorrido UI real. |
+| Rechazo y resultado desconocido | Cero tickets; desconocido bloquea otro pago; solo rechazo definitivo permite reintento con el mismo vencimiento original. | Verificado en MySQL con órdenes controladas; falta transacción real TEST. |
+| Aprobación tardía | Sin compra/tickets; devolución pendiente con clave estable y sin avance de contadores de emisión. | Persistencia/rollback verificados en MySQL; no acredita que Mercado Pago complete una devolución. |
+| Reconciliación repetida/concurrente y asientos | Mismo pago conserva compra/tickets/contadores; reservas simultáneas no solapan ni reutilizan asiento confirmado tras vencer el hold. | Verificado por suite MySQL (40 PASS); filas y asientos quedan retenidos y no se debe repetir sobre el fixture. |
 | Propiedad y sesión | Pasajero B no puede consultar ni conservar en UI la compra/selección en caché de A tras cerrar sesión e ingresar como B. | API/servicios tienen pruebas fake; invalidación de UI se verificó estructuralmente, no con render ni servidor integrado. |
 | Cotización cambiada | Mostrar precio actualizado, exigir nueva aceptación explícita y conservar el vencimiento original del intento. | Cliente/controlador cuentan con pruebas deterministas; el recorrido real queda pendiente. |
 
 ## Comprobaciones SQL posteriores de solo lectura
 
-Ejecuta estas consultas únicamente con autorización de lectura al fixture y reemplaza `<IC>` y `<PG>` por identificadores observados. No selecciones ni copies `qr_opaco`; informa solo cantidades/identificadores de ticket. Son comprobaciones manuales y no forman parte de una corrida aún no autorizada.
+Ejecuta estas consultas únicamente con autorización de lectura al fixture y reemplaza `<IC>` y `<PG>` por identificadores observados. No selecciones ni copies `qr_opaco`; informa solo cantidades/identificadores de ticket. La suite ya se ejecutó; estas consultas son una comprobación posterior opcional, no autorizan cambios ni una nueva corrida. Las cantidades de una DB con datos retenidos no son un nuevo resultado limpio de suite.
 
 ```sql
 SELECT ic.intento_id, ic.usuario_id, ic.hold_vence_utc,
@@ -89,7 +89,7 @@ WHERE ti.intento_id = '<IC>'
 ORDER BY ti.orden;
 ```
 
-Para revisar solapamientos confirmados, el conteo debe ser cero cuando se comparen tickets de compras distintas con la misma salida y asiento, usando el intervalo estricto `a.orden_embarque < b.orden_desembarque AND b.orden_embarque < a.orden_desembarque`. No filtres tickets ya confirmados según el vencimiento del hold: la ocupación confirmada no desaparece al vencerlo. Esta consulta de colisión es una verificación pendiente, no un resultado observado.
+Para revisar solapamientos confirmados, el conteo debe ser cero cuando se comparen tickets de compras distintas con la misma salida y asiento, usando el intervalo estricto `a.orden_embarque < b.orden_desembarque AND b.orden_embarque < a.orden_desembarque`. No filtres tickets ya confirmados según el vencimiento del hold: la ocupación confirmada no desaparece al vencerlo. La suite MySQL observó la protección de asientos confirmados incluso tras vencer el hold; esta consulta opcional de solo lectura no se ejecutó.
 
 ## Checkout Pro TEST y clientes
 
