@@ -288,7 +288,7 @@ Dependencia: fix/mvp-004-reintentos-compra. Siguiente: test/mvp-004-entorno-aisl
 Cadena: docs/mvp-004-verificacion-compra → 📍 test/mvp-004-entorno-aislado.
 Base: docs/mvp-004-verificacion-compra (d7b0a46). Head: test/mvp-004-entorno-aislado. Diff: 6 archivos, +167/−38 (205).
 Alcance: permitir solo la tupla PurchaseTests/berruticomprastests/berruti_purchase_test y preparar con opt-in una base externa vacía usando migraciones y el escenario existente. No crea DB/usuario ni limpia. Esta implementación no ejecutó MySQL, API ni proveedor.
-Verificación: AuthenticationSessions focused RED (9/10, exit 1) y GREEN (10/10, exit 0); MySqlPurchase build 0 warnings/errors; --plan exit 0; --prepare y --run sin opt-in exit 2. Sin conexión ni SQL.
+Verificación: AuthenticationSessions focused RED (9/10, exit 1) y GREEN (10/10, exit 0); build sin advertencias/errores; --plan 0 y negativas sin opt-in 2. Revisión nativa de `9b204c3` aprobada con cuatro lentes y ACK consumido; la advertencia no bloqueante exige ejecución real futura del preparador. Sin conexión ni SQL.
 Dependencia: borradores locales MVP-004 en d7b0a46. Siguiente: solo después de autorización separada, provisión DBA y corrida manual; no publicar aún. Revertir solo el guard de entorno, preparación y pruebas.
 ~~~~
 
