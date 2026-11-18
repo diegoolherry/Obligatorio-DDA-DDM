@@ -1,0 +1,117 @@
+@using Web_App.Models.Catalogo
+
+<section class="card mb-section" aria-labelledby="titulo-bloques">
+    <h2 id="titulo-bloques">Bloques</h2>
+    <EditForm Model="_form" OnValidSubmit="GuardarAsync">
+        <DataAnnotationsValidator />
+        <ResumenValidacion />
+        <div class="grid-form">
+            <div class="field">
+                <label for="bloque-clave">Clave</label>
+                <InputText id="bloque-clave" @ref="_primerCampo" @bind-Value="_form.Clave" />
+                <ValidationMessage For="() => _form.Clave" />
+            </div>
+            <div class="field">
+                <label for="bloque-nombre">Nombre</label>
+                <InputText id="bloque-nombre" @bind-Value="_form.Nombre" />
+                <ValidationMessage For="() => _form.Nombre" />
+            </div>
+            <div class="field">
+                <label for="bloque-empresa">Empresa</label>
+                <InputText id="bloque-empresa" @bind-Value="_form.Empresa" />
+                <ValidationMessage For="() => _form.Empresa" />
+            </div>
+            <div class="field">
+                <label for="bloque-fuente">URL de la fuente (opcional)</label>
+                <InputText id="bloque-fuente" @bind-Value="_form.FuenteUrl" />
+                <ValidationMessage For="() => _form.FuenteUrl" />
+            </div>
+            <div class="field">
+                <label for="bloque-desde">Vigente desde (opcional)</label>
+                <InputDate id="bloque-desde" @bind-Value="_form.VigenteDesde" />
+            </div>
+            <div class="field">
+                <label for="bloque-hasta">Vigente hasta (opcional)</label>
+                <InputDate id="bloque-hasta" @bind-Value="_form.VigenteHasta" />
+            </div>
+        </div>
+        <div class="cluster">
+            <button class="btn btn-primary" disabled="@Ocupado">@(_form.Id == null ? "Crear bloque" : "Guardar bloque")</button>
+            @if (_form.Id != null) { <button type="button" class="btn btn-secondary" disabled="@Ocupado" @onclick="Limpiar">Cancelar edición</button> }
+        </div>
+    </EditForm>
+    @if (Bloques.Count == 0)
+    {
+        <Alerta>No hay bloques cargados.</Alerta>
+    }
+    else
+    {
+        <ul class="list-plain list-rows">
+            @foreach (var bloque in Bloques)
+            {
+                <li class="row-actions">
+                    <span>
+                        <strong>@bloque.Clave</strong> · @bloque.Nombre (@bloque.Empresa) ·
+                        @bloque.Rutas.Count @(bloque.Rutas.Count == 1 ? "ruta" : "rutas")
+                        @if (bloque.VigenteDesde != null || bloque.VigenteHasta != null)
+                        {
+                            <text> · vigente @(bloque.VigenteDesde?.ToString("dd/MM/yyyy") ?? "—") a @(bloque.VigenteHasta?.ToString("dd/MM/yyyy") ?? "—")</text>
+                        }
+                    </span>
+                    <span>
+                        <button type="button" class="btn btn-link" disabled="@Ocupado" @onclick="() => Editar(bloque)">Editar</button>
+                        <button type="button" class="btn btn-link btn-danger-text" disabled="@Ocupado"
+                                @onclick="() => SolicitarBajaAsync(bloque)">Dar de baja</button>
+                    </span>
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<BloqueAdministracionDto> Bloques { get; set; } = [];
+    [Parameter] public bool Ocupado { get; set; }
+    // El padre llama a la API; devuelve true si se guardó (el formulario se limpia) y false si falló (se conservan los datos).
+    [Parameter, EditorRequired] public Func<string?, BloqueEscrituraDto, Task<bool>> Guardar { get; set; } = (_, _) => Task.FromResult(false);
+    [Parameter] public EventCallback<BajaCatalogo> AlSolicitarBaja { get; set; }
+
+    private readonly FormularioBloque _form = new();
+
+    private async Task GuardarAsync()
+    {
+        var dto = new BloqueEscrituraDto
+        {
+            Clave = _form.Clave, Nombre = _form.Nombre, Empresa = _form.Empresa,
+            FuenteUrl = string.IsNullOrWhiteSpace(_form.FuenteUrl) ? null : _form.FuenteUrl,
+            VigenteDesde = _form.VigenteDesde, VigenteHasta = _form.VigenteHasta
+        };
+        if (await Guardar(_form.Id, dto)) Limpiar();
+    }
+
+    private Task SolicitarBajaAsync(BloqueAdministracionDto bloque) =>
+        AlSolicitarBaja.InvokeAsync(new BajaCatalogo("bloques", bloque.Id, $"el bloque {bloque.Clave}", true));
+
+    private void Editar(BloqueAdministracionDto bloque)
+    { _enfocar = true;
+        _form.Id = bloque.Id; _form.Clave = bloque.Clave; _form.Nombre = bloque.Nombre; _form.Empresa = bloque.Empresa;
+        _form.FuenteUrl = bloque.FuenteUrl; _form.VigenteDesde = bloque.VigenteDesde; _form.VigenteHasta = bloque.VigenteHasta;
+    }
+
+    private void Limpiar()
+    {
+        _form.Id = null; _form.Clave = _form.Nombre = _form.Empresa = string.Empty;
+        _form.FuenteUrl = null; _form.VigenteDesde = _form.VigenteHasta = null;
+    }
+
+    // «Editar» llena el formulario arriba de la lista: se le pasa el foco para que quede a la vista.
+    private InputText? _primerCampo;
+    private bool _enfocar;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_enfocar) return;
+        _enfocar = false;
+        if (_primerCampo?.Element is { } campo) await campo.FocusAsync();
+    }
+}

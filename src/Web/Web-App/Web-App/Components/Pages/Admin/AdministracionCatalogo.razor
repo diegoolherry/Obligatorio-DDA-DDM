@@ -1,0 +1,181 @@
+@page "/admin/catalogo"
+@using Web_App.Components.Admin.Catalogo
+@using Web_App.Models.Catalogo
+@using Web_App.Models.Operational
+@using Web_App.Services.Authentication
+@using Web_App.Services.Catalogo
+@using Web_App.Services.Operational
+@inject ISesionCliente Sesion
+@inject AdministracionCatalogoCliente Cliente
+@inject AdministracionOperativaCliente Operativa
+
+<PageTitle>Catálogo de rutas · Berrutti</PageTitle>
+<div class="page-header">
+    <h1>Catálogo de rutas y calendarios</h1>
+    <p>Bloques, rutas con sus paradas, salidas, feriados y excepciones.</p>
+</div>
+@if (!Sesion.Estado.Autenticada)
+{
+    <Alerta Tipo="TipoAviso.Advertencia" Titulo="Necesitás ingresar">
+        Ingresá con la cuenta de administrador para continuar.
+        <br /><a class="btn btn-primary" href="/ingreso">Ir al ingreso</a>
+    </Alerta>
+}
+else if (!Autorizado)
+{
+    <Alerta Tipo="TipoAviso.Advertencia" Titulo="Acceso no confirmado">
+        @Mensaje
+        <br /><button type="button" class="btn btn-secondary" @onclick="ComprobarAccesoAsync" disabled="@Ocupado">Comprobar acceso</button>
+    </Alerta>
+}
+else if (Cargando)
+{
+    <p role="status">Cargando el catálogo…</p>
+}
+else if (Catalogo == null)
+{
+    <Alerta Tipo="TipoAviso.Error" Titulo="No se pudo cargar el catálogo">
+        @Mensaje
+        <br /><button type="button" class="btn btn-secondary" @onclick="RecargarAsync" disabled="@Ocupado">Reintentar</button>
+    </Alerta>
+}
+else
+{
+    <div @ref="_aviso" tabindex="-1">
+        <Alerta Tipo="@(HayError ? TipoAviso.Error : TipoAviso.Info)">@Mensaje</Alerta>
+    </div>
+    @if (_baja is { } baja)
+    {
+        <div @ref="_confirmacion" tabindex="-1">
+        <Alerta Tipo="TipoAviso.Advertencia" Titulo="Confirmar baja" aria-label="Confirmar baja" aria-busy="@Ocupado.ToString().ToLowerInvariant()">
+            <p>¿Confirmás @(baja.Logica ? "dar de baja" : "eliminar") @baja.Descripcion?</p>
+            @if (baja.Logica)
+            {
+                <p>Es una baja lógica: deja de mostrarse y de generar Servicios. Los Servicios que ya se generaron se conservan.</p>
+            }
+            else
+            {
+                <p>Se elimina definitivamente; no hay Servicios que dependan de este elemento.</p>
+            }
+            <div class="cluster">
+                <button type="button" class="btn btn-danger" disabled="@Ocupado" @onclick="ConfirmarBajaAsync">Confirmar</button>
+                <button type="button" class="btn btn-secondary" disabled="@Ocupado" @onclick="CancelarBaja">Cancelar</button>
+            </div>
+        </Alerta>
+        </div>
+    }
+    <SeccionBloques Bloques="Catalogo.Bloques" Ocupado="Ocupado" Guardar="GuardarBloqueAsync" AlSolicitarBaja="SolicitarBaja" />
+    <SeccionRutas Bloques="Catalogo.Bloques" Paradas="Paradas" Ocupado="Ocupado" Guardar="GuardarRutaAsync" AlSolicitarBaja="SolicitarBaja" />
+    <SeccionSalidas Bloques="Catalogo.Bloques" Ocupado="Ocupado" Guardar="GuardarSalidaAsync" AlSolicitarBaja="SolicitarBaja" />
+    <SeccionFeriados Feriados="Catalogo.Feriados" Ocupado="Ocupado" Guardar="GuardarFeriadoAsync" AlSolicitarBaja="SolicitarBaja" />
+    <SeccionExcepciones Excepciones="Catalogo.Excepciones" Bloques="Catalogo.Bloques" Ocupado="Ocupado" Guardar="GuardarExcepcionAsync" AlSolicitarBaja="SolicitarBaja" />
+}
+
+@code {
+    private CatalogoAdministracionDto? Catalogo;
+    private IReadOnlyList<ParadaDto> Paradas = [];
+    private bool Autorizado, Ocupado, HayError, Cargando;
+    private string Mensaje = "Verificando tus permisos…";
+    private BajaCatalogo? _baja;
+    // El aviso y la confirmación se muestran arriba de las secciones: se les pasa el foco para que queden a la vista.
+    private ElementReference _aviso, _confirmacion;
+    private bool _enfocarAviso, _enfocarConfirmacion;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_enfocarConfirmacion && _baja != null) { _enfocarConfirmacion = false; await _confirmacion.FocusAsync(); }
+        else if (_enfocarAviso) { _enfocarAviso = false; await _aviso.FocusAsync(); }
+    }
+
+    protected override async Task OnInitializedAsync() => await ComprobarAccesoAsync();
+
+    private async Task ComprobarAccesoAsync()
+    {
+        if (!Sesion.Estado.Autenticada) { Mensaje = "Ingresá con una sesión activa."; return; }
+        Ocupado = true;
+        var acceso = await Sesion.ProbarAdministradorAsync();
+        Autorizado = acceso.Exito;
+        Mensaje = acceso.Mensaje;
+        Ocupado = false;
+        if (Autorizado) await RecargarAsync();
+    }
+
+    private void Informar(string? error, string exito) { HayError = error != null; Mensaje = error ?? exito; }
+
+    // Carga catálogo y paradas; si falla, Catalogo queda nulo y se ofrece reintentar.
+    private async Task RecargarAsync()
+    {
+        Cargando = Catalogo == null;
+        var catalogo = await Cliente.ObtenerAsync();
+        var paradas = await Operativa.ListarParadasAsync();
+        Paradas = paradas.Items;
+        Catalogo = catalogo.Item;
+        Cargando = false;
+        var error = catalogo.Error ?? paradas.Error;
+        if (error != null) Informar(error, string.Empty);
+        else if (Mensaje.StartsWith("Verificando") || HayError) Informar(null, "Catálogo actualizado.");
+    }
+
+    // Ejecuta una escritura; al terminar recarga el listado. Devuelve true si la API aceptó el cambio.
+    private async Task<bool> EjecutarAsync(string? error, string exito)
+    {
+        if (error == null) await RecargarAsync();
+        // Tras recargar bien se informa el éxito; con error de la escritura se informa ese error.
+        if (error != null || !HayError) Informar(error, exito);
+        return error == null;
+    }
+
+    private async Task<bool> GuardarBloqueAsync(string? id, BloqueEscrituraDto dto) => await ConOcupadoAsync(async () =>
+        await EjecutarAsync(id == null ? (await Cliente.CrearBloqueAsync(dto)).Error : (await Cliente.ActualizarBloqueAsync(id, dto)).Error, "Bloque guardado."));
+    private async Task<bool> GuardarRutaAsync(string? id, RutaEscrituraDto dto) => await ConOcupadoAsync(async () =>
+        await EjecutarAsync(id == null ? (await Cliente.CrearRutaAsync(dto)).Error : (await Cliente.ActualizarRutaAsync(id, dto)).Error,
+            "Ruta guardada. Si tiene Servicios generados, el cambio aplica solo a futuras generaciones."));
+    private async Task<bool> GuardarSalidaAsync(string? id, SalidaEscrituraDto dto) => await ConOcupadoAsync(async () =>
+        await EjecutarAsync(id == null ? (await Cliente.CrearSalidaAsync(dto)).Error : (await Cliente.ActualizarSalidaAsync(id, dto)).Error,
+            "Salida guardada. Si tiene Servicios generados, el cambio aplica solo a futuras generaciones."));
+    private async Task<bool> GuardarFeriadoAsync(DateOnly? fechaOriginal, FeriadoEscrituraDto dto) => await ConOcupadoAsync(async () =>
+        await EjecutarAsync(fechaOriginal == null ? (await Cliente.CrearFeriadoAsync(dto)).Error : (await Cliente.ActualizarFeriadoAsync(fechaOriginal.Value, dto)).Error, "Feriado guardado."));
+    private async Task<bool> GuardarExcepcionAsync(string? id, ExcepcionEscrituraDto dto) => await ConOcupadoAsync(async () =>
+        await EjecutarAsync(id == null ? (await Cliente.CrearExcepcionAsync(dto)).Error : (await Cliente.ActualizarExcepcionAsync(id, dto)).Error, "Excepción guardada."));
+
+    private async Task<bool> ConOcupadoAsync(Func<Task<bool>> operacion)
+    {
+        if (Ocupado) return false;
+        Ocupado = true;
+        StateHasChanged();
+        try { return await operacion(); }
+        finally
+        {
+            // Las secciones llaman a Guardar con un Func (no un EventCallback): sin esto la página no se vuelve a renderizar.
+            Ocupado = false;
+            _enfocarAviso = true;
+            StateHasChanged();
+        }
+    }
+
+    private void SolicitarBaja(BajaCatalogo baja) { if (!Ocupado) { _baja = baja; _enfocarConfirmacion = true; } }
+    private void CancelarBaja() { if (!Ocupado) _baja = null; }
+
+    private async Task ConfirmarBajaAsync()
+    {
+        if (Ocupado || _baja is not { } baja) return;
+        Ocupado = true;
+        try
+        {
+            string? error = baja.Tipo switch
+            {
+                "bloques" => await Cliente.EliminarBloqueAsync(baja.Id),
+                "rutas" => await Cliente.EliminarRutaAsync(baja.Id),
+                "salidas" => await Cliente.EliminarSalidaAsync(baja.Id),
+                "feriados" => await Cliente.EliminarFeriadoAsync(DateOnly.ParseExact(baja.Id, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)),
+                "excepciones" => await Cliente.EliminarExcepcionAsync(baja.Id),
+                _ => "Tipo de baja desconocido."
+            };
+            _baja = null;
+            // Aun si falla (p. ej. 404 porque ya no existe), se recarga para mostrar el estado real.
+            await RecargarAsync();
+            if (error != null || !HayError) Informar(error, baja.Logica ? "Baja realizada. Los Servicios ya generados se conservan." : "Elemento eliminado.");
+        }
+        finally { Ocupado = false; _enfocarAviso = true; }
+    }
+}

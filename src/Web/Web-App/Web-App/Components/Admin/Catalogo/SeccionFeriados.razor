@@ -1,0 +1,81 @@
+@using Web_App.Models.Catalogo
+
+<section class="card mb-section" aria-labelledby="titulo-feriados">
+    <h2 id="titulo-feriados">Feriados</h2>
+    <EditForm Model="_form" OnValidSubmit="GuardarAsync">
+        <DataAnnotationsValidator />
+        <ResumenValidacion />
+        <div class="grid-form">
+            <div class="field">
+                <label for="feriado-fecha">Fecha</label>
+                <InputDate id="feriado-fecha" @bind-Value="_form.Fecha" disabled="@(_form.FechaOriginal != null)" />
+                @if (_form.FechaOriginal != null) { <p class="field-hint">La fecha de un feriado no se puede cambiar.</p> }
+                <ValidationMessage For="() => _form.Fecha" />
+            </div>
+            <div class="field">
+                <label for="feriado-nombre">Nombre</label>
+                <InputText id="feriado-nombre" @ref="_primerCampo" @bind-Value="_form.Nombre" />
+                <ValidationMessage For="() => _form.Nombre" />
+            </div>
+        </div>
+        <div class="cluster">
+            <button class="btn btn-primary" disabled="@Ocupado">@(_form.FechaOriginal == null ? "Crear feriado" : "Guardar feriado")</button>
+            @if (_form.FechaOriginal != null) { <button type="button" class="btn btn-secondary" disabled="@Ocupado" @onclick="Limpiar">Cancelar edición</button> }
+        </div>
+    </EditForm>
+    @if (Feriados.Count == 0)
+    {
+        <Alerta>No hay feriados cargados.</Alerta>
+    }
+    else
+    {
+        <ul class="list-plain list-rows">
+            @foreach (var feriado in Feriados.OrderBy(f => f.Fecha))
+            {
+                <li class="row-actions">
+                    <span><strong>@feriado.Fecha.ToString("dd/MM/yyyy")</strong> · @feriado.Nombre</span>
+                    <span>
+                        <button type="button" class="btn btn-link" disabled="@Ocupado" @onclick="() => Editar(feriado)">Editar</button>
+                        <button type="button" class="btn btn-link btn-danger-text" disabled="@Ocupado" @onclick="() => SolicitarBajaAsync(feriado)">Eliminar</button>
+                    </span>
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<FeriadoDto> Feriados { get; set; } = [];
+    [Parameter] public bool Ocupado { get; set; }
+    // Primer argumento: fecha original al editar (nula al crear).
+    [Parameter, EditorRequired] public Func<DateOnly?, FeriadoEscrituraDto, Task<bool>> Guardar { get; set; } = (_, _) => Task.FromResult(false);
+    [Parameter] public EventCallback<BajaCatalogo> AlSolicitarBaja { get; set; }
+
+    private readonly FormularioFeriado _form = new();
+
+    private async Task GuardarAsync()
+    {
+        var dto = new FeriadoEscrituraDto { Fecha = _form.Fecha, Nombre = _form.Nombre };
+        if (await Guardar(_form.FechaOriginal, dto)) Limpiar();
+    }
+
+    private void Editar(FeriadoDto feriado) { _enfocar = true; _form.FechaOriginal = feriado.Fecha; _form.Fecha = feriado.Fecha; _form.Nombre = feriado.Nombre; }
+
+    private void Limpiar() { _form.FechaOriginal = null; _form.Fecha = null; _form.Nombre = string.Empty; }
+
+    // El Id de la baja es la fecha ISO: así viaja en la ruta del DELETE.
+    private Task SolicitarBajaAsync(FeriadoDto feriado) => AlSolicitarBaja.InvokeAsync(
+        new BajaCatalogo("feriados", feriado.Fecha.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+            $"el feriado del {feriado.Fecha:dd/MM/yyyy} ({feriado.Nombre})", false));
+
+    // «Editar» llena el formulario arriba de la lista: se le pasa el foco para que quede a la vista.
+    private InputText? _primerCampo;
+    private bool _enfocar;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_enfocar) return;
+        _enfocar = false;
+        if (_primerCampo?.Element is { } campo) await campo.FocusAsync();
+    }
+}

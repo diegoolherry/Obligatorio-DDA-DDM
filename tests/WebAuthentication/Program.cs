@@ -469,6 +469,134 @@ Check(adminPageDay.Contains("<label for=\"servicios-fecha\">Fecha</label>") && a
     && adminPageDay.Contains("CargandoServicios") && adminPageDay.Contains("ErrorServicios")
     && adminPageDay.Contains("FechaServicios = DateOnly.FromDateTime(salidaGuardada)"),
     "admin services section: «Fecha» input (default today), loading/empty/error states, reload on change, shows saved service's day (source check)");
+// FIN-008-03: MotivoApi es opt-in; Mensaje y Contenido de los llamadores existentes no cambian.
+{
+    var catTransport = new FakeHandler();
+    var catServices = new ServiceCollection();
+    catServices.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Api:BaseUrl"] = "https://api.example.invalid/" }).Build());
+    catServices.AddLogging();
+    catServices.AddSingleton<TimeProvider>(new TestClock());
+    catServices.AddHttpClient("Autenticacion").ConfigurePrimaryHttpMessageHandler(() => catTransport);
+    catServices.AddScoped<ISesionCliente, SesionCliente>();
+    catServices.AddScoped<Web_App.Services.Operational.AdministracionOperativaCliente>();
+    catServices.AddScoped<Web_App.Services.Catalogo.AdministracionCatalogoCliente>();
+    using var catProvider = catServices.BuildServiceProvider();
+    using var catScope = catProvider.CreateScope();
+    var catSession = catScope.ServiceProvider.GetRequiredService<ISesionCliente>();
+    catTransport.Reply = _ => Task.FromResult(Response(200, Success().Replace("pasajero", "administrador")));
+    await catSession.IngresarAsync(Input());
+    HttpResponseMessage Plain(int status, string body) => new((HttpStatusCode)status) { Content = new StringContent(body, Encoding.UTF8, "text/plain") };
+
+    catTransport.Reply = _ => Task.FromResult(Plain(400, "  La clave es obligatoria.  "));
+    var plain400 = await catSession.SolicitarAdministradorAsync(HttpMethod.Post, "api/administracion/paradas", "{}");
+    Check(!plain400.Exito && plain400.EstadoHttp == 400 && plain400.Mensaje == "La API no pudo completar la operación." && plain400.Contenido == null
+        && plain400.MotivoApi == "La clave es obligatoria.", "400 with a text body keeps the previous Mensaje/Contenido and adds the trimmed MotivoApi");
+    catTransport.Reply = _ => Task.FromResult(Response(409, "\"Ya existe un bloque con la clave X.\""));
+    var json409 = await catSession.SolicitarAdministradorAsync(HttpMethod.Post, "api/administracion/paradas", "{}");
+    Check(json409.EstadoHttp == 409 && json409.Mensaje == "La API no pudo completar la operación." && json409.MotivoApi == "Ya existe un bloque con la clave X.",
+        "409 with a JSON string body exposes MotivoApi");
+    catTransport.Reply = _ => Task.FromResult(Plain(400, new string('x', 500)));
+    var long400 = await catSession.SolicitarAdministradorAsync(HttpMethod.Post, "api/administracion/paradas", "{}");
+    Check(long400.MotivoApi!.Length == 300, "MotivoApi is capped at 300 characters");
+    foreach (var (status, body, media) in new[] { (400, "{\"errors\":{\"x\":[\"y\"]}}", "application/json"), (400, "", "text/plain"), (404, "no existe", "text/plain"),
+        (500, "internal detail", "text/plain"), (403, "prohibido", "text/plain") })
+    {
+        catTransport.Reply = _ => Task.FromResult(new HttpResponseMessage((HttpStatusCode)status) { Content = new StringContent(body, Encoding.UTF8, media) });
+        var other = await catSession.SolicitarAdministradorAsync(HttpMethod.Get, "api/administracion/paradas");
+        Check(!other.Exito && other.MotivoApi == null && other.Contenido == null, $"MotivoApi stays null for {status} {media} body «{body}»");
+    }
+    catTransport.Reply = _ => Task.FromResult(Response(200, "[]"));
+    Check((await catSession.SolicitarAdministradorAsync(HttpMethod.Get, "api/administracion/paradas")).MotivoApi == null, "successful responses carry no MotivoApi");
+    // Llamador existente: AdministracionOperativaCliente sigue mostrando el mensaje fijo, no el cuerpo.
+    var operativa = catScope.ServiceProvider.GetRequiredService<Web_App.Services.Operational.AdministracionOperativaCliente>();
+    catTransport.Reply = _ => Task.FromResult(Plain(400, "detalle interno"));
+    var (_, operativaError) = await operativa.ListarParadasAsync();
+    Check(operativaError == "La API no pudo completar la operación.", "existing operational client still shows the fixed message for 400");
+
+    var cat = catScope.ServiceProvider.GetRequiredService<Web_App.Services.Catalogo.AdministracionCatalogoCliente>();
+    var bearer = "Bearer " + token;
+    catTransport.Reply = _ => Task.FromResult(Response(200, "{\"bloques\":[{\"id\":\"b1\",\"clave\":\"INV\",\"nombre\":\"Invierno\",\"empresa\":\"Berruti\",\"vigenteDesde\":\"2026-06-01\",\"vigenteHasta\":null,\"fuenteUrl\":\"\",\"rutas\":[{\"id\":\"r1\",\"bloqueId\":\"b1\",\"clave\":\"R1\",\"familia\":\"F\",\"nombre\":\"Ruta\",\"paradas\":[{\"orden\":1,\"paradaId\":\"p1\",\"nombre\":\"A\"},{\"orden\":2,\"paradaId\":\"p2\",\"nombre\":\"B\"}],\"salidas\":[{\"id\":\"s1\",\"rutaId\":\"r1\",\"dias\":\"lunesAViernes\",\"codigos\":null,\"nota\":null,\"horas\":[{\"orden\":1,\"hora\":\"05:20:00\"},{\"orden\":2,\"hora\":\"06:00:00\"}],\"serviciosGenerados\":7}]}]}],\"feriados\":[{\"fecha\":\"2026-12-25\",\"nombre\":\"Navidad\"}],\"excepciones\":[{\"id\":\"e1\",\"bloqueId\":null,\"desde\":\"2026-12-24\",\"hasta\":\"2026-12-26\",\"tipo\":\"consultarAgencia\",\"motivo\":\"Fiestas\"}]}"));
+    var (listado, listadoError) = await cat.ObtenerAsync();
+    Check(listadoError == null && listado!.Bloques[0].Rutas[0].Salidas[0].ServiciosGenerados == 7 && listado.Bloques[0].Rutas[0].Salidas[0].Horas[1].Hora == new TimeOnly(6, 0)
+        && listado.Excepciones[0].Tipo == Web_App.Models.Catalogo.TipoExcepcion.ConsultarAgencia && listado.Feriados[0].Fecha == new DateOnly(2026, 12, 25)
+        && catTransport.LastMethod == "GET" && catTransport.LastPath == "/api/administracion/catalogo" && catTransport.LastBearer == bearer && catTransport.LastBody == null,
+        "catalog client lists with GET, administrator bearer and typed contracts (serviciosGenerados, horas, enums)");
+
+    catTransport.Reply = _ => Task.FromResult(Response(201, "{\"id\":\"b2\",\"clave\":\"N\",\"nombre\":\"N\",\"empresa\":\"E\",\"fuenteUrl\":\"\",\"rutas\":[]}"));
+    var (creado, errorCrear) = await cat.CrearBloqueAsync(new() { Clave = "N", Nombre = "N", Empresa = "E" });
+    Check(errorCrear == null && creado!.Id == "b2" && catTransport.LastMethod == "POST" && catTransport.LastPath == "/api/administracion/catalogo/bloques"
+        && catTransport.LastBody!.Contains("\"clave\":\"N\""), "create bloque posts the camelCase body to /bloques and reads the 201 DTO");
+    catTransport.Reply = _ => Task.FromResult(Response(200, "{\"id\":\"r1\",\"bloqueId\":\"b1\",\"clave\":\"R1\",\"familia\":\"F\",\"nombre\":\"Ruta\",\"paradas\":[],\"salidas\":[]}"));
+    await cat.ActualizarRutaAsync("r 1", new() { BloqueId = "b1", Clave = "R1", Familia = "F", Nombre = "Ruta", ParadaIds = ["p2", "p1"] });
+    Check(catTransport.LastMethod == "PUT" && catTransport.LastPath == "/api/administracion/catalogo/rutas/r%201" && catTransport.LastBody!.Contains("\"paradaIds\":[\"p2\",\"p1\"]"),
+        "update ruta puts the ordered paradaIds to /rutas/{escaped id}");
+    catTransport.Reply = _ => Task.FromResult(Response(200, "{\"id\":\"s1\",\"rutaId\":\"r1\",\"dias\":\"sabados\",\"horas\":[],\"serviciosGenerados\":0}"));
+    var (salida, _) = await cat.ActualizarSalidaAsync("s1", new() { RutaId = "r1", Dias = Web_App.Models.Catalogo.DiasOperacion.DomingosYFeriados,
+        Horas = [new() { Orden = 1, Hora = new TimeOnly(5, 20) }, new() { Orden = 3, Hora = new TimeOnly(6, 5) }] });
+    Check(salida!.Dias == Web_App.Models.Catalogo.DiasOperacion.Sabados && catTransport.LastPath == "/api/administracion/catalogo/salidas/s1"
+        && catTransport.LastBody!.Contains("\"dias\":\"domingosYFeriados\"") && catTransport.LastBody.Contains("\"hora\":\"05:20:00\"") && catTransport.LastBody.Contains("\"orden\":3"),
+        "update salida sends enum as camelCase text and horas by orden");
+    catTransport.Reply = _ => Task.FromResult(Response(201, "{\"fecha\":\"2026-12-25\",\"nombre\":\"Navidad\"}"));
+    await cat.CrearFeriadoAsync(new() { Fecha = new DateOnly(2026, 12, 25), Nombre = "Navidad" });
+    Check(catTransport.LastMethod == "POST" && catTransport.LastPath == "/api/administracion/catalogo/feriados" && catTransport.LastBody!.Contains("\"fecha\":\"2026-12-25\""), "create feriado posts an ISO date");
+    catTransport.Reply = _ => Task.FromResult(Response(200, "{\"fecha\":\"2026-12-25\",\"nombre\":\"Navidad 2\"}"));
+    await cat.ActualizarFeriadoAsync(new DateOnly(2026, 12, 25), new() { Nombre = "Navidad 2" });
+    Check(catTransport.LastMethod == "PUT" && catTransport.LastPath == "/api/administracion/catalogo/feriados/2026-12-25", "update feriado puts to the yyyy-MM-dd route");
+    catTransport.Reply = _ => Task.FromResult(Response(201, "{\"id\":\"e2\",\"bloqueId\":null,\"desde\":\"2026-12-24\",\"hasta\":\"2026-12-26\",\"tipo\":\"sinServicio\",\"motivo\":\"M\"}"));
+    await cat.CrearExcepcionAsync(new() { Desde = new DateOnly(2026, 12, 24), Hasta = new DateOnly(2026, 12, 26), Tipo = Web_App.Models.Catalogo.TipoExcepcion.SinServicio, Motivo = "M" });
+    Check(catTransport.LastMethod == "POST" && catTransport.LastPath == "/api/administracion/catalogo/excepciones" && catTransport.LastBody!.Contains("\"tipo\":\"sinServicio\"")
+        && catTransport.LastBody.Contains("\"bloqueId\":null"), "create excepcion posts tipo as camelCase text and a null bloqueId for all blocks");
+    await cat.ActualizarExcepcionAsync("e2", new() { Desde = new DateOnly(2026, 12, 24), Hasta = new DateOnly(2026, 12, 26), Tipo = Web_App.Models.Catalogo.TipoExcepcion.SinServicio, Motivo = "M" });
+    Check(catTransport.LastMethod == "PUT" && catTransport.LastPath == "/api/administracion/catalogo/excepciones/e2", "update excepcion puts to /excepciones/{id}");
+
+    catTransport.Reply = _ => Task.FromResult(Response(204));
+    var deletes = new (Func<Task<string?>> Call, string Path)[] {
+        (() => cat.EliminarBloqueAsync("b1"), "/api/administracion/catalogo/bloques/b1"),
+        (() => cat.EliminarRutaAsync("r1"), "/api/administracion/catalogo/rutas/r1"),
+        (() => cat.EliminarSalidaAsync("s1"), "/api/administracion/catalogo/salidas/s1"),
+        (() => cat.EliminarFeriadoAsync(new DateOnly(2026, 12, 25)), "/api/administracion/catalogo/feriados/2026-12-25"),
+        (() => cat.EliminarExcepcionAsync("e1"), "/api/administracion/catalogo/excepciones/e1") };
+    foreach (var (call, path) in deletes)
+    {
+        var err = await call();
+        Check(err == null && catTransport.LastMethod == "DELETE" && catTransport.LastPath == path && catTransport.LastBody == null && catTransport.LastBearer == bearer, $"DELETE {path} with 204 succeeds");
+    }
+
+    catTransport.Reply = _ => Task.FromResult(Plain(400, "Una ruta necesita al menos dos paradas."));
+    var (_, bad) = await cat.CrearRutaAsync(new());
+    Check(bad == "Una ruta necesita al menos dos paradas.", "catalog client shows the API reason for 400");
+    catTransport.Reply = _ => Task.FromResult(Plain(409, "Ya existe una ruta con la clave R1."));
+    var (_, conflict) = await cat.CrearRutaAsync(new());
+    Check(conflict == "Ya existe una ruta con la clave R1.", "catalog client shows the API reason for 409");
+    catTransport.Reply = _ => Task.FromResult(Plain(409, ""));
+    Check((await cat.EliminarSalidaAsync("s1")) == "La operación entra en conflicto con el estado actual del catálogo.", "409 without a body falls back to a Spanish text");
+    catTransport.Reply = _ => Task.FromResult(Plain(400, ""));
+    Check((await cat.EliminarSalidaAsync("s1")) == "Los datos enviados no son válidos. Revisalos y reintentá.", "400 without a body falls back to a Spanish text");
+    catTransport.Reply = _ => Task.FromResult(Response(404));
+    Check((await cat.EliminarSalidaAsync("s1")) == "El elemento no existe o ya fue dado de baja.", "404 maps to the not-found text");
+    catTransport.Reply = _ => Task.FromResult(Response(403));
+    var (_, forbidden) = await cat.ObtenerAsync();
+    Check(forbidden == "La API denegó el acceso de administrador.", "403 keeps the administrator denial text");
+    catTransport.Reply = _ => throw new HttpRequestException("private detail");
+    var (_, offline) = await cat.ObtenerAsync();
+    Check(offline == "No se pudo contactar con la API. Revisá la conexión y reintentá." && !offline.Contains("private"), "network failure shows the retry text");
+    catTransport.Reply = _ => Task.FromResult(Response(200, "no es json"));
+    var (_, malformed) = await cat.ObtenerAsync();
+    Check(malformed == "La respuesta de la API no tiene el formato esperado.", "malformed success body is reported, not thrown");
+    using var anonScope = catProvider.CreateScope();
+    var (_, anon) = await anonScope.ServiceProvider.GetRequiredService<Web_App.Services.Catalogo.AdministracionCatalogoCliente>().ObtenerAsync();
+    Check(anon == "Ingresá con una sesión activa.", "catalog client sends nothing without a session");
+}
+// Página y componentes del catálogo (comprobaciones estructurales, no de renderizado).
+string catalogPage = WebSource("Components/Pages/Admin/AdministracionCatalogo.razor");
+Check(catalogPage.Contains("@page \"/admin/catalogo\"") && catalogPage.Contains("Sesion.ProbarAdministradorAsync()") && catalogPage.Contains("!Sesion.Estado.Autenticada")
+    && catalogPage.Contains("ConfirmarBajaAsync") && catalogPage.Contains("Es una baja lógica") && catalogPage.Contains("Reintentar") && catalogPage.Contains("Cargando el catálogo"),
+    "catalog page: route, administrator probe, login prompt, confirmation with baja lógica text, loading and retry (source check)");
+string rutasSource = WebSource("Components/Admin/Catalogo/SeccionRutas.razor"), salidasSource = WebSource("Components/Admin/Catalogo/SeccionSalidas.razor");
+Check(rutasSource.Contains("solo a las próximas generaciones") && salidasSource.Contains("solo a las próximas generaciones")
+    && rutasSource.Contains("ParadasBloqueadas") && salidasSource.Contains("Una salida no cambia de ruta"),
+    "ruta/salida editors warn that changes apply only to future generations and lock stops with active salidas (source check)");
+Check(WebSource("Components/Layout/NavMenu.razor").Contains("href=\"admin/catalogo\""), "navigation links the catalog page next to the operational admin link (source check)");
 Console.WriteLine($"{checks - failures}/{checks} PASS");
 return failures == 0 ? 0 : 1;
 
