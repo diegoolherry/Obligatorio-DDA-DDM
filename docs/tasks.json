@@ -115,7 +115,7 @@
         "La aplicación no solicita ni almacena números de tarjeta, CVV ni datos financieros equivalentes; no hay cobros reales ni credenciales de producción.",
         "El ticket del primer tramo no tiene asiento y el segundo tiene un asiento asignado automáticamente."
       ],
-      "evidence": "(1) PR/commit: pending; MVP-004 remains in progress on the feature branch.\n(2) Commands: PaymentContracts 48/48 and API build 0 errors; NU1900 vulnerability-index warning, `git diff --check` passed.\n(3) Revisión cruzada de Diego: pendiente; no se marca la tarea completa ni se acredita revisión."
+      "evidence": "(1) PR/commit: PR pendiente/no autorizado; commits locales API a21966d, e8d3063, 7ec6c0d, 1503480, de42881, 8dd4029, ed2b7cc, 516e788, de29911 y a2273c7; Web fbc58cd, 3849f5d y 48b53e5; Mobile 08004ca y b0ff4c8.\n(2) Verificación local: PaymentContracts 269/269 y API build 0 errores; WebPurchase 164/164 y build Web 0 advertencias/errores; MobilePurchase Node 9/9, TypeScript estricto y npm run typecheck exit 0. Sin MySQL, operación real de Mercado Pago TEST ni UI/E2E.\n(3) Revisión cruzada de Diego: pendiente; MVP-004 sigue in_progress, sin fecha de cierre ni atribución de aprobación."
     },
     {
       "id": "MVP-005",
