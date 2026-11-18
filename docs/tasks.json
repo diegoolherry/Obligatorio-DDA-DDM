@@ -1034,7 +1034,7 @@
         "La corrección aplica a todas las conexiones de la API y no deja valores de sesión alterados para otros pedidos.",
         "Hay una reproducción documentada para la generación de Servicios y al menos una escritura operativa, antes y después del cambio."
       ],
-      "evidence": "Rama feature/fin-012-mysql-lock-timeout (be7f807, 062233d); PR pendiente.\nBloqueo forzado en MySQL local: generación y PUT de parada pasaron de sin respuesta a 409 en ~3 s sin cambiar datos; global 50; AuthenticationSessions --unit 48/48, OperationalAdministration 139, RouteCatalog 129/129, Geolocation 27/27; verificación independiente sin bloqueos.\nPendiente: revisión cruzada de Enzo."
+      "evidence": "Rama feature/fin-012-mysql-lock-timeout (be7f807, 062233d); PR #85.\nBloqueo forzado en MySQL local: generación y PUT de parada pasaron de sin respuesta a 409 en ~3 s sin cambiar datos; global 50; AuthenticationSessions --unit 48/48, OperationalAdministration 139, RouteCatalog 129/129, Geolocation 27/27; verificación independiente sin bloqueos.\nPendiente: revisión cruzada de Enzo."
     }
   ]
 }
