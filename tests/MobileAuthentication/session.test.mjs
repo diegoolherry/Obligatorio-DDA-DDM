@@ -7,7 +7,8 @@ const source = await readFile(new URL('../../src/Mobile/src/services/Authenticat
 const { AuthenticationService } = await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(source)).toString('base64')}`);
 const request = { correo: 'ficticio@example.invalid', contrasena: 'x' };
 const now = Date.parse('2026-01-01T00:00:00Z');
-const token = 'A'.repeat(43);
+// El token ahora es un JWT compacto (header.payload.firma); identificadorUsuario sigue siendo opaco de 43 caracteres.
+const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3VhcmlvLV8tIn0.c2lnbmF0dXJlLV8';
 const identity = { identificadorUsuario: 'B'.repeat(43), roles: ['pasajero'] };
 const success = { ...identity, token, venceEnUtc: '2026-01-08T00:00:00.000000Z' };
 const reply = (status, body) => new Response(body === undefined ? null : JSON.stringify(body), { status });
@@ -131,9 +132,9 @@ test('errors never create session or expose raw errors', async () => {
   }
 });
 
-test('validate shape, roles, canonical opaque token and future UTC expiry', async () => {
+test('validate shape, roles, JWT-shaped token and future UTC expiry', async () => {
   for (const bad of [
-    { ...success, token: 'US-1' }, { ...success, token: 'A'.repeat(42) + 'B' },
+    { ...success, token: 'US-1' }, { ...success, token: identity.identificadorUsuario },
     { ...success, roles: [0] }, { ...success, roles: ['unknown'] }, { ...success, roles: null },
     { ...success, identificadorUsuario: '' }, { ...success, venceEnUtc: '2026-01-08T00:00:00+00:00' },
     { ...success, venceEnUtc: '2026-02-30T00:00:00.000000Z' },
@@ -147,6 +148,24 @@ test('validate shape, roles, canonical opaque token and future UTC expiry', asyn
   assert.equal((await service.login(request)).outcome, 'success'); // no invented minimum role policy
 });
 
+test('token must be a compact JWT shape: three non-empty base64url segments, no padding/whitespace, at most 4096 chars', async () => {
+  for (const bad of [
+    'aaa.bbb', 'aaa.bbb.ccc.ddd', 'aaa..ccc', '.bbb.ccc', 'aaa.bbb.', 'aaa.bbb.ccc=', 'aaa.bb=.ccc',
+    'aaa. bbb.ccc', 'aaa.bbb.ccc\n', ' aaa.bbb.ccc', 'aaa.b+b.ccc', 'aaa.b/b.ccc', 'aaa.bbb.cñc',
+    'A'.repeat(43), 'aaa.bbb.' + 'c'.repeat(4096 - 7),
+  ]) {
+    const { service, calls } = fixture([reply(200, { ...success, token: bad })]);
+    assert.equal((await service.login(request)).outcome, 'invalidResponse', JSON.stringify(bad));
+    assert.equal(service.getState().authenticated, false);
+    assert.equal(calls.length, 1);
+  }
+  const max = 'aaa.bbb.' + 'c'.repeat(4096 - 8);
+  const { service, calls } = fixture([reply(200, { ...success, token: max }), reply(200, identity)]);
+  assert.equal((await service.login(request)).outcome, 'success');
+  await service.checkPassenger();
+  assert.equal(calls[1][1].headers.Authorization, `Bearer ${max}`);
+});
+
 test('authenticated 403 preserves state, 401 clears it; malformed identity is not success', async () => {
   const { service } = fixture([reply(200, success), reply(403), reply(200, {}), reply(401)]);
   await service.login(request);
@@ -158,13 +177,13 @@ test('authenticated 403 preserves state, 401 clears it; malformed identity is no
   assert.equal(service.getState().authenticated, false);
 });
 
-test('failed logout blocks protected work, retains safe retry, never confirms revocation', async () => {
+test('failed logout blocks protected work, retains safe retry, never confirms logout', async () => {
   for (const failure of [reply(503), reply(500), reply(403), reply(200, {}), new Error('offline')]) {
     const { service, calls } = fixture([reply(200, success), failure, reply(204)]);
     await service.login(request);
     const result = await service.logout();
     assert.notEqual(result.outcome, 'success');
-    assert.match(result.message, /No se pudo confirmar la revocación/);
+    assert.match(result.message, /No se pudo confirmar el cierre de sesión/);
     assert.equal(service.getState().logoutPending, true);
     assert.equal((await service.checkPassenger()).outcome, 'unauthenticated');
     assert.equal(calls.length, 2);
@@ -174,12 +193,12 @@ test('failed logout blocks protected work, retains safe retry, never confirms re
   }
 });
 
-test('logout 401 clears invalid session but does not confirm revocation', async () => {
+test('logout 401 clears invalid session but does not confirm logout', async () => {
   const { service } = fixture([reply(200, success), reply(401)]);
   await service.login(request);
   const result = await service.logout();
   assert.equal(result.outcome, 'unauthenticated');
-  assert.match(result.message, /No se pudo confirmar la revocación/);
+  assert.match(result.message, /No se pudo confirmar el cierre de sesión/);
   assert.equal(service.getState().authenticated, false);
 });
 
@@ -221,7 +240,7 @@ test('late body after discard cannot overwrite a different confirmed session', a
   let resolveBody;
   let bodyStarted;
   const started = new Promise(resolve => { bodyStarted = resolve; });
-  const secondToken = 'C'.repeat(42) + 'A';
+  const secondToken = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjIn0.Y19zaWc';
   const { service, calls } = fixture([
     () => ({ status: 200, redirected: false, json: () => {
       bodyStarted();
@@ -242,7 +261,7 @@ test('late body after discard cannot overwrite a different confirmed session', a
 
 test('simultaneous instances do not share credentials or logout state', async () => {
   const first = fixture([reply(200, success), reply(204)]);
-  const secondToken = 'D'.repeat(42) + 'A';
+  const secondToken = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkIn0.ZF9zaWc';
   const second = fixture([reply(200, { ...success, token: secondToken }), reply(200, identity)]);
   await Promise.all([first.service.login(request), second.service.login(request)]);
   await first.service.logout();
@@ -376,7 +395,7 @@ test('authorizedRequest runs concurrently with a probe without reporting busy', 
 });
 
 test('authorizedRequest: a late 401 from an old request cannot clear a newer session', async () => {
-  const secondToken = 'C'.repeat(42) + 'A';
+  const secondToken = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjIn0.Y19zaWc';
   let late;
   const { service } = fixture([
     reply(200, success), () => new Promise(resolve => { late = resolve; }), reply(401),
