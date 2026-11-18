@@ -596,7 +596,7 @@
         "Se documentan y verifican el ciclo de vida y la custodia de las credenciales del mecanismo acordado, incluida la invalidación al cerrar sesión; los contratos y clientes se mantienen coherentes.",
         "El informe y la referencia de autenticación distinguen decisiones de resultados comprobados y conservan la prohibición de despliegue y uso de credenciales reales hasta una autorización humana explícita independiente."
       ],
-      "evidence": "Rama feature/fin-005-jwt-login, con commits a7a2837, 1706338, a2f34c5, daa76dc y 8198e27; sin PR todavía.\nDecisión de Diego (2026-11-18): migrar de token opaco a JWT puro sin estado (HS256, vigencia 7 días, contrato de ingreso actual) y hashear contraseñas con IPasswordHasher; OpenIddict no se adopta. Riesgo aceptado: cerrar sesión solo descarta el token en el cliente; el servidor no lo revoca antes de su vencimiento (afecta el criterio 4). Seguimiento: odd/tasks/fin-005-jwt-login.md.\nRevisión cruzada de Enzo pendiente."
+      "evidence": "Rama feature/fin-005-jwt-login, con commits a7a2837, 1706338, a2f34c5, daa76dc y 8198e27; PRs encadenados #86, #87, #88 y #89.\nDecisión de Diego (2026-11-18): migrar de token opaco a JWT puro sin estado (HS256, vigencia 7 días, contrato de ingreso actual) y hashear contraseñas con IPasswordHasher; OpenIddict no se adopta. Riesgo aceptado: cerrar sesión solo descarta el token en el cliente; el servidor no lo revoca antes de su vencimiento (afecta el criterio 4). Seguimiento: odd/tasks/fin-005-jwt-login.md.\nRevisión cruzada de Enzo pendiente."
     },
     {
       "id": "FIN-006",
