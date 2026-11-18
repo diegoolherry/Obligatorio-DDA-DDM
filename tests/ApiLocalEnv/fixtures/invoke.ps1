@@ -2,12 +2,14 @@ param([string]$Launcher, [string]$Capture, [string]$Profile = 'https',
     [int]$ChildExit = 0, [switch]$AbsentPrevious, [switch]$ThrowChild)
 $ErrorActionPreference = 'Stop'
 $env:ConnectionStrings__Berruti = 'PREVIOUS_SYNTHETIC'
-if ($AbsentPrevious) { $env:ConnectionStrings__Berruti = $null }
+$env:Jwt__Key = 'PREVIOUS_JWT_SYNTHETIC'
+if ($AbsentPrevious) { $env:ConnectionStrings__Berruti = $null; $env:Jwt__Key = $null }
 $env:API_ENV_TEST_OTHER = 'UNCHANGED'
-$global:probe = @{ Called = $false; Value = $null; Arguments = @() }
+$global:probe = @{ Called = $false; Value = $null; JwtValue = $null; Arguments = @() }
 function global:dotnet {
     $global:probe.Called = $true
     $global:probe.Value = $env:ConnectionStrings__Berruti
+    $global:probe.JwtValue = $env:Jwt__Key
     $global:probe.Arguments = @($args)
     if ($ThrowChild) { throw 'SYNTHETIC_CHILD_EXCEPTION' }
     [Console]::Out.WriteLine('FAKE_DOTNET')
@@ -22,6 +24,7 @@ if (Test-Path -LiteralPath $Launcher) {
     $code = 99
 }
 $global:probe.Restored = $env:ConnectionStrings__Berruti
+$global:probe.JwtRestored = $env:Jwt__Key
 $global:probe.Other = $env:API_ENV_TEST_OTHER
 $global:probe |
     ConvertTo-Json -Compress | Set-Content -LiteralPath $Capture -Encoding UTF8

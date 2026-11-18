@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Builder;
+using System.Diagnostics;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Globalization;
+using System.Reflection;
 using System.Text.Json;
 using API_Berruti.Data;
 using API_Berruti.DTOs.Authentication;
@@ -11,18 +14,20 @@ using API_Berruti.Services.Identifiers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
-using System.Security.Cryptography;
+using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using API_Berruti.Security.Authentication;
 
 if (!args.SequenceEqual(new[] { "--unit" }))
 {
-    Console.Error.WriteLine("Uso: --unit. Solo políticas puras; no inicia HTTP ni conecta MySQL.");
+    Console.Error.WriteLine("Uso: --unit. Solo políticas puras y pipeline en memoria; no escucha HTTP ni conecta MySQL.");
     return 1;
 }
 var fallos = 0;
@@ -37,11 +42,23 @@ void Prueba(string nombre, Func<bool> comprobar)
     }
     catch { fallos++; Console.Error.WriteLine($"FAIL: {nombre}"); }
 }
+
+// Clave sintética solo para pruebas: no es un secreto real ni se usa fuera de este proceso.
+const string ClavePrueba = "clave-sintetica-solo-pruebas-0123456789-abcdef";
+const string EmisorPrueba = "berruti-api-prueba";
+const string AudienciaPrueba = "berruti-clientes-prueba";
+IConfiguration ConfigJwt(string? clave, string? emisor = EmisorPrueba, string? audiencia = AudienciaPrueba) =>
+    new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["ConnectionStrings:Berruti"] = "Server=localhost;Database=berrutiauthtests;User ID=berruti_test;Password=ficticia-unit-no-conexion",
+        ["Jwt:Key"] = clave, ["Jwt:Issuer"] = emisor, ["Jwt:Audience"] = audiencia
+    }).Build();
+
 Prueba("S10 contratos específicos implementados y consumidos", () =>
 {
     var assembly = typeof(PoliticaSesion).Assembly;
     foreach (var nombre in new[] { "Repositories.Authentication.CuentasRepository", "Repositories.Authentication.ContadoresRepository",
-        "Repositories.Authentication.SesionesRepository", "Services.Identifiers.Correlativo", "Services.Authentication.AutenticacionService" })
+        "Services.Identifiers.Correlativo", "Services.Authentication.AutenticacionService" })
     {
         var clase = assembly.GetType("API_Berruti." + nombre);
         var contrato = assembly.GetType("API_Berruti." + nombre.Insert(nombre.LastIndexOf('.') + 1, "I"));
@@ -51,51 +68,35 @@ Prueba("S10 contratos específicos implementados y consumidos", () =>
     }
     return true;
 });
-var ahora = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-var vence = ahora.AddDays(7);
-Prueba("32 bytes Base64url canónicos y distintos", () =>
+Prueba("S3 sin estado: no quedan tipos de sesión de servidor ni handler opaco", () =>
+{
+    var assembly = typeof(PoliticaSesion).Assembly;
+    return new[] { "API_Berruti.Models.Authentication.Sesion", "API_Berruti.Repositories.Authentication.ISesionesRepository",
+        "API_Berruti.Repositories.Authentication.SesionesRepository", "API_Berruti.Security.Authentication.SesionBearerHandler" }
+        .All(nombre => assembly.GetType(nombre) == null) &&
+        typeof(IAutenticacionService).GetMethods().Select(m => m.Name).SequenceEqual(new[] { "IngresarAsync" });
+});
+Prueba("identificador público: 32 bytes Base64url canónicos y distintos", () =>
 {
     var tokens = Enumerable.Range(0, 128).Select(_ => PoliticaSesion.NuevoToken()).ToArray();
-    return tokens.Distinct().Count() == 128 && tokens.All(t => t.Length == 43 &&
-        PoliticaSesion.EsToken(t) && Convert.FromBase64String(t.Replace('-', '+').Replace('_', '/') + "=").Length == 32);
+    return tokens.Distinct().Count() == 128 && tokens.All(t => t.Length == 43 && !t.Any(c => c is '+' or '/' or '=') &&
+        Convert.FromBase64String(t.Replace('-', '+').Replace('_', '/') + "=").Length == 32);
 });
-Prueba("huella SHA256 exacta de 64 hex, no token recuperable", () =>
-{
-    var token = new string('A', 43);
-    return PoliticaSesion.Huella(token) == Convert.ToHexString(SHA256.HashData(Encoding.ASCII.GetBytes(token))) &&
-        PoliticaSesion.Huella(token).Length == 64;
-});
-foreach (var token in new[] { "", "US-1", "abc", new string('A', 42), new string('A', 44),
-    new string('A', 42) + "+", new string('A', 42) + "B", new string('A', 42) + "=" })
-    Prueba("rechaza token mal formado sin buscarlo", () => !PoliticaSesion.EsToken(token));
+var ahora = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 Prueba("reloj UTC conserva microsegundos MySQL", () => PoliticaSesion.AhoraUtc(new Reloj(ahora.AddTicks(1234567))) == ahora.AddTicks(1234560));
-Prueba("vigente hasta un tick antes del vencimiento", () => PoliticaSesion.EsVigente(vence, null, true, vence.AddTicks(-1)));
-Prueba("igual al vencimiento ya no es válida", () => !PoliticaSesion.EsVigente(vence, null, true, vence));
-Prueba("después del vencimiento no es válida", () => !PoliticaSesion.EsVigente(vence, null, true, vence.AddTicks(1)));
-Prueba("revocación rechaza aunque no venza", () => !PoliticaSesion.EsVigente(vence, ahora, true, ahora));
-Prueba("usuario inactivo rechaza aunque no venza", () => !PoliticaSesion.EsVigente(vence, null, false, ahora));
-Prueba("roles de servidor: pasajero no administrador, sin PK", () =>
-{
-    var identidad = PoliticaSesion.Identidad("publico-opaco", new[] { "Pasajero" });
-    return identidad.Identity?.IsAuthenticated == true && identidad.IsInRole("Pasajero") &&
-        !identidad.IsInRole("Administrador") && identidad.FindFirstValue(ClaimTypes.NameIdentifier) == "publico-opaco" &&
-        identidad.Claims.Count() == 2;
-});
+Prueba("roles de servidor: valores del enum, sin duplicados", () =>
+    PoliticaSesion.Roles(new[] { "Pasajero", "Pasajero", "Administrador" }).SequenceEqual(new[] { RolIngreso.Pasajero, RolIngreso.Administrador }));
 Prueba("rol desconocido falla cerrado", () =>
 {
-    try { PoliticaSesion.Identidad("publico-opaco", new[] { "pasajero", "999" }); return false; }
+    try { PoliticaSesion.Roles(new[] { "pasajero", "999" }); return false; }
     catch (InvalidOperationException) { return true; }
 });
-foreach (var encabezado in new[] { "", "Basic abc", "Bearer", "Bearer abc", "Bearer  " + new string('A', 43),
-    "Bearer\t" + new string('A', 43), "Bearer " + new string('A', 43) + ",Bearer abc" })
-    Prueba("encabezado inválido no entrega token", () => EncabezadoBearer.Token(encabezado) == null);
-Prueba("esquema Bearer insensible a mayúsculas, token exacto", () =>
-    EncabezadoBearer.Token("bEaReR " + new string('A', 43)) == new string('A', 43));
+foreach (var encabezado in new[] { "Bearer", "bEaReR abc", "Bearer\tabc" })
+    Prueba("encabezado con esquema Bearer es sensible para HTTPS", () => EncabezadoBearer.EsBearer(encabezado));
+foreach (var encabezado in new[] { "", "Basic abc", "Bearerabc" })
+    Prueba("encabezado sin esquema Bearer no es sensible", () => !EncabezadoBearer.EsBearer(encabezado));
 
-var configuracion = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
-{
-    ["ConnectionStrings:Berruti"] = "Server=localhost;Database=berrutiauthtests;User ID=berruti_test;Password=ficticia-unit-no-conexion"
-}).Build();
+var configuracion = ConfigJwt(ClavePrueba);
 var servicios = new ServiceCollection();
 servicios.AddLogging();
 servicios.AddRouting();
@@ -108,27 +109,34 @@ Prueba("DI resuelve interfaces y comparte exactamente el mismo DbContext scoped"
     var db = sp.GetRequiredService<BerrutiDbContext>();
     var cuentasDi = sp.GetRequiredService<ICuentasRepository>();
     var contadoresDi = sp.GetRequiredService<IContadoresRepository>();
-    var sesionesDi = sp.GetRequiredService<ISesionesRepository>();
     object? Campo(object obj, string nombre) => obj.GetType().GetField(nombre,
-        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.GetValue(obj);
-    return cuentasDi is CuentasRepository && contadoresDi is ContadoresRepository && sesionesDi is SesionesRepository &&
+        BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(obj);
+    return cuentasDi is CuentasRepository && contadoresDi is ContadoresRepository &&
         sp.GetRequiredService<ICorrelativo>() is Correlativo && sp.GetRequiredService<IAutenticacionService>() is AutenticacionService &&
         ReferenceEquals(Campo(cuentasDi, "_contexto"), db) && ReferenceEquals(Campo(contadoresDi, "_contexto"), db) &&
-        ReferenceEquals(Campo(sesionesDi, "_contexto"), db) && ReferenceEquals(Campo(cuentasDi, "_contadores"), contadoresDi) &&
-        db.Model.FindEntityType(typeof(Sesion))?.FindProperty(nameof(Sesion.VenceUtc))?.GetColumnType() == "datetime(6)";
+        ReferenceEquals(Campo(cuentasDi, "_contadores"), contadoresDi);
+});
+Prueba("DI: hasher estándar de Identity para Usuario y sin tabla sesion en el modelo", () =>
+{
+    var sp = alcance.ServiceProvider;
+    var db = sp.GetRequiredService<BerrutiDbContext>();
+    return sp.GetRequiredService<IPasswordHasher<Usuario>>() is PasswordHasher<Usuario> &&
+        db.Model.GetEntityTypes().All(t => t.GetTableName() != "sesion") &&
+        typeof(BerrutiDbContext).GetProperties().All(p => p.Name != "Sesiones");
 });
 Prueba("contador público mantiene guardia transaccional antes de SQL", () =>
 {
     try { alcance.ServiceProvider.GetRequiredService<IContadoresRepository>().IncrementarAsync("US-").GetAwaiter().GetResult(); return false; }
     catch (InvalidOperationException e) { return e.Message == "El alta requiere una transacción."; }
 });
-Prueba("configuración ausente no impide construir DI ni resolver handler", () =>
+Prueba("configuración ausente no impide construir DI ni resolver el esquema Bearer", () =>
 {
     var sinDb = new ServiceCollection();
     sinDb.AddLogging();
     sinDb.AgregarAutenticacionLocal(new ConfigurationBuilder().Build(), new Entorno());
     using var p = sinDb.BuildServiceProvider();
-    return p.GetRequiredService<Microsoft.AspNetCore.Authentication.IAuthenticationSchemeProvider>() != null;
+    var esquema = p.GetRequiredService<IAuthenticationSchemeProvider>().GetDefaultAuthenticateSchemeAsync().GetAwaiter().GetResult();
+    return esquema?.Name == "Bearer";
 });
 foreach (var cadena in new[] { "", "Server=remote;Database=berrutiauthtests;User ID=berruti_test;Password=ficticia",
     "Server=localhost;Database=berrutiauthtests;User ID=root;Password=ficticia",
@@ -139,164 +147,306 @@ foreach (var cadena in new[] { "", "Server=remote;Database=berrutiauthtests;User
         catch { return true; }
     });
 
-var cuentas = new CuentasFicticias();
-var sesiones = new SesionesFicticias();
-var reloj = new RelojMutable(ahora.AddTicks(1234567));
-IAutenticacionService servicio = new AutenticacionService(cuentas, sesiones, reloj);
-RespuestaIngresoDto? ingreso = null;
-Prueba("servicio: ingreso persiste solo huella, FK y UTC con siete días absolutos", () =>
+// S8: la clave JWT viene de configuración externa; falta o longitud menor a 32 bytes detienen el arranque.
+foreach (var (nombre, clave, emisor, audiencia) in new (string, string?, string?, string?)[]
 {
-    ingreso = servicio.IngresarAsync(new SolicitudIngresoDto { Correo = "prueba@example.invalid", Contrasena = "x" }).GetAwaiter().GetResult();
-    var fila = sesiones.Filas.Single().Value;
-    return ingreso != null && ingreso.IdentificadorUsuario == "publico-opaco" && ingreso.Roles.SequenceEqual(new[] { RolIngreso.Pasajero }) &&
-        fila.Huella == PoliticaSesion.Huella(ingreso.Token) && fila.Huella != ingreso.Token && fila.UsuarioId == "US-1" &&
-        fila.CreadaUtc.Kind == DateTimeKind.Utc && fila.CreadaUtc.Ticks % 10 == 0 && fila.VenceUtc == fila.CreadaUtc.AddDays(7) &&
-        DateTime.Parse(ingreso.VenceEnUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind) == fila.VenceUtc;
+    ("clave ausente", null, EmisorPrueba, AudienciaPrueba), ("clave vacía", "", EmisorPrueba, AudienciaPrueba),
+    ("clave de 31 bytes", new string('k', 31), EmisorPrueba, AudienciaPrueba),
+    ("emisor ausente", new string('k', 40), null, AudienciaPrueba),
+    ("audiencia en blanco", new string('k', 40), EmisorPrueba, "  ") })
+    Prueba($"ConfiguracionJwt rechaza {nombre} sin exponer la clave", () =>
+    {
+        try { ConfiguracionJwt.Leer(ConfigJwt(clave, emisor, audiencia)); return false; }
+        catch (InvalidOperationException e) { return e.Message.Contains("Jwt") && (string.IsNullOrEmpty(clave) || !e.Message.Contains(clave)); }
+    });
+Prueba("ConfiguracionJwt acepta clave de exactamente 32 bytes", () =>
+    ConfiguracionJwt.Leer(ConfigJwt(new string('k', 32))).Emisor == EmisorPrueba);
+
+// Arranque real del proceso de la API sin Jwt__Key válida: termina con código 2 y un mensaje claro, sin escuchar HTTP.
+(int Codigo, string Salida, string Error, bool Vencio) ArrancarApi(string? clave)
+{
+    var raiz = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../"));
+    var configuracionBuild = new DirectoryInfo(AppContext.BaseDirectory).Parent!.Name;
+    var carpeta = Path.Combine(raiz, "src/Api/API-Berruti/API-Berruti/bin", configuracionBuild, "net10.0");
+    var info = new ProcessStartInfo("dotnet") { WorkingDirectory = carpeta, RedirectStandardOutput = true,
+        RedirectStandardError = true, UseShellExecute = false };
+    info.ArgumentList.Add(Path.Combine(carpeta, "API-Berruti.dll"));
+    info.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
+    info.Environment["ASPNETCORE_URLS"] = "https://127.0.0.1:0";
+    info.Environment.Remove("Jwt__Key");
+    info.Environment.Remove("ConnectionStrings__Berruti");
+    if (clave != null) info.Environment["Jwt__Key"] = clave;
+    using var proceso = Process.Start(info)!;
+    var salida = proceso.StandardOutput.ReadToEndAsync();
+    var error = proceso.StandardError.ReadToEndAsync();
+    var vencio = !proceso.WaitForExit(60000);
+    if (vencio) proceso.Kill(true);
+    proceso.WaitForExit();
+    return (proceso.ExitCode, salida.GetAwaiter().GetResult(), error.GetAwaiter().GetResult(), vencio);
+}
+foreach (var (nombre, clave) in new (string, string?)[] { ("ausente", null), ("de 31 bytes", new string('k', 31)) })
+    Prueba($"arranque normal de la API falla claro con Jwt__Key {nombre}", () =>
+    {
+        var r = ArrancarApi(clave);
+        return !r.Vencio && r.Codigo == 2 && r.Error.Contains("Jwt__Key") && (clave == null || !(r.Error + r.Salida).Contains(clave));
+    });
+
+// Servicio con hasher real, emisor real y doble de cuentas.
+var hasher = new PasswordHasher<Usuario>();
+var cuentas = new CuentasFicticias(hasher, "x");
+var reloj = new RelojMutable(DateTime.UtcNow.AddTicks(1234567));
+IAutenticacionService CrearServicio(IPasswordHasher<Usuario>? otro = null, TimeProvider? relojServicio = null) =>
+    new AutenticacionService(cuentas, otro ?? hasher, new EmisorJwt(configuracion), relojServicio ?? reloj);
+var servicio = CrearServicio();
+SolicitudIngresoDto Solicitud(string correo, string clave) => new() { Correo = correo, Contrasena = clave };
+RespuestaIngresoDto? Ingresar(IAutenticacionService s, string correo, string clave) =>
+    s.IngresarAsync(Solicitud(correo, clave)).GetAwaiter().GetResult();
+Prueba("T1 hash: la contraseña guardada no es el texto plano y verifica con el hasher estándar", () =>
+{
+    var guardada = cuentas.Usuario.Contrasena;
+    return guardada != "x" && guardada.Length > 40 &&
+        hasher.VerifyHashedPassword(cuentas.Usuario, guardada, "x") == PasswordVerificationResult.Success &&
+        hasher.VerifyHashedPassword(cuentas.Usuario, guardada, "incorrecta") == PasswordVerificationResult.Failed;
 });
-Prueba("servicio: desconocido, contraseña incorrecta, casing e inactivo rechazan sin mutar sesiones", () =>
+RespuestaIngresoDto? ingreso = null;
+Prueba("T2 ingreso: respuesta conserva contrato {identificadorUsuario, roles, token, venceEnUtc} con JWT", () =>
 {
-    var total = sesiones.Filas.Count;
+    ingreso = Ingresar(servicio, "prueba@example.invalid", "x");
+    return ingreso != null && ingreso.IdentificadorUsuario == "publico-opaco" &&
+        ingreso.Roles.SequenceEqual(new[] { RolIngreso.Pasajero }) && ingreso.Token.Split('.').Length == 3 &&
+        ingreso.VenceEnUtc.Length == 27 && ingreso.VenceEnUtc.EndsWith(".000000Z") &&
+        JsonSerializer.Serialize(ingreso, new JsonSerializerOptions(JsonSerializerDefaults.Web)
+            { Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter(JsonNamingPolicy.CamelCase, false) } })
+        .StartsWith("{\"identificadorUsuario\":\"publico-opaco\",\"roles\":[\"pasajero\"],\"token\":\"eyJ");
+});
+Prueba("T2 JWT: HS256, sub = identificador público, un claim de rol, jti Guid y nada personal", () =>
+{
+    var jwt = new JwtSecurityTokenHandler().ReadJwtToken(ingreso!.Token);
+    var claves = jwt.Payload.Keys.OrderBy(k => k).ToArray();
+    var esperadas = new[] { "aud", "exp", "iss", "jti", "sub", ClaimTypes.Role }.OrderBy(k => k).ToArray();
+    var cargaUtil = ingreso.Token.Split('.')[1];
+    var carga = Encoding.UTF8.GetString(Convert.FromBase64String(cargaUtil.Replace('-', '+').Replace('_', '/')
+        .PadRight((cargaUtil.Length + 3) / 4 * 4, '=')));
+    return jwt.Header.Alg == SecurityAlgorithms.HmacSha256 && claves.SequenceEqual(esperadas) &&
+        jwt.Subject == "publico-opaco" && jwt.Subject != cuentas.Usuario.Identificador &&
+        jwt.Claims.Single(c => c.Type == ClaimTypes.Role).Value == "Pasajero" &&
+        Guid.TryParse(jwt.Id, out _) && jwt.Issuer == EmisorPrueba && jwt.Audiences.Single() == AudienciaPrueba &&
+        !carga.Contains(cuentas.Usuario.Correo) && !carga.Contains("US-1") && !carga.Contains('@');
+});
+Prueba("T2 vigencia: siete días en segundos enteros, exp coincide con venceEnUtc", () =>
+{
+    var jwt = new JwtSecurityTokenHandler().ReadJwtToken(ingreso!.Token);
+    var vence = DateTime.Parse(ingreso.VenceEnUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+    var inicio = PoliticaSesion.AhoraUtc(reloj);
+    return vence.Ticks % TimeSpan.TicksPerSecond == 0 && vence <= inicio.AddDays(7) && vence > inicio.AddDays(7).AddSeconds(-1) &&
+        new DateTimeOffset(vence).ToUnixTimeSeconds() == long.Parse(jwt.Payload["exp"].ToString()!, CultureInfo.InvariantCulture) &&
+        jwt.ValidTo == vence && ingreso.VenceEnUtc == vence.ToString("yyyy-MM-dd'T'HH:mm:ss.ffffff'Z'", CultureInfo.InvariantCulture);
+});
+Prueba("T2 jti distinto en cada ingreso", () =>
+{
+    var otro = Ingresar(servicio, "prueba@example.invalid", "x")!;
+    return new JwtSecurityTokenHandler().ReadJwtToken(otro.Token).Id != new JwtSecurityTokenHandler().ReadJwtToken(ingreso!.Token).Id;
+});
+Prueba("T1 rechazo: desconocido, contraseña incorrecta, casing e inactivo devuelven null sin mutar la cuenta", () =>
+{
+    var antes = JsonSerializer.Serialize(cuentas.Usuario);
     var rechazadas = new[] { ("otro@example.invalid", "x"), ("prueba@example.invalid", "incorrecta"),
         ("Prueba@example.invalid", "x"), ("prueba@example.invalid", " x ") }
-        .All(par => servicio.IngresarAsync(new SolicitudIngresoDto { Correo = par.Item1, Contrasena = par.Item2 }).GetAwaiter().GetResult() == null);
+        .All(par => Ingresar(servicio, par.Item1, par.Item2) == null);
     cuentas.Usuario.Activo = false;
-    rechazadas &= servicio.IngresarAsync(new SolicitudIngresoDto { Correo = cuentas.Usuario.Correo, Contrasena = "x" }).GetAwaiter().GetResult() == null;
+    rechazadas &= Ingresar(servicio, cuentas.Usuario.Correo, "x") == null;
     cuentas.Usuario.Activo = true;
-    return rechazadas && sesiones.Filas.Count == total;
+    return rechazadas && JsonSerializer.Serialize(cuentas.Usuario) == antes;
 });
-Prueba("servicio: relee rol autoritativo, no renueva ni modifica la sesión", () =>
+Prueba("T1 una contraseña legible guardada antes del hash ya no autentica", () =>
 {
-    var antes = JsonSerializer.Serialize(sesiones.Filas);
-    var pasajero = servicio.AutenticarAsync(ingreso!.Token).GetAwaiter().GetResult();
-    cuentas.Roles = new[] { "Administrador" };
-    var administrador = servicio.AutenticarAsync(ingreso.Token).GetAwaiter().GetResult();
-    cuentas.Roles = new[] { "Pasajero" };
-    return pasajero!.IsInRole("Pasajero") && !pasajero.IsInRole("Administrador") && administrador!.IsInRole("Administrador") &&
-        !administrador.IsInRole("Pasajero") && JsonSerializer.Serialize(sesiones.Filas) == antes;
-});
-Prueba("servicio: token desconocido e inactivo rechazados", () =>
-{
-    var desconocida = servicio.AutenticarAsync(PoliticaSesion.NuevoToken()).GetAwaiter().GetResult() == null;
-    cuentas.Usuario.Activo = false;
-    var inactiva = servicio.AutenticarAsync(ingreso!.Token).GetAwaiter().GetResult() == null;
-    cuentas.Usuario.Activo = true;
-    return desconocida && inactiva;
-});
-Prueba("servicio: frontera exacta y posterior rechazan sin sliding", () =>
-{
-    var venceServicio = sesiones.Filas.Single().Value.VenceUtc;
-    reloj.Ahora = venceServicio.AddTicks(-1);
-    var previa = servicio.AutenticarAsync(ingreso!.Token).GetAwaiter().GetResult() != null;
-    reloj.Ahora = venceServicio;
-    var exacta = servicio.AutenticarAsync(ingreso.Token).GetAwaiter().GetResult() == null;
-    reloj.Ahora = venceServicio.AddTicks(1);
-    var posterior = servicio.AutenticarAsync(ingreso.Token).GetAwaiter().GetResult() == null;
-    reloj.Ahora = ahora;
-    return previa && exacta && posterior && sesiones.Filas.Single().Value.VenceUtc == venceServicio;
-});
-Prueba("servicio: logout revoca solo esa sesión; token posterior rechazado (doble manual, no DB)", () =>
-{
-    var segunda = servicio.IngresarAsync(new SolicitudIngresoDto { Correo = cuentas.Usuario.Correo, Contrasena = "x" }).GetAwaiter().GetResult()!;
-    servicio.SalirAsync(ingreso!.Token).GetAwaiter().GetResult();
-    return servicio.AutenticarAsync(ingreso.Token).GetAwaiter().GetResult() == null &&
-        servicio.AutenticarAsync(segunda.Token).GetAwaiter().GetResult() != null &&
-        sesiones.Filas[PoliticaSesion.Huella(segunda.Token)].RevocadaUtc == null;
-});
-Prueba("handler y autorización: challenge 401 Bearer, forbid 403 y roles (sin servidor)", () =>
-{
-    var coleccion = new ServiceCollection();
-    coleccion.AddLogging();
-    coleccion.AddRouting();
-    coleccion.AgregarAutenticacionLocal(new ConfigurationBuilder().Build(), new Entorno());
-    coleccion.AddSingleton<IAutenticacionService>(servicio);
-    using var p = coleccion.BuildServiceProvider();
-    DefaultHttpContext Contexto(string? token)
-    {
-        var ctx = new DefaultHttpContext { RequestServices = p.CreateScope().ServiceProvider };
-        ctx.Request.Scheme = "https";
-        if (token != null) ctx.Request.Headers.Authorization = "Bearer " + token;
-        return ctx;
-    }
-    var anonimo = Contexto(null);
-    var resultado = anonimo.AuthenticateAsync("Bearer").GetAwaiter().GetResult();
-    anonimo.ChallengeAsync("Bearer").GetAwaiter().GetResult();
-    if (resultado.Succeeded || anonimo.Response.StatusCode != 401 || anonimo.Response.Headers.WWWAuthenticate != "Bearer") return false;
-    var desconocido = Contexto(PoliticaSesion.NuevoToken());
-    if (desconocido.AuthenticateAsync("Bearer").GetAwaiter().GetResult().Succeeded) return false;
-    var tokenValido = servicio.IngresarAsync(new SolicitudIngresoDto { Correo = cuentas.Usuario.Correo, Contrasena = "x" }).GetAwaiter().GetResult()!.Token;
-    var valido = Contexto(tokenValido);
-    var autenticado = valido.AuthenticateAsync("Bearer").GetAwaiter().GetResult();
-    var autorizacion = valido.RequestServices.GetRequiredService<IAuthorizationService>();
-    var permite = autorizacion.AuthorizeAsync(autenticado.Principal!, null,
-        new AuthorizationPolicyBuilder("Bearer").RequireAuthenticatedUser().RequireRole("Pasajero").Build()).GetAwaiter().GetResult();
-    var deniega = autorizacion.AuthorizeAsync(autenticado.Principal!, null,
-        new AuthorizationPolicyBuilder("Bearer").RequireAuthenticatedUser().RequireRole("Administrador").Build()).GetAwaiter().GetResult();
-    valido.ForbidAsync("Bearer").GetAwaiter().GetResult();
-    return autenticado.Succeeded && permite.Succeeded && !deniega.Succeeded && valido.Response.StatusCode == 403;
-});
-foreach (var probe in new[] { (Method: "PruebaCobrador", Route: "prueba-cobrador", Role: "Cobrador", JsonRole: "cobrador"),
-    (Method: "PruebaAdministrador", Route: "prueba-administrador", Role: "Administrador", JsonRole: "administrador") })
-Prueba($"{probe.Route}: framework authorization and revocation preserve stored sessions", () =>
-{
-    var method = typeof(API_Berruti.Controllers.AuthenticationController).GetMethod(probe.Method);
-    if (method == null) return false;
-    var route = method.GetCustomAttributes(typeof(Microsoft.AspNetCore.Mvc.HttpGetAttribute), true)
-        .Cast<Microsoft.AspNetCore.Mvc.HttpGetAttribute>().Single();
-    if (route.Template != probe.Route) return false;
-    var metadata = method.GetCustomAttributes(true);
-    var coleccion = new ServiceCollection();
-    coleccion.AddLogging();
-    coleccion.AddRouting();
-    coleccion.AgregarAutenticacionLocal(new ConfigurationBuilder().Build(), new Entorno());
-    coleccion.AddSingleton<IAutenticacionService>(servicio);
-    using var p = coleccion.BuildServiceProvider();
-    var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
-    options.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter(JsonNamingPolicy.CamelCase, false));
+    var guardada = cuentas.Usuario.Contrasena;
     try
     {
-        foreach (var role in new[] { "Cobrador", "Pasajero", "Administrador", "anonymous", "revoked" })
+        // "x" no es Base64 (el hasher lanza FormatException); "abcd" sí lo es pero no es un hash válido.
+        foreach (var legible in new[] { "x", "abcd", "" })
         {
-            cuentas.Roles = new[] { role is "anonymous" or "revoked" ? probe.Role : role };
-            var token = role == "anonymous" ? null : servicio.IngresarAsync(new SolicitudIngresoDto
-                { Correo = cuentas.Usuario.Correo, Contrasena = "x" }).GetAwaiter().GetResult()!.Token;
-            if (role == "revoked") servicio.SalirAsync(token!).GetAwaiter().GetResult();
-            var before = JsonSerializer.Serialize(sesiones.Filas);
-            using var scope = p.CreateScope();
-            var ctx = new DefaultHttpContext { RequestServices = scope.ServiceProvider };
-            ctx.Request.Scheme = "https";
-            ctx.Request.Path = "/api/autenticacion/" + probe.Route;
-            ctx.Request.Method = "GET";
-            ctx.Response.Body = new MemoryStream();
-            if (token != null) ctx.Request.Headers.Authorization = "Bearer " + token;
-            var invoked = 0;
-            var endpoint = new Endpoint(async context =>
-            {
-                invoked++;
-                var controller = new API_Berruti.Controllers.AuthenticationController(servicio)
-                    { ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext { HttpContext = context } };
-                var result = (Microsoft.AspNetCore.Mvc.ActionResult<RespuestaSesionDto>)method.Invoke(controller, null)!;
-                var body = ((Microsoft.AspNetCore.Mvc.OkObjectResult)result.Result!).Value;
-                await context.Response.WriteAsync(JsonSerializer.Serialize(body, options));
-            }, new EndpointMetadataCollection(metadata), "collector probe");
-            ctx.SetEndpoint(endpoint);
-            var app = new Microsoft.AspNetCore.Builder.ApplicationBuilder(p);
-            Microsoft.AspNetCore.Builder.UseMiddlewareExtensions.UseMiddleware<LimiteAutenticacion>(app);
-            Microsoft.AspNetCore.Builder.AuthAppBuilderExtensions.UseAuthentication(app);
-            Microsoft.AspNetCore.Builder.AuthorizationAppBuilderExtensions.UseAuthorization(app);
-            app.Run(context => context.GetEndpoint()!.RequestDelegate!(context));
-            app.Build()(ctx).GetAwaiter().GetResult();
-            ctx.Response.Body.Position = 0;
-            var body = new StreamReader(ctx.Response.Body).ReadToEnd();
-            var expected = role == probe.Role ? 200 : role is "anonymous" or "revoked" ? 401 : 403;
-            if (ctx.Response.StatusCode != expected || invoked != (expected == 200 ? 1 : 0) ||
-                ctx.Response.Headers.CacheControl != "no-store" ||
-                ctx.Response.Headers.WWWAuthenticate.ToString() != (expected == 401 ? "Bearer" : "") ||
-                body != (expected == 200 ? """{"identificadorUsuario":"publico-opaco","roles":["ROLE"]}""".Replace("ROLE", probe.JsonRole) : "") ||
-                JsonSerializer.Serialize(sesiones.Filas) != before) return false;
+            cuentas.Usuario.Contrasena = legible;
+            if (Ingresar(servicio, cuentas.Usuario.Correo, legible.Length == 0 ? "x" : legible) != null) return false;
         }
         return true;
     }
-    finally { cuentas.Roles = new[] { "Pasajero" }; }
+    finally { cuentas.Usuario.Contrasena = guardada; }
+});
+Prueba("T1 SuccessRehashNeeded cuenta como éxito; Failed rechaza", () =>
+    Ingresar(CrearServicio(new HasherFijo(PasswordVerificationResult.SuccessRehashNeeded)), cuentas.Usuario.Correo, "cualquiera") != null &&
+    Ingresar(CrearServicio(new HasherFijo(PasswordVerificationResult.Failed)), cuentas.Usuario.Correo, "x") == null &&
+    Ingresar(CrearServicio(new HasherFijo(PasswordVerificationResult.Success)), cuentas.Usuario.Correo, "otra") != null);
+Prueba("T1 controlador: cualquier rechazo produce el mismo 401, cuerpo y WWW-Authenticate", () =>
+{
+    string[] Rechazo(string correo, string clave, bool activo)
+    {
+        cuentas.Usuario.Activo = activo;
+        try
+        {
+            var controlador = new API_Berruti.Controllers.AuthenticationController(servicio)
+                { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } };
+            var resultado = controlador.Ingresar(Solicitud(correo, clave)).GetAwaiter().GetResult().Result as UnauthorizedObjectResult;
+            return new[] { resultado!.StatusCode.ToString()!, JsonSerializer.Serialize(resultado.Value)!,
+                controlador.Response.Headers.WWWAuthenticate.ToString() };
+        }
+        finally { cuentas.Usuario.Activo = true; }
+    }
+    var referencia = Rechazo("otro@example.invalid", "x", true);
+    return referencia[0] == "401" && referencia[2] == "Bearer" &&
+        referencia[1] == "{\"Codigo\":\"ingresoRechazado\",\"Mensaje\":\"No se pudo ingresar con las credenciales proporcionadas.\"}" &&
+        Rechazo("prueba@example.invalid", "incorrecta", true).SequenceEqual(referencia) &&
+        Rechazo("prueba@example.invalid", "x", false).SequenceEqual(referencia);
+});
+
+// Pipeline real: LimiteAutenticacion + UseAuthentication + UseAuthorization con el esquema JwtBearer registrado.
+using var proveedorPipeline = ConstruirProveedor(configuracion);
+ServiceProvider ConstruirProveedor(IConfiguration config)
+{
+    var coleccion = new ServiceCollection();
+    coleccion.AddLogging();
+    coleccion.AddRouting();
+    coleccion.AgregarAutenticacionLocal(config, new Entorno());
+    return coleccion.BuildServiceProvider();
+}
+(int Estado, string Autenticar, string Cache, string Cuerpo, int Invocaciones) Pipeline(
+    string metodoControlador, string ruta, string verbo, string? encabezado, bool https = true)
+{
+    var metodo = typeof(API_Berruti.Controllers.AuthenticationController).GetMethod(metodoControlador)!;
+    var metadatos = metodo.GetCustomAttributes(true);
+    var opciones = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+    opciones.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter(JsonNamingPolicy.CamelCase, false));
+    using var scope = proveedorPipeline.CreateScope();
+    var ctx = new DefaultHttpContext { RequestServices = scope.ServiceProvider };
+    ctx.Request.Scheme = https ? "https" : "http";
+    ctx.Request.Path = "/api/autenticacion/" + ruta;
+    ctx.Request.Method = verbo;
+    ctx.Response.Body = new MemoryStream();
+    if (encabezado != null) ctx.Request.Headers.Authorization = encabezado;
+    var invocaciones = 0;
+    ctx.SetEndpoint(new Endpoint(async context =>
+    {
+        invocaciones++;
+        var controlador = new API_Berruti.Controllers.AuthenticationController(servicio)
+            { ControllerContext = new ControllerContext { HttpContext = context } };
+        var resultado = metodo.Invoke(controlador, null);
+        if (resultado is ActionResult<RespuestaSesionDto> ok)
+            await context.Response.WriteAsync(JsonSerializer.Serialize(((OkObjectResult)ok.Result!).Value, opciones));
+        else if (resultado is NoContentResult) context.Response.StatusCode = 204;
+        else throw new InvalidOperationException();
+    }, new EndpointMetadataCollection(metadatos), "sonda"));
+    var app = new ApplicationBuilder(proveedorPipeline);
+    UseMiddlewareExtensions.UseMiddleware<LimiteAutenticacion>(app);
+    AuthAppBuilderExtensions.UseAuthentication(app);
+    AuthorizationAppBuilderExtensions.UseAuthorization(app);
+    app.Run(context => context.GetEndpoint()!.RequestDelegate!(context));
+    app.Build()(ctx).GetAwaiter().GetResult();
+    ctx.Response.Body.Position = 0;
+    return (ctx.Response.StatusCode, ctx.Response.Headers.WWWAuthenticate.ToString(),
+        ctx.Response.Headers.CacheControl.ToString(), new StreamReader(ctx.Response.Body).ReadToEnd(), invocaciones);
+}
+string Forjar(string clave, string emisor, string audiencia, string[] roles, DateTime vence, string sub = "publico-opaco")
+{
+    var claims = new List<Claim> { new(JwtRegisteredClaimNames.Sub, sub), new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()) };
+    claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
+    var credenciales = new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(clave)), SecurityAlgorithms.HmacSha256);
+    return new JwtSecurityTokenHandler().WriteToken(new JwtSecurityToken(emisor, audiencia, claims, null, vence, credenciales));
+}
+string TokenEmitido(params string[] roles)
+{
+    var anterior = cuentas.Roles;
+    cuentas.Roles = roles;
+    try { return Ingresar(servicio, cuentas.Usuario.Correo, "x")!.Token; }
+    finally { cuentas.Roles = anterior; }
+}
+string Alterar(string token)
+{
+    var partes = token.Split('.');
+    var relleno = partes[1].Replace('-', '+').Replace('_', '/').PadRight((partes[1].Length + 3) / 4 * 4, '=');
+    var json = Encoding.UTF8.GetString(Convert.FromBase64String(relleno)).Replace("Pasajero", "Administrador");
+    partes[1] = Convert.ToBase64String(Encoding.UTF8.GetBytes(json)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+    return string.Join('.', partes);
+}
+const string CuerpoPasajero = "{\"identificadorUsuario\":\"publico-opaco\",\"roles\":[\"pasajero\"]}";
+Prueba("T2 token emitido por el login atraviesa el pipeline: 200, sub como NameIdentifier y rol", () =>
+{
+    var r = Pipeline("PruebaPasajero", "prueba-pasajero", "GET", "Bearer " + TokenEmitido("Pasajero"));
+    var identidad = Pipeline("Identidad", "identidad", "GET", "Bearer " + TokenEmitido("Pasajero"));
+    return r == (200, "", "no-store", CuerpoPasajero, 1) && identidad == (200, "", "no-store", CuerpoPasajero, 1);
+});
+Prueba("T2 control: token forjado con los parámetros correctos también se acepta (aísla cada rechazo)", () =>
+    Pipeline("PruebaPasajero", "prueba-pasajero", "GET",
+        "Bearer " + Forjar(ClavePrueba, EmisorPrueba, AudienciaPrueba, new[] { "Pasajero" }, DateTime.UtcNow.AddHours(1))).Estado == 200);
+Prueba("S8 roles múltiples del servidor llegan como claims de rol (Cobrador y Pasajero)", () =>
+{
+    var token = TokenEmitido("Pasajero", "Cobrador");
+    return Pipeline("PruebaCobrador", "prueba-cobrador", "GET", "Bearer " + token).Estado == 200 &&
+        Pipeline("PruebaPasajero", "prueba-pasajero", "GET", "Bearer " + token).Cuerpo ==
+        "{\"identificadorUsuario\":\"publico-opaco\",\"roles\":[\"pasajero\",\"cobrador\"]}";
+});
+Prueba("S8 token válido sin el rol requerido: 403 sin WWW-Authenticate ni ejecutar la acción", () =>
+{
+    var token = "Bearer " + TokenEmitido("Pasajero");
+    return Pipeline("PruebaAdministrador", "prueba-administrador", "GET", token) == (403, "", "no-store", "", 0) &&
+        Pipeline("PruebaCobrador", "prueba-cobrador", "GET", token) == (403, "", "no-store", "", 0);
+});
+var tokenAdmin = TokenEmitido("Administrador");
+(string Nombre, string? Encabezado)[] invalidos =
+{
+    ("sin encabezado", null),
+    ("esquema distinto de Bearer", "Basic " + tokenAdmin),
+    ("Bearer sin token", "Bearer "),
+    ("texto que no es JWT", "Bearer abc"),
+    ("token opaco de 43 caracteres del esquema anterior", "Bearer " + PoliticaSesion.NuevoToken()),
+    ("clave de firma distinta", "Bearer " + Forjar(new string('z', 48), EmisorPrueba, AudienciaPrueba, new[] { "Administrador" }, DateTime.UtcNow.AddHours(1))),
+    ("emisor distinto", "Bearer " + Forjar(ClavePrueba, "otro-emisor", AudienciaPrueba, new[] { "Administrador" }, DateTime.UtcNow.AddHours(1))),
+    ("audiencia distinta", "Bearer " + Forjar(ClavePrueba, EmisorPrueba, "otra-audiencia", new[] { "Administrador" }, DateTime.UtcNow.AddHours(1))),
+    ("vencido más allá de la tolerancia", "Bearer " + Forjar(ClavePrueba, EmisorPrueba, AudienciaPrueba, new[] { "Administrador" }, DateTime.UtcNow.AddMinutes(-10))),
+    ("emitido por el servicio hace más de siete días", "Bearer " + Ingresar(CrearServicio(null, new RelojMutable(DateTime.UtcNow.AddDays(-8))),
+        cuentas.Usuario.Correo, "x")!.Token),
+    ("sin firma (alg none)", "Bearer " + string.Join('.', new[] { "{\"alg\":\"none\",\"typ\":\"JWT\"}",
+        "{\"sub\":\"publico-opaco\",\"" + ClaimTypes.Role + "\":\"Administrador\",\"exp\":" + DateTimeOffset.UtcNow.AddHours(1).ToUnixTimeSeconds() +
+        ",\"iss\":\"" + EmisorPrueba + "\",\"aud\":\"" + AudienciaPrueba + "\"}" }
+        .Select(parte => Convert.ToBase64String(Encoding.UTF8.GetBytes(parte)).TrimEnd('=').Replace('+', '-').Replace('/', '_'))) + "."),
+    ("payload alterado a Administrador con la firma anterior", "Bearer " + Alterar(TokenEmitido("Pasajero")))
+};
+foreach (var (nombre, encabezado) in invalidos)
+    Prueba($"S8 {nombre}: 401 con WWW-Authenticate Bearer exacto, no-store y sin ejecutar la acción", () =>
+        Pipeline("PruebaAdministrador", "prueba-administrador", "GET", encabezado) == (401, "Bearer", "no-store", "", 0));
+Prueba("S8 el payload alterado sí contiene el rol que el atacante quería (la prueba anterior es real)", () =>
+    new JwtSecurityTokenHandler().ReadJwtToken(Alterar(TokenEmitido("Pasajero"))).Claims
+        .Any(c => c.Type == ClaimTypes.Role && c.Value == "Administrador"));
+Prueba("S8 HTTP con Bearer se rechaza antes de autenticar (400 httpsRequerido)", () =>
+{
+    var r = Pipeline("PruebaPasajero", "prueba-pasajero", "GET", "Bearer " + TokenEmitido("Pasajero"), https: false);
+    return r.Estado == 400 && r.Invocaciones == 0 && r.Cache == "no-store" && r.Cuerpo.Contains("httpsRequerido");
+});
+Prueba("S3 salida: 204 sin cuerpo; sin token 401; el JWT sigue válido hasta exp (sin estado de servidor)", () =>
+{
+    var token = "Bearer " + TokenEmitido("Pasajero");
+    var salida = Pipeline("Salir", "salida", "POST", token);
+    var despues = Pipeline("PruebaPasajero", "prueba-pasajero", "GET", token);
+    return salida == (204, "", "no-store", "", 1) && despues.Estado == 200 &&
+        Pipeline("Salir", "salida", "POST", null) == (401, "Bearer", "no-store", "", 0);
+});
+Prueba("S3 salida no escribe ni lee estado: el controlador no usa el servicio de autenticación", () =>
+{
+    var servicioEspia = new ServicioEspia();
+    var controlador = new API_Berruti.Controllers.AuthenticationController(servicioEspia);
+    return controlador.Salir() is NoContentResult && servicioEspia.Llamadas == 0 &&
+        typeof(API_Berruti.Controllers.AuthenticationController).GetMethod("Salir")!.GetCustomAttributes(typeof(AuthorizeAttribute), true).Length == 1;
+});
+foreach (var sonda in new[] { (Metodo: "PruebaCobrador", Ruta: "prueba-cobrador", Rol: "Cobrador", Json: "cobrador"),
+    (Metodo: "PruebaAdministrador", Ruta: "prueba-administrador", Rol: "Administrador", Json: "administrador") })
+Prueba($"{sonda.Ruta}: solo su rol obtiene 200 con JWT real; otros 403; anónimo 401", () =>
+{
+    foreach (var rol in new[] { "Cobrador", "Pasajero", "Administrador" })
+    {
+        var esperado = rol == sonda.Rol ? (200, "", "no-store", $"{{\"identificadorUsuario\":\"publico-opaco\",\"roles\":[\"{sonda.Json}\"]}}", 1)
+            : (403, "", "no-store", "", 0);
+        if (Pipeline(sonda.Metodo, sonda.Ruta, "GET", "Bearer " + TokenEmitido(rol)) != esperado) return false;
+    }
+    return Pipeline(sonda.Metodo, sonda.Ruta, "GET", null) == (401, "Bearer", "no-store", "", 0);
 });
 Prueba("middleware: HTTP sensible rechazado sin redirigir ni ejecutar siguiente", () =>
 {
@@ -354,7 +504,7 @@ Prueba("FIN-012 al abrir una conexión (sync y async) se fija la espera de bloqu
             "Server=localhost;Database=berrutiauthtests;User ID=berruti_test;Password=ficticia", "AuthenticationTests")
             .DefaultCommandTimeout > 3;
 });
-Console.WriteLine($"{pruebas - fallos}/{pruebas} comprobaciones unitarias PASS. No demuestra HTTP público, durabilidad ni revocación MySQL.");
+Console.WriteLine($"{pruebas - fallos}/{pruebas} comprobaciones unitarias PASS. No demuestra HTTP público ni MySQL.");
 return fallos == 0 ? 0 : 1;
 
 class Entorno : IHostEnvironment
@@ -367,8 +517,13 @@ class Entorno : IHostEnvironment
 
 class CuentasFicticias : ICuentasRepository
 {
-    public Usuario Usuario { get; } = new() { Identificador = "US-1", IdentificadorPublico = "publico-opaco",
-        Correo = "prueba@example.invalid", Contrasena = "x", Activo = true };
+    public CuentasFicticias(IPasswordHasher<Usuario> hasher, string contrasena)
+    {
+        Usuario = new() { Identificador = "US-1", IdentificadorPublico = "publico-opaco",
+            Correo = "prueba@example.invalid", Activo = true };
+        Usuario.Contrasena = hasher.HashPassword(Usuario, contrasena);
+    }
+    public Usuario Usuario { get; }
     public string[] Roles { get; set; } = new[] { "Pasajero" };
     public Task<Usuario?> BuscarPorCorreoAsync(string correo) => Task.FromResult<Usuario?>(correo.Equals(Usuario.Correo, StringComparison.OrdinalIgnoreCase) ? Usuario : null);
     public Task<Usuario?> BuscarPorIdAsync(string id) => Task.FromResult<Usuario?>(id == Usuario.Identificador ? Usuario : null);
@@ -377,16 +532,16 @@ class CuentasFicticias : ICuentasRepository
     public Task<Usuario> CrearUsuarioAsync(string correo, string contrasena, string rolId) => throw new NotSupportedException();
 }
 
-class SesionesFicticias : ISesionesRepository
+class HasherFijo(PasswordVerificationResult resultado) : IPasswordHasher<Usuario>
 {
-    public Dictionary<string, Sesion> Filas { get; } = new();
-    public Task CrearAsync(Sesion sesion) { Filas.Add(sesion.Huella, sesion); return Task.CompletedTask; }
-    public Task<Sesion?> BuscarAsync(string huella) => Task.FromResult(Filas.GetValueOrDefault(huella));
-    public Task RevocarAsync(string huella, DateTime ahoraUtc)
-    {
-        if (Filas.TryGetValue(huella, out var sesion) && sesion.RevocadaUtc == null) sesion.RevocadaUtc = ahoraUtc;
-        return Task.CompletedTask;
-    }
+    public string HashPassword(Usuario usuario, string contrasena) => throw new NotSupportedException();
+    public PasswordVerificationResult VerifyHashedPassword(Usuario usuario, string contrasenaGuardada, string contrasenaIngresada) => resultado;
+}
+
+class ServicioEspia : IAutenticacionService
+{
+    public int Llamadas { get; private set; }
+    public Task<RespuestaIngresoDto?> IngresarAsync(SolicitudIngresoDto solicitud) { Llamadas++; return Task.FromResult<RespuestaIngresoDto?>(null); }
 }
 
 class RelojMutable(DateTime ahora) : TimeProvider
