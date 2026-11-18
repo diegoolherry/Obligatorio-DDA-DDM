@@ -276,7 +276,7 @@ Dependencia: test/mvp-004-pruebas-mysql. Siguiente: docs/mvp-004-verificacion-co
 
 ~~~~markdown
 Cadena: fix/mvp-004-reintentos-compra → 📍 docs/mvp-004-verificacion-compra.
-Base: fix/mvp-004-reintentos-compra. Head: docs/mvp-004-verificacion-compra. Diff: 5 archivos, +387/−5 (392).
+Base: fix/mvp-004-reintentos-compra. Head: docs/mvp-004-verificacion-compra. Diff: 5 archivos, +395/−5 (400).
 Alcance: guía MySQL/TEST, corrección de correlación por pago, configuración, evidencia del backlog y estos cuerpos de PR. Asunto de este corte: docs: documentar verificaciones y límites de compra.
 Verificación: regresión del SQL extraído: Node v24.20 SQLite :memory:, RED antes/GREEN después; PG-R 0/0/0/0 y PG-A 1/2/2/2. No demuestra MySQL.
 Dependencia: fix/mvp-004-reintentos-compra. Siguiente: aceptación MVP-004 aún pendiente. Revertir solo este corte documental.
@@ -287,4 +287,4 @@ Dependencia: fix/mvp-004-reintentos-compra. Siguiente: aceptación MVP-004 aún 
 - La base main..da5282c (2.897 líneas) no tiene excepción aprobada y sigue bloqueada para merge; su partición conocida es contratos 269, inventario/migración/SQL/tests 1.262 y artefactos de paradas 1.368. No dividir generados ni inferir una excepción.
 - RS-02 mide 1.072 incluyendo 17 líneas del tracker (+10/−7); su runtime aprobado es 1.055. Las excepciones existentes aplican solo a RS-01 (1.997), RS-02 (1.055), persistencia (2.664), inicio (1.030) y conciliación (454).
 - La lineage nativa review-57b85cc83735366a sigue correction_required: el STATUS nativo entregó el hallazgo R3-001 al preparar los documentos pendientes para versionarlos. Se registró el plan acotado de 80 líneas; la continuación posterior terminó en captured_artifacts_unverifiable. La corrección local y sus pruebas no equivalen a aprobación nativa. No hubo ACK; la recuperación de los artefactos sigue pendiente.
-- MVP-004 sigue in_progress. No se ejecutaron MySQL, pago real de Mercado Pago TEST, API startup, UI/E2E ni revisión humana de Diego. --plan y rechazo sin opt-in no son pruebas SQL.
+- MVP-004 sigue in_progress. La API rechaza `berruticomprastests` y no hay provisionador seguro del fixture; una ejecución requiere aprobación explícita del nuevo entorno/guard y de su preparación. No se ejecutaron MySQL, pago real de Mercado Pago TEST, API startup, UI/E2E ni revisión humana de Diego. --plan y rechazo sin opt-in no son pruebas SQL.

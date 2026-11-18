@@ -8,6 +8,14 @@ Esta guía separa evidencia local ya observada de pruebas futuras que requieren 
 - **Preparado, no ejecutado:** `tests/MySqlPurchase` compila y su `--plan` es de solo lectura; el modo de escritura no se ejecutó. No se ejecutaron consultas SQL, API iniciada, transacción MySQL ni pago del proveedor.
 - **Pendiente:** recorrido manual en Web y Mobile, verificación MySQL sobre fixture aislado y una transacción real del entorno TEST. La revisión humana cruzada también sigue pendiente.
 
+## Bloqueos para ejecución real
+
+- `ConfiguracionAutenticacion.ValidarConexion` solo permite `Development/berrutilocal/berruti_app` o `AuthenticationTests/berrutiauthtests/berruti_test`; rechaza `berruticomprastests`, por lo que el harness y la API no pueden compartir hoy esa base aislada.
+- No existe un provisionador seguro para el fixture de compra. `scripts/reset-local-db.ps1` es destructivo y solo admite esos dos entornos; no lo uses para preparar o reutilizar otra base.
+- Antes de implementar esa capacidad hace falta aprobación explícita para un entorno de pruebas nuevo, su guard/allowlist de API y un preparador externo de esquema/fixture aislado. No se consultaron credenciales ni bases.
+- El túnel Cloudflare para Mobile no es una opción predeterminada y requeriría autorización separada. Checkout TEST usa un token privado solo en la API; no se ejecutaron API, UI ni proveedor.
+- El review nativo sigue `correction_required`: `repair --preflight` fue de solo lectura y devolvió `unsupported`, una lineage, cero candidatos elegibles y ningún input requerido; no ofreció recuperación ni produjo ACK.
+
 ## Harness MySQL: solo con fixture aislado autorizado
 
 El harness no migra, crea esquema, reinicia ni limpia datos. Una corrida autorizada escribe compras, pagos, tickets y asientos y los conserva; no se debe reutilizar el fixture. El script de reinicio local es destructivo y no crea `berruticomprastests`; **no lo uses para preparar este harness**.
