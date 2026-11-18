@@ -276,7 +276,7 @@ Dependencia: test/mvp-004-pruebas-mysql. Siguiente: docs/mvp-004-verificacion-co
 
 ~~~~markdown
 Cadena: fix/mvp-004-reintentos-compra → 📍 docs/mvp-004-verificacion-compra.
-Base: fix/mvp-004-reintentos-compra. Head: docs/mvp-004-verificacion-compra. Diff: 4 archivos, +384/−2 (386).
+Base: fix/mvp-004-reintentos-compra. Head: docs/mvp-004-verificacion-compra. Diff: 5 archivos, +387/−5 (392).
 Alcance: guía MySQL/TEST, corrección de correlación por pago, configuración, evidencia del backlog y estos cuerpos de PR. Asunto de este corte: docs: documentar verificaciones y límites de compra.
 Verificación: regresión del SQL extraído: Node v24.20 SQLite :memory:, RED antes/GREEN después; PG-R 0/0/0/0 y PG-A 1/2/2/2. No demuestra MySQL.
 Dependencia: fix/mvp-004-reintentos-compra. Siguiente: aceptación MVP-004 aún pendiente. Revertir solo este corte documental.
