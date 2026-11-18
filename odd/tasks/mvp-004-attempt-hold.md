@@ -235,3 +235,9 @@ All parts use delegated direct execution because they cross non-trivial code/tes
 - PAY-01g9 Mobile transport: client/contracts plus the previously approved string-ID foundation and deterministic harness; trailing EOF-only normalization preceded verification. Isolated Node 9/9 and strict TypeScript module check both exited 0. No new dependency, API/provider/DB or UI runtime was used; other pending Mobile UI remains preserved.
 
 - PAY-01g3 reliability follow-up (R3-001): after the atomic purchase rows are saved, the response re-read was awaited only after transaction commit; a read/cancellation failure could enter the catch and attempt rollback of an already committed transaction. Prepare the response DTO from the saved transaction state before commit and return it after commit. This ordering is source/build verified only; no real DB cancellation/rollback behavior is claimed.
+
+### PAY-01g10 - Flujo de compra Mobile M2
+- Corte: integrar el servicio de compra en la busqueda existente, conservar el estado de intento/confirmacion y limpiar la vista de compra al cambiar de sesion autenticada.
+- Verificacion: ejecutar una vez el typecheck completo de Mobile; Node M1 ya se verifico en su unidad padre y no se repetira.
+- Limite: sin automatizacion de render, Checkout Pro real, API iniciada ni DB/MySQL; queda pendiente el recorrido manual con entorno autorizado.
+- Rollback: revertir solo la integracion M2, pantalla de compra y el callback de epoch de sesion; conservar cliente M1 y demas cambios pendientes.

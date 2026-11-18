@@ -33,7 +33,9 @@ const rejectedMessage = 'Correo o contraseña incorrectos. Revisalos e intentá 
 const passwordError = 'Escribí tu contraseña de nuevo.';
 const discardMessage = 'Memoria local borrada. No se confirmó la revocación remota; la sesión del servidor puede seguir vigente hasta vencer.';
 
-export function PassengerLogin({ service }: { service: IAuthenticationService }) {
+export function PassengerLogin({ service, onSessionChanged }: {
+  service: IAuthenticationService; onSessionChanged: () => void;
+}) {
   const [correo, setCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [session, setSession] = useState(() => service.getState());
@@ -70,6 +72,10 @@ export function PassengerLogin({ service }: { service: IAuthenticationService })
     Keyboard.dismiss();
     try {
       const result = await action();
+      if ((source === 'login' && result.outcome === 'success')
+        || (source === 'logout' && (result.outcome === 'success' || result.outcome === 'unauthenticated'))) {
+        onSessionChanged();
+      }
       if (mounted.current) {
         setSession(service.getState());
         if (source === 'login' && result.outcome === 'success') setFeedback(null);
@@ -179,6 +185,7 @@ export function PassengerLogin({ service }: { service: IAuthenticationService })
               {session.logoutPending && (
                 <Button label="Descartar solo la sesión local" variant="secondary" disabled={busy} onPress={() => {
                   service.discard();
+                  onSessionChanged();
                   setSession(service.getState());
                   setFeedback({ source: 'discard', outcome: 'denied', kind: 'warning', message: discardMessage });
                 }} />
