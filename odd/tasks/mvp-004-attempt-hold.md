@@ -231,3 +231,5 @@ All parts use delegated direct execution because they cross non-trivial code/tes
 - Prueba reutilizada del padre `3849f5d`: build del harness compila su referencia `Web-App` con estos mismos bytes Razor y terminó con 0 advertencias/errores; el harness fake pasó 164/164 y verifica el cliente, no el render.
 - Pendiente explícito: no hubo recorrido browser/UI, API iniciada, Checkout Pro vivo ni DB/MySQL; no se afirma MVP-004 completo ni E2E. La selección del producto Mercado Pago Checkout Pro TEST no representa una ejecución en proveedor.
 - Rollback: revertir solo UI de compra, integración en búsqueda y documentación cliente de esta unidad; mantener el cliente Web y backend en sus límites padres.
+
+- PAY-01g9 Mobile transport: client/contracts plus the previously approved string-ID foundation and deterministic harness; trailing EOF-only normalization preceded verification. Isolated Node 9/9 and strict TypeScript module check both exited 0. No new dependency, API/provider/DB or UI runtime was used; other pending Mobile UI remains preserved.
