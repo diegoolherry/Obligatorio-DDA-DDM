@@ -848,13 +848,13 @@
         "API",
         "Web"
       ],
-      "status": "in_progress",
+      "status": "done",
       "assignee": "Diego",
       "reviewer": "Enzo",
       "createdAt": "2026-11-11T13:29:06-03:00",
       "startedAt": "2026-11-17T16:36:38-03:00",
-      "completedAt": null,
-      "completedBy": null,
+      "completedAt": "2026-11-17T23:13:16-03:00",
+      "completedBy": "Diego",
       "dependencies": [
         "FIN-001"
       ],
@@ -862,7 +862,7 @@
         "Solo el administrador puede crear, modificar y eliminar elementos del catálogo; los cambios conservan el orden de paradas por ruta y las horas crecientes dentro de cada salida.",
         "No se puede eliminar un elemento del catálogo con Servicios generados que dependan de él sin una política acordada antes de implementarlo."
       ],
-      "evidence": "Política de borrado acordada por Diego (2026-11-17): baja lógica de bloques, rutas y salidas; los Servicios existentes quedan. Editar paradas u horas aplica a futuras generaciones.\nEntrega en tres PRs encadenados: FIN-008-01, FIN-008-02 y FIN-008-03.\nPendiente: revisión cruzada de Enzo."
+      "evidence": "PRs #82, #83 y #84 mergeados en main (c9285c7); hijas FIN-008-01, 02 y 03 en done. Política de baja lógica acordada por Diego (2026-11-17).\nCriterios: solo el administrador escribe, orden de paradas y horas crecientes (RouteCatalog 201/201, E2E MySQL); bajas lógicas sin borrar Servicios generados.\nRevisor Enzo: confirmó los criterios según el reporte de Diego; sin review registrada en GitHub."
     },
     {
       "id": "FIN-008-01",
@@ -873,13 +873,13 @@
       "area": [
         "API"
       ],
-      "status": "in_progress",
+      "status": "done",
       "assignee": "Diego",
       "reviewer": "Enzo",
       "createdAt": "2026-11-17T16:36:38-03:00",
       "startedAt": "2026-11-17T16:36:38-03:00",
-      "completedAt": null,
-      "completedBy": null,
+      "completedAt": "2026-11-17T23:13:16-03:00",
+      "completedBy": "Diego",
       "dependencies": [
         "FIN-001"
       ],
@@ -888,7 +888,7 @@
         "Se rechazan rutas con menos de dos paradas, paradas inexistentes o repetidas consecutivas, y salidas cuya primera parada no tiene hora o cuyas horas no son estrictamente crecientes.",
         "Eliminar un bloque, una ruta o una salida la marca inactiva: deja de aparecer en el catálogo y en la generación, y los Servicios ya generados se conservan."
       ],
-      "evidence": "PR #82 (b872b30, f8f854f, 731db24, 7636409).\nRouteCatalog 176/176; E2E MySQL 19/19; bloqueo de filas forzado: 409 en 3,3 s sin cambiar datos; verificación independiente sin bloqueos.\nPendiente: revisión cruzada de Enzo."
+      "evidence": "PR #82 (merge c9285c7; commits b872b30, f8f854f, 731db24, 7636409).\nRouteCatalog 176/176; E2E MySQL 19/19; bloqueo de filas 409 en ~3 s; verificaciones independientes sin bloqueos.\nRevisor Enzo: aprobó el PR y los criterios según el reporte de Diego; sin review registrada en GitHub."
     },
     {
       "id": "FIN-008-02",
@@ -899,13 +899,13 @@
       "area": [
         "API"
       ],
-      "status": "in_progress",
+      "status": "done",
       "assignee": "Diego",
       "reviewer": "Enzo",
       "createdAt": "2026-11-17T16:36:38-03:00",
       "startedAt": "2026-11-17T17:20:54-03:00",
-      "completedAt": null,
-      "completedBy": null,
+      "completedAt": "2026-11-17T23:13:16-03:00",
+      "completedBy": "Diego",
       "dependencies": [
         "FIN-008-01"
       ],
@@ -914,7 +914,7 @@
         "Se rechazan feriados repetidos, excepciones con rango invertido, sin motivo o de un bloque inexistente o inactivo.",
         "Los cambios se reflejan en la consulta de salidas del día y en la próxima generación de Servicios."
       ],
-      "evidence": "PR #83 (18863c3), encadenado sobre #82.\nRouteCatalog 201/201; E2E MySQL 18/18.\nPendiente: revisión cruzada de Enzo."
+      "evidence": "PR #83 (merge c53599f; commit 18863c3).\nRouteCatalog 201/201; E2E MySQL 18/18.\nRevisor Enzo: aprobó el PR y los criterios según el reporte de Diego; sin review registrada en GitHub."
     },
     {
       "id": "FIN-008-03",
@@ -925,13 +925,13 @@
       "area": [
         "Web"
       ],
-      "status": "in_progress",
+      "status": "done",
       "assignee": "Diego",
       "reviewer": "Enzo",
       "createdAt": "2026-11-17T16:36:38-03:00",
       "startedAt": "2026-11-17T17:20:54-03:00",
-      "completedAt": null,
-      "completedBy": null,
+      "completedAt": "2026-11-17T23:13:16-03:00",
+      "completedBy": "Diego",
       "dependencies": [
         "FIN-008-01",
         "FIN-008-02"
@@ -941,7 +941,7 @@
         "Las bajas piden confirmación y la edición de una salida o ruta con Servicios advierte que aplica a futuras generaciones.",
         "El recorrido manual del camino feliz queda descrito en el PR."
       ],
-      "evidence": "PR #84 (33de4c3, bbc1a9f), encadenado sobre #83.\nWebAuthentication 161/161; recorrido en navegador 9/9, re-chequeo de mensajes, foco y 404, y 403 por la UI PASS.\nPendiente: revisión cruzada de Enzo."
+      "evidence": "PR #84 (merge 789a0e8; commits 33de4c3, bbc1a9f, 0230c09).\nWebAuthentication 161/161; recorrido en navegador 9/9, re-chequeos de mensajes, foco, 404, 403 y Editar PASS.\nRevisor Enzo: aprobó el PR y los criterios según el reporte de Diego; sin review registrada en GitHub."
     },
     {
       "id": "FIN-009",
@@ -1100,20 +1100,20 @@
       "area": [
         "API"
       ],
-      "status": "in_progress",
+      "status": "done",
       "assignee": "Diego",
       "reviewer": "Enzo",
       "createdAt": "2026-11-17T20:44:59-03:00",
       "startedAt": "2026-11-17T20:44:59-03:00",
-      "completedAt": null,
-      "completedBy": null,
+      "completedAt": "2026-11-17T23:13:16-03:00",
+      "completedBy": "Diego",
       "dependencies": [],
       "acceptanceCriteria": [
         "Con filas bloqueadas por otra sesión, una escritura de la API responde un error HTTP acotado en pocos segundos en vez de quedar sin respuesta, sin cambiar datos.",
         "La corrección aplica a todas las conexiones de la API y no deja valores de sesión alterados para otros pedidos.",
         "Hay una reproducción documentada para la generación de Servicios y al menos una escritura operativa, antes y después del cambio."
       ],
-      "evidence": "Rama feature/fin-012-mysql-lock-timeout (be7f807, 062233d); PR #85.\nBloqueo forzado en MySQL local: generación y PUT de parada pasaron de sin respuesta a 409 en ~3 s sin cambiar datos; global 50; AuthenticationSessions --unit 48/48, OperationalAdministration 139, RouteCatalog 129/129, Geolocation 27/27; verificación independiente sin bloqueos.\nPendiente: revisión cruzada de Enzo."
+      "evidence": "PR #85 (merge 37e5239; commits be7f807, 062233d).\nBloqueo forzado en MySQL local: generación, PUT de parada y PUT/DELETE de servicio responden 409 en ~3 s sin cambiar datos; global 50; tests 48/48, 139, 129/129, 27/27; tres verificaciones independientes PASS.\nRevisor Enzo: aprobó el PR y los criterios según el reporte de Diego; sin review registrada en GitHub."
     }
   ]
 }
