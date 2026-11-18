@@ -4,7 +4,7 @@ Prepara una matriz HTTP local de autorizacion para las rutas operativas.
 .DESCRIPTION
 Pide la contrasena ficticia de las cuentas demo de forma segura, valida HTTPS de loopback
 sin desactivar la validacion TLS y nunca imprime credenciales, tokens ni cuerpos de error.
-Solo crea sesiones de autenticacion y las revoca en finally. No crea ni modifica datos
+Solo emite tokens de ingreso y llama a salida (204) en finally; el JWT no se revoca en el servidor. No crea ni modifica datos
 operativos. No ejecutar sin autorizacion para runtime, MySQL y configuracion local.
 .EXAMPLE
 .\scripts\check-operational-authorization.ps1 -BaseUrl https://localhost:7053
@@ -126,7 +126,7 @@ finally {
         foreach ($token in $script:tokens) {
             $logout = Invoke-LocalApi 'POST' '/api/autenticacion/salida' $token $null
             if ($logout.Status -ne 204) {
-                Write-Host "FAIL revocacion de sesion (esperado 204, obtenido $($logout.Status))"
+                Write-Host "FAIL salida (esperado 204, obtenido $($logout.Status))"
                 $script:failures++
             }
         }

@@ -87,7 +87,7 @@ El usuario informó: «Reviso enzo. Me dijo que todo perfecto.». Se registra el
 bueno de Enzo al núcleo aislado según ese reporte; no se recibieron comandos ni
 resultados de reejecución independiente. No es una aprobación del nuevo SQL manual ni una prueba de escritura efectiva en MySQL.
 La propuesta anterior de consola/adaptador real quedó apartada: la ruta vigente
-es el [borrador SQL inerte](../../scripts/database/review-demo-admin-creation.sql),
+era el borrador SQL inerte `scripts/database/review-demo-admin-creation.sql` (**eliminado en FIN-005**: escribía una contraseña legible; las cuentas demo ahora las crea `--reset-local` con hash de `IPasswordHasher`),
 con operación manual del usuario en Workbench. Aclaración humana sobre ESTE SQL:
 «osea era eso, ya hicimos la verificacion tecnica con el profe». Revisión técnica
 reportada con el profesor, no atribuida a Enzo ni equivalente a ejecución/alta;

@@ -5,7 +5,7 @@ Publica posiciones ficticias como el cobrador demo, simulando su celular embarca
 Pide la contrasena ficticia del cobrador demo de forma segura, ingresa por HTTPS de loopback sin
 desactivar la validacion TLS, lista sus servicios asignados y publica -Cantidad posiciones hacia el
 destino del servicio elegido, separadas por la periodicidad indicada. Imprime solo codigos de estado
-y datos de la publicacion; nunca credenciales ni tokens. Revoca la sesion en finally.
+y datos de la publicacion; nunca credenciales ni tokens. Llama a salida (204) en finally; el JWT no se revoca en el servidor.
 Requiere la base local reiniciada con la asignacion cobrador_servicio sembrada.
 .EXAMPLE
 .\scripts\publish-demo-position.ps1 -Destino Colonia -Latitud -34.1928 -Longitud -57.8400 -Cantidad 3 -Segundos 30
