@@ -81,7 +81,7 @@ El formato acordado de IDs `string` con abreviaturas de dos letras y guion, los 
 
 | Situación | Regla acordada |
 | --- | --- |
-| Creación del hold | La duración vigente es **15 minutos configurables desde su creación en la API**, por actualización explícita del usuario; reemplaza la duración previa de cinco minutos de la base conceptual conjunta. Recargar o reintentar no reinicia el plazo. |
+| Creación del hold | La duración vigente es **15 minutos configurables desde su creación en la API**, por decisión aprobada por Diego y Enzo (confirmación de Diego en la revisión cruzada del 2026-11-19); reemplaza la duración previa de cinco minutos de la base conceptual conjunta. Recargar o reintentar no reinicia el plazo. |
 | Rechazo definitivo con hold vigente | Admite otro pago en el mismo intento durable durante el tiempo restante, conservando el anterior y el vencimiento original. |
 | Pago pendiente o desconocido, incluida falla de red | Bloquea otro pago hasta resolución autoritativa de la API, incluso con hold vencido; perder la respuesta no demuestra rechazo. |
 | Aprobación verificada, disponibilidad confirmada y hold vigente | Genera una sola compra y todos sus tickets de forma atómica e idempotente. |
