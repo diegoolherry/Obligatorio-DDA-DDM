@@ -128,4 +128,3 @@ INSERT INTO `__EFMigrationsHistory` (`MigrationId`, `ProductVersion`)
 VALUES ('20261117020122_PagosComprasTickets', '10.0.11');
 
 COMMIT;
-

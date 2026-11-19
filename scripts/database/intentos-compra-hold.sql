@@ -77,4 +77,3 @@ INSERT INTO `__EFMigrationsHistory` (`MigrationId`, `ProductVersion`)
 VALUES ('20261116195345_IntentosCompraHold', '10.0.11');
 
 COMMIT;
-

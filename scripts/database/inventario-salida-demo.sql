@@ -28,4 +28,3 @@ INSERT INTO `__EFMigrationsHistory` (`MigrationId`, `ProductVersion`)
 VALUES ('20261116181813_InventarioSalidaDemo', '10.0.11');
 
 COMMIT;
-

@@ -29,4 +29,3 @@ INSERT INTO `__EFMigrationsHistory` (`MigrationId`, `ProductVersion`)
 VALUES ('20261116191031_ParadasSalidaServicio', '10.0.11');
 
 COMMIT;
-
