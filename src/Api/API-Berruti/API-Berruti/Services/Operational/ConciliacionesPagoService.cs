@@ -10,6 +10,12 @@ public sealed class ConciliacionesPagoService : IConciliacionesPagoService
     private readonly IMercadoPagoCheckoutClient _checkout;
     private readonly TimeProvider _timeProvider;
 
+    /// <summary>
+    /// Tolerancia de desfase entre el reloj local y el de Mercado Pago: la búsqueda de recuperación
+    /// arranca este margen antes de la creación local del pago (begin_date).
+    /// </summary>
+    public static readonly TimeSpan MargenDesfaseReloj = TimeSpan.FromMinutes(5);
+
     public ConciliacionesPagoService(
         IConfirmacionesCompraRepository confirmaciones,
         IMercadoPagoCheckoutClient checkout,
@@ -45,8 +51,8 @@ public sealed class ConciliacionesPagoService : IConciliacionesPagoService
                 if (pago.CreadoUtc.Kind != DateTimeKind.Utc || hastaUtc.Kind != DateTimeKind.Utc || hastaUtc <= pago.CreadoUtc)
                     return CrearRespuesta(snapshot);
                 var recuperada = await _checkout.BuscarOrdenAsync(
-                    pago.Id,
-                    pago.CreadoUtc,
+                    pago.ReferenciaExterna,
+                    pago.CreadoUtc - MargenDesfaseReloj,
                     hastaUtc,
                     pago.ImporteEsperado,
                     cancellationToken);
@@ -58,7 +64,7 @@ public sealed class ConciliacionesPagoService : IConciliacionesPagoService
             {
                 orden = await _checkout.ConsultarOrdenAsync(
                     pago.OrdenProveedorId,
-                    pago.Id,
+                    pago.ReferenciaExterna,
                     pago.ImporteEsperado,
                     cancellationToken);
             }
@@ -102,7 +108,7 @@ public sealed class ConciliacionesPagoService : IConciliacionesPagoService
         {
             var verificacion = await _checkout.ConsultarOrdenAsync(
                 ordenId,
-                resultado.Registro.Pago.Id,
+                resultado.Registro.Pago.ReferenciaExterna,
                 resultado.Registro.Pago.ImporteEsperado,
                 cancellationToken);
             resultado = await _confirmaciones.ConciliarAsync(

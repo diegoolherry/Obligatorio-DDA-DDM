@@ -87,7 +87,7 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
     {
         ValidarDatosEsperados(referenciaExternaEsperada, importeEsperado);
         if (desdeUtc.Kind != DateTimeKind.Utc || hastaUtc.Kind != DateTimeKind.Utc || hastaUtc <= desdeUtc)
-            throw new ArgumentException("La ventana de recuperaciÃ³n debe ser UTC y creciente.");
+            throw new ArgumentException("La ventana de recuperación debe ser UTC y creciente.");
 
         await VerificarIdentidadTestAsync(cancellationToken);
 

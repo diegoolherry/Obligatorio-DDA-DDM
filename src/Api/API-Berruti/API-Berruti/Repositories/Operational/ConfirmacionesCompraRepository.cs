@@ -49,7 +49,7 @@ public sealed class ConfirmacionesCompraRepository : IConfirmacionesCompraReposi
     {
         ArgumentNullException.ThrowIfNull(orden);
         if (contexto.ChangeTracker.Entries<Pago>().Any(e => e.Entity.Id == pagoId))
-            throw new InvalidOperationException("El pago ya estÃ¡ rastreado fuera de esta reconciliaciÃ³n.");
+            throw new InvalidOperationException("El pago ya está rastreado fuera de esta reconciliación.");
         var inicial = await contexto.Set<Pago>().AsNoTracking().SingleOrDefaultAsync(p => p.Id == pagoId, cancellationToken)
             ?? throw new KeyNotFoundException("El pago no existe.");
         await intentos.ConsultarAsync(identificadorPublico, inicial.IntentoId, cancellationToken);
@@ -86,7 +86,7 @@ public sealed class ConfirmacionesCompraRepository : IConfirmacionesCompraReposi
 
             ValidarOrden(pago, orden);
             if (pago.OrdenProveedorId is not null && !string.Equals(pago.OrdenProveedorId, orden.Id, StringComparison.Ordinal))
-                throw new InvalidOperationException("El pago ya estÃ¡ asociado a otra orden del proveedor.");
+                throw new InvalidOperationException("El pago ya está asociado a otra orden del proveedor.");
             var estado = EstadoConciliado(pago.Estado, orden.Estado);
             contexto.Attach(pago);
             pagoRastreado.Add(pago);
@@ -324,7 +324,7 @@ public sealed class ConfirmacionesCompraRepository : IConfirmacionesCompraReposi
 
     private static void ValidarOrden(Pago pago, OrdenCheckoutMercadoPago orden)
     {
-        if (string.IsNullOrWhiteSpace(orden.Id) || orden.Id.Length > 256 || orden.ReferenciaExterna != pago.Id ||
+        if (string.IsNullOrWhiteSpace(orden.Id) || orden.Id.Length > 256 || orden.ReferenciaExterna != pago.ReferenciaExterna ||
             orden.Importe != pago.ImporteEsperado || orden.Moneda != "UYU" || pago.Moneda != "UYU" ||
             orden.ImportePagado < 0 || orden.ImportePagado > orden.Importe || !Enum.IsDefined(orden.Estado))
             throw new InvalidOperationException("La respuesta de checkout no coincide con el pago reservado.");

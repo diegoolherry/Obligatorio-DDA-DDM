@@ -213,7 +213,7 @@ public sealed class PagosRepository : IPagosRepository
     private static void ValidarOrden(Pago pago, OrdenCheckoutMercadoPago orden)
     {
         if (string.IsNullOrWhiteSpace(orden.Id) || orden.Id.Length > 256 ||
-            !string.Equals(orden.ReferenciaExterna, pago.Id, StringComparison.Ordinal) ||
+            !string.Equals(orden.ReferenciaExterna, pago.ReferenciaExterna, StringComparison.Ordinal) ||
             orden.Importe != pago.ImporteEsperado ||
             !string.Equals(orden.Moneda, pago.Moneda, StringComparison.Ordinal) ||
             orden.ImportePagado < 0 || orden.ImportePagado > pago.ImporteEsperado ||

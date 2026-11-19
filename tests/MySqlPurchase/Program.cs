@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using API_Berruti.Data;
 using API_Berruti.DTOs.Authentication;
 using API_Berruti.DTOs.Operational;
@@ -114,10 +115,34 @@ static async Task RunAsync(PurchaseFixture fixture)
         "unknown provider state does not issue tickets");
     var bloqueante = await ReservarDeNuevoAsync(fixture, reloj, rechazo);
     Verificar(bloqueante.Pago.Id == rechazo.PagoId, "unknown payment blocks creating a second payment");
+    Verificar(await BuscarPendienteAsync(fixture, reloj) == rechazo.IntentoId,
+        "pending-attempt lookup returns the most recent attempt with an unknown payment");
+    var relojVivo = reloj.GetUtcNow().UtcDateTime;
+    reloj.Definir(rechazo.HoldVenceEn.AddSeconds(1));
+    var bloqueanteVencido = await ReservarDeNuevoAsync(fixture, reloj, rechazo);
+    Verificar(bloqueanteVencido.Pago.Id == rechazo.PagoId && !bloqueanteVencido.EsNuevo,
+        "unknown payment still blocks creating a second payment after the hold expired");
+    Verificar(await BuscarPendienteAsync(fixture, reloj) == rechazo.IntentoId,
+        "pending-attempt lookup keeps an expired-hold attempt whose payment is still unknown");
+    reloj.Definir(relojVivo);
     var rechazado = await ConciliarAsync(fixture, reloj, rechazo,
         rechazo.OrdenPendiente with { Estado = EstadoPago.Rechazado });
     Verificar(rechazado.Compra is null && rechazado.Registro.Pago.Estado == EstadoPago.Rechazado,
         "definite rejection does not issue tickets");
+    reloj.Definir(rechazo.HoldVenceEn.AddSeconds(1));
+    var reintentoVencido = false;
+    try
+    {
+        await ReservarDeNuevoAsync(fixture, reloj, rechazo);
+    }
+    catch (CotizacionNoDisponibleException)
+    {
+        reintentoVencido = true;
+    }
+    Verificar(reintentoVencido, "retry after definite rejection is refused once the original hold expired");
+    Verificar(await BuscarPendienteAsync(fixture, reloj) != rechazo.IntentoId,
+        "pending-attempt lookup drops a rejected attempt whose hold expired");
+    reloj.Definir(relojVivo);
     var reintento = await ReservarDeNuevoAsync(fixture, reloj, rechazo);
     Verificar(reintento.Pago.Id != rechazo.PagoId && reintento.HoldVenceEn == rechazo.HoldVenceEn,
         "definite rejection allows a new payment without extending the original hold");
@@ -142,6 +167,8 @@ static async Task RunAsync(PurchaseFixture fixture)
     Verificar(repeatedLate.Compra is null && repeatedLate.Registro.Pago.ClaveDevolucion == refundKey,
         "repeated late approval preserves refund key and never creates a purchase");
     await VerificarSinCompraAsync(fixture, tardia.IntentoId);
+    Verificar(await BuscarPendienteAsync(fixture, reloj) == tardia.IntentoId,
+        "pending-attempt lookup returns an approved payment pending refund even after the hold expired");
 
     var fallo = await PrepararPagoAsync(fixture, reloj);
     var countersBeforeFailure = await LeerContadoresAsync(fixture.ConnectionString);
@@ -195,7 +222,7 @@ static async Task PrepararFixtureAsync()
     contexto.ChangeTracker.Clear();
 
     var contadores = new ContadoresRepository(contexto, new Correlativo());
-    var cuentas = new CuentasRepository(contexto, contadores);
+    var cuentas = new CuentasRepository(contexto, contadores, new PasswordHasher<Usuario>());
     var rol = await cuentas.CrearRolAsync(RolIngreso.Pasajero);
     var pasajero = await cuentas.CrearUsuarioAsync("pasajero.purchase@example.test", password, rol.Identificador);
     var escenario = EscenarioOperativoDemo.Construir(DateTime.Today.AddDays(1));
@@ -291,7 +318,7 @@ static async Task<CompraPrueba> PrepararPagoAsync(PurchaseFixture fixture, Reloj
     var pendiente = new OrdenCheckoutMercadoPago
     {
         Id = $"TEST-{Guid.NewGuid():N}",
-        ReferenciaExterna = registro.Pago.Id,
+        ReferenciaExterna = registro.Pago.ReferenciaExterna,
         Importe = registro.Pago.ImporteEsperado,
         ImportePagado = 0m,
         Moneda = "UYU",
@@ -310,6 +337,13 @@ static async Task<RegistroPago> ReservarDeNuevoAsync(PurchaseFixture fixture, Re
     var intentos = new IntentosCompraRepository(contexto, contadores, new ParametrosCompra { HoldMinutos = 15 }, reloj);
     return await new PagosRepository(contexto, intentos, contadores, new Correlativo(), reloj)
         .ReservarAsync(fixture.Pasajero, prueba.Cotizacion, prueba.Cotizacion.HuellaCotizacion);
+}
+
+static async Task<string?> BuscarPendienteAsync(PurchaseFixture fixture, RelojPrueba reloj)
+{
+    await using var contexto = CrearContexto(fixture.ConnectionString);
+    return await new IntentosPendientesRepository(contexto)
+        .BuscarIdPendienteAsync(fixture.Pasajero, reloj.GetUtcNow().UtcDateTime);
 }
 
 static async Task<ResultadoConciliacionPago> ConciliarAsync(
