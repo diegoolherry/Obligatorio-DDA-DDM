@@ -4,7 +4,7 @@
 
 Anónimo → enviar correo/contraseña ficticios → ocupado → sesión confirmada por respuesta válida del servidor, o validación/rechazo/red/servidor/configuración → reintentar. Una acción dominante, sin envíos duplicados; etiquetas persistentes y correo conservado tras errores. La contraseña se borra después del envío; nunca se muestra sin máscara, ni se renderizan token o identificador público.
 
-Sesión → cerrar sesión → ocupado → anónimo con revocación confirmada (`204`), o revocación no confirmada y reintento seguro. Mientras la revocación esté pendiente no se permiten operaciones protegidas. Descartar memoria no confirma revocación remota. Una respuesta tardía no restaura una sesión descartada.
+Sesión → cerrar sesión → ocupado → anónimo tras la salida confirmada (`204`), o cierre no confirmado y reintento seguro. Mientras el cierre esté pendiente no se permiten operaciones protegidas. Con JWT sin estado (FIN-005) la salida no revoca el token en el servidor: sigue válido hasta su vencimiento (7 días, riesgo aceptado, ver [contratos](../reference/auth-contracts.md#decisiones-de-fin-005-jwt-y-hash-de-contraseñas)). El cliente valida solo la forma del JWT, lo guarda únicamente en memoria y nunca lo decodifica. Una respuesta tardía no restaura una sesión descartada.
 
 ## Configuración y límites
 

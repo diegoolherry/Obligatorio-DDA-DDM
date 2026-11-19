@@ -8,6 +8,7 @@ export interface SolicitudIngresoDto {
 export interface RespuestaIngresoDto {
   identificadorUsuario: string;
   roles: RolIngreso[];
+  /** JWT compacto (header.payload.firma); el cliente solo valida su forma, no decodifica el payload. */
   token: string;
   venceEnUtc: string;
 }

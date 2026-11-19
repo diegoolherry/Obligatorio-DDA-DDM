@@ -5,8 +5,10 @@ Prueba el ingreso real de las cuentas demo contra la API local, sin mostrar la c
 -Save pide la contrasena ficticia de las cuentas demo y la guarda cifrada con DPAPI
 (solo tu usuario de Windows puede descifrarla) en .local/demo-password.dpapi, fuera de git.
 Sin -Save, la descifra en memoria y verifica por HTTP: ingreso, operacion permitida al rol,
-operacion denegada a otro rol, acceso sin sesion, credenciales rechazadas, salida y token
-revocado. Imprime solo codigos HTTP; nunca la contrasena ni el token.
+operacion denegada a otro rol, acceso sin sesion, credenciales rechazadas y salida (204).
+La salida no tiene estado en el servidor (JWT, FIN-005): no se comprueba que el token quede
+rechazado despues, porque sigue valido hasta su vencimiento. Imprime solo codigos HTTP;
+nunca la contrasena ni el token.
 .EXAMPLE
 .\scripts\check-demo-login.ps1 -Save
 .\scripts\check-demo-login.ps1
@@ -86,7 +88,6 @@ foreach ($account in $accounts) {
     Assert-Status "${role}: operacion de su rol" 200 (Invoke-Api 'GET' $probes[$role] $token).Status
     Assert-Status "${role}: operacion de $($account.Denied) denegada" 403 (Invoke-Api 'GET' $probes[$account.Denied] $token).Status
     Assert-Status "${role}: salida" 204 (Invoke-Api 'POST' 'salida' $token).Status
-    Assert-Status "${role}: token revocado tras la salida" 401 (Invoke-Api 'GET' $probes[$role] $token).Status
     $token = $null
 }
 

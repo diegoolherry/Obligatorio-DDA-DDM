@@ -1,5 +1,7 @@
 # Comprobar una sesión a través de dos reinicios de API
 
+> **Obsoleta desde FIN-005 (historial, no es una comprobación vigente).** Describe el mecanismo anterior: sesión opaca guardada en MySQL, con revocación al salir y contraseñas ficticias en texto plano. Con JWT sin estado (decisión de Diego, 2026-11-18; ver [contratos](../reference/auth-contracts.md#decisiones-de-fin-005-jwt-y-hash-de-contraseñas)) no existe sesión de servidor: sobrevivir a un reinicio es trivial mientras la clave no cambie, y `salida` (`204`) no revoca nada, así que el segundo `401` de la tabla de abajo ya no se produce. El resultado observado se conserva solo porque el [informe](../project-report.md) lo cita; no acredita el JWT. Los scripts del panel y sus pruebas (`tests/SessionDurabilityDiagnostic`) siguen sin actualizar. Alcance vigente: [comprobar la autenticación JWT](api-session-checks.md).
+
 ## Qué demuestra y qué no
 
 Este **diagnóstico temporal, no UI de la aplicación**, prepara T12/S5–S6,

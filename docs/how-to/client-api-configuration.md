@@ -27,7 +27,7 @@ Un túnel Expo sirve al desarrollo de Mobile/Metro; **no convierte automáticame
 
 ### Probar en el celular con un túnel de Cloudflare
 
-Las pruebas en iPhone usan un túnel temporal de `cloudflared` hacia la API local. **El túnel debe apuntar al perfil `https`**: el ingreso y las operaciones con sesión exigen HTTPS en la API ([`LimiteAutenticacion`](../../src/Api/API-Berruti/API-Berruti/Security/Authentication/LimiteAutenticacion.cs), [`SesionBearerHandler`](../../src/Api/API-Berruti/API-Berruti/Security/Authentication/SesionBearerHandler.cs)). Con el perfil `http`, la búsqueda anónima funciona pero el ingreso responde `400 httpsRequerido` y la app muestra «Respuesta inválida del servidor» (observado el 2026-11-12).
+Las pruebas en iPhone usan un túnel temporal de `cloudflared` hacia la API local. **El túnel debe apuntar al perfil `https`**: el ingreso y las operaciones con sesión exigen HTTPS en la API ([`LimiteAutenticacion`](../../src/Api/API-Berruti/API-Berruti/Security/Authentication/LimiteAutenticacion.cs), [`ConfiguracionAutenticacion`](../../src/Api/API-Berruti/API-Berruti/Security/Authentication/ConfiguracionAutenticacion.cs)). Con el perfil `http`, la búsqueda anónima funciona pero el ingreso responde `400 httpsRequerido` y la app muestra «Respuesta inválida del servidor» (observado el 2026-11-12).
 
 ```powershell
 .\scripts\start-api-local.ps1 -Profile https                      # terminal 1: https://localhost:7053
@@ -51,7 +51,7 @@ npx expo start --tunnel -c
 Ambas opciones son URLs públicas, no secretos ni tokens. Los servicios las validan antes de enviar credenciales. Para alcance/custodia y errores consultá las guías [Web](web-passenger-login.md) y [Mobile](mobile-passenger-login.md).
 
 1. Revisá el [contrato implementado](../reference/api.md); no presupongas endpoints de transporte.
-2. La conexión MySQL privada pertenece únicamente a la API mediante `ConnectionStrings:Berruti`; no colocar su valor en URL, cliente, bundle, chat ni archivos versionados. La [guía API](api-session-checks.md) distingue modos y preparación pendiente.
+2. La conexión MySQL privada (`ConnectionStrings:Berruti`) y la clave de firma JWT (`Jwt__Key`, mínimo 32 bytes) pertenecen únicamente a la API; no colocar sus valores en URL, cliente, bundle, `EXPO_PUBLIC_*`, chat ni archivos versionados. `Jwt:Issuer` y `Jwt:Audience` no son secretos y están en `appsettings.json`. La [guía API](api-session-checks.md) distingue modos y preparación pendiente.
 3. `EXPO_PUBLIC_*` puede incorporarse al bundle: nunca sirve para credenciales, tokens ni claves de proveedor. No hay almacenamiento persistente de sesión implementado en los clientes.
 4. Validá alcance de red, contratos, errores, permisos y certificados con pruebas reales. No se acreditaron aquí LAN/iPhone/TLS ni flujo de ingreso; no desactivar validación TLS ni cambiar firewall/certificados por defecto.
 

@@ -9,7 +9,7 @@ metadata:
 
 ## Contrato de activación
 
-Aplica al planificar, implementar, depurar o revisar móvil, Expo y estilos NativeWind/Tailwind. Lee `references/curso.md`. El flujo y UX de `../ctc-project-conventions/SKILL.md` siguen siendo autoritativos; no vuelvas a activar esa skill desde aquí.
+Aplica al planificar, implementar, depurar o revisar móvil, Expo y estilos NativeWind/Tailwind. Lee `references/curso.md`. Para autenticación, tokens, almacenamiento de credenciales, HTTPS o manejo de 401/403, lee también `references/seguridad-api-movil.md`. El flujo y UX de `../ctc-project-conventions/SKILL.md` siguen siendo autoritativos; no vuelvas a activar esa skill desde aquí.
 
 ## Reglas obligatorias
 
@@ -44,4 +44,5 @@ Informa archivos, clasificación docente, estilos/navegación elegidos, aprobaci
 ## Referencias
 
 - [Curso y límites](references/curso.md)
+- [Seguridad en APIs móviles: material docente y límites](references/seguridad-api-movil.md)
 - [Uso en Pi y Codex](../ctc-dda-blazor/references/uso-hosts.md)

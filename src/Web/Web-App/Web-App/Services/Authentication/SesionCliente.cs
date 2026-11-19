@@ -95,7 +95,7 @@ public class SesionCliente(IHttpClientFactory factory, IConfiguration configurat
         long version = Interlocked.Read(ref _version);
         bool ingreso = operacion == "ingreso", salida = operacion == "salida";
         ResultadoAutenticacion Fallo(int? status, string codigo, string mensaje) => Error(status, codigo,
-            salida ? "Revocación no confirmada. " + mensaje + " Puede reintentar el cierre." : mensaje);
+            salida ? "Salida no confirmada. " + mensaje + " Puede reintentar el cierre." : mensaje);
         try
         {
             if (!TryBaseUrl(configuration["Api:BaseUrl"], out var baseUrl))
@@ -134,7 +134,7 @@ public class SesionCliente(IHttpClientFactory factory, IConfiguration configurat
             if (salida && status == 204)
             {
                 Descartar();
-                return new(true, status, "salidaConfirmada", "Sesión cerrada en el servidor.");
+                return new(true, status, "salidaConfirmada", "Sesión cerrada.");
             }
             if (status != 200 && status != 400)
                 return Fallo(status, "respuestaInvalida", "La respuesta del servicio no es válida.");
@@ -155,7 +155,7 @@ public class SesionCliente(IHttpClientFactory factory, IConfiguration configurat
                 if (ingreso)
                 {
                     var dto = document.RootElement.Deserialize<RespuestaIngresoDto>(Json)!;
-                    if (!Opaco(dto.Token) || !DateTimeOffset.TryParseExact(dto.VenceEnUtc, "yyyy-MM-dd'T'HH:mm:ss.ffffff'Z'",
+                    if (!FormaJwt(dto.Token) || !DateTimeOffset.TryParseExact(dto.VenceEnUtc, "yyyy-MM-dd'T'HH:mm:ss.ffffff'Z'",
                         CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var vence)
                         || vence <= clock.GetUtcNow() || vence > clock.GetUtcNow().AddDays(7))
                         return Error(status, "respuestaInvalida", "La respuesta de sesión no es válida.");
@@ -218,6 +218,16 @@ public class SesionCliente(IHttpClientFactory factory, IConfiguration configurat
             return bytes.Length == 32 && Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_') == value;
         }
         catch (FormatException) { return false; }
+    }
+
+    // Solo la forma compacta de un JWT: tres segmentos base64url no vacíos, sin relleno ni espacios. El cliente no
+    // decodifica ni confía en el contenido; la API valida la firma y las claims.
+    private const int LimiteLongitudJwt = 4096;
+    private static bool FormaJwt(string? value)
+    {
+        if (value == null || value.Length > LimiteLongitudJwt) return false;
+        var segmentos = value.Split('.');
+        return segmentos.Length == 3 && segmentos.All(s => s.Length > 0 && s.All(c => char.IsAsciiLetterOrDigit(c) || c == '-' || c == '_'));
     }
 
     private static string? ValidacionReconocida(JsonElement root)

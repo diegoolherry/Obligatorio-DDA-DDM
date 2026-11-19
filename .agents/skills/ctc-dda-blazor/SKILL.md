@@ -9,7 +9,7 @@ metadata:
 
 ## Contrato de activación
 
-Aplica al planificar, implementar, depurar o revisar Blazor/C#/API. Lee `references/curso.md` antes de decidir. Para IDs string prefijados y generación con `Substring`/`Max + 1`, consulta también `references/prefixed-string-ids.md`. El flujo y UX de `../ctc-project-conventions/SKILL.md` siguen siendo autoritativos; no vuelvas a activar esa skill desde aquí.
+Aplica al planificar, implementar, depurar o revisar Blazor/C#/API. Lee `references/curso.md` antes de decidir. Para IDs string prefijados y generación con `Substring`/`Max + 1`, consulta también `references/prefixed-string-ids.md`. Para autenticación, autorización, roles, JWT, 401/403 o contraseñas, consulta `references/jwt-roles.md` y respeta la decisión del proyecto descrita allí (JWT sin estado, 7 días, contrato de ingreso propio). El flujo y UX de `../ctc-project-conventions/SKILL.md` siguen siendo autoritativos; no vuelvas a activar esa skill desde aquí.
 
 ## Reglas obligatorias
 
@@ -45,4 +45,5 @@ Informa archivos, conceptos y categoría de evidencia, decisiones aprobadas, con
 
 - [Curso y límites](references/curso.md)
 - [IDs string prefijados: ejemplo docente y límites](references/prefixed-string-ids.md)
+- [JWT, roles y Postman: material docente y límites](references/jwt-roles.md)
 - [Uso en Pi y Codex](references/uso-hosts.md)

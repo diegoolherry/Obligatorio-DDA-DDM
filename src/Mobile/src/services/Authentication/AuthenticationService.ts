@@ -24,6 +24,12 @@ function validIdentity(value: unknown): value is Record<string, unknown> {
     && Array.isArray(value.roles)
     && value.roles.every(role => ['pasajero', 'cobrador', 'administrador'].includes(role));
 }
+const maxJwtLength = 4096;
+/** Compact JWT shape only: three non-empty base64url segments. The payload is never decoded or trusted here. */
+function jwtShape(value: unknown): value is string {
+  return typeof value === 'string' && value.length <= maxJwtLength
+    && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value);
+}
 function expiry(value: unknown): number {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/.test(value)) return NaN;
   const milliseconds = Date.parse(value);
@@ -225,8 +231,7 @@ export class AuthenticationService implements IAuthenticationService {
         if (!validIdentity(body)) return { ...invalid, status };
         if (operation === 'ingreso') {
           const expiresAt = expiry(body.venceEnUtc);
-          // A 32-byte canonical Base64url token has 43 chars and two zero pad bits.
-          if (typeof body.token !== 'string' || !/^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/.test(body.token)
+          if (!jwtShape(body.token)
             || !Number.isFinite(expiresAt) || expiresAt <= this.clock()) return { ...invalid, status };
           this.token = body.token;
           this.expiresAt = expiresAt;
@@ -238,13 +243,13 @@ export class AuthenticationService implements IAuthenticationService {
       const result = await Promise.race([exchange(), interrupted]);
       if (generation !== this.generation) return { ...cancelled };
       if (operation === 'salida' && result.outcome !== 'success') return {
-        ...result, message: `No se pudo confirmar la revocación. ${this.token ? 'Reintentá cerrar sesión.' : 'La sesión local ya no es válida; ingresá nuevamente.'}`,
+        ...result, message: `No se pudo confirmar el cierre de sesión. ${this.token ? 'Reintentá cerrar sesión.' : 'La sesión local ya no es válida; ingresá nuevamente.'}`,
       };
       return result;
     } catch {
       if (generation !== this.generation) return { ...cancelled };
       return { outcome: 'network', message: operation === 'salida'
-        ? 'No se pudo confirmar la revocación. Revisá la conexión y reintentá cerrar sesión.'
+        ? 'No se pudo confirmar el cierre de sesión. Revisá la conexión y reintentá cerrar sesión.'
         : 'No se pudo conectar con la API o se agotó el tiempo. Revisá la conexión y reintentá.' };
     } finally {
       clearTimeout(timer);

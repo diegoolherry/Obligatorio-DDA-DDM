@@ -31,7 +31,7 @@ function kindFor(outcome: AuthenticationOutcome): BannerKind {
 const rejectedTitle = 'No pudimos iniciar tu sesión';
 const rejectedMessage = 'Correo o contraseña incorrectos. Revisalos e intentá de nuevo.';
 const passwordError = 'Escribí tu contraseña de nuevo.';
-const discardMessage = 'Memoria local borrada. No se confirmó la revocación remota; la sesión del servidor puede seguir vigente hasta vencer.';
+const discardMessage = 'Memoria local borrada. No se confirmó el cierre de sesión en la API; la sesión queda cerrada en este dispositivo.';
 
 export function PassengerLogin({ service }: { service: IAuthenticationService }) {
   const [correo, setCorreo] = useState('');
