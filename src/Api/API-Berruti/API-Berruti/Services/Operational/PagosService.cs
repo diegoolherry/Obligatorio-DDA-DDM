@@ -61,7 +61,7 @@ public sealed class PagosService : IPagosService
         {
             orden = await _checkout.CrearOrdenAsync(
                 reserva.Pago.ClaveCreacion,
-                reserva.Pago.Id,
+                reserva.Pago.ReferenciaExterna,
                 reserva.Pago.ImporteEsperado,
                 cancellationToken);
         }
@@ -122,7 +122,7 @@ public sealed class PagosService : IPagosService
         orden is not null &&
         !string.IsNullOrWhiteSpace(orden.Id) &&
         orden.Id.Length <= 256 &&
-        string.Equals(orden.ReferenciaExterna, pago.Id, StringComparison.Ordinal) &&
+        string.Equals(orden.ReferenciaExterna, pago.ReferenciaExterna, StringComparison.Ordinal) &&
         orden.Importe == pago.ImporteEsperado &&
         string.Equals(orden.Moneda, pago.Moneda, StringComparison.Ordinal) &&
         orden.ImportePagado >= 0 && orden.ImportePagado <= pago.ImporteEsperado &&

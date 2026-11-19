@@ -3,9 +3,13 @@
 @using System.Globalization
 @using Web_App.Models.Operational
 @using Web_App.Models.Purchase
+@using Web_App.Services.Authentication
 @using Web_App.Services.Operational
+@using Web_App.Services.Purchase
 @using Web_App.Components.Purchase
 @inject BusquedaItinerariosCliente Cliente
+@inject CompraCliente ClienteCompra
+@inject ISesionCliente Sesion
 @inject TimeProvider Reloj
 
 <PageTitle>Buscar viaje · Berrutti</PageTitle>
@@ -61,6 +65,14 @@ else
         </EditForm>
     </Tarjeta>
 
+    @if (ErrorPendiente is not null && CompraSeleccionada is null)
+    {
+        <Alerta Tipo="TipoAviso.Error" Titulo="No pudimos revisar tus compras pendientes">
+            @ErrorPendiente
+            <br /><button type="button" class="btn btn-secondary" @onclick="ConsultarPendienteAsync">Reintentar</button>
+        </Alerta>
+    }
+
     @if (CompraSeleccionada is not null)
     {
         @if (!CompraVisible)
@@ -69,7 +81,7 @@ else
             <button class="btn btn-primary" @onclick="() => CompraVisible = true">Volver a la compra en curso</button>
         }
         <div class="@(CompraVisible ? string.Empty : "d-none")">
-            <CompraItinerario Itinerario="@CompraSeleccionada" OnCerrar="@CerrarCompra" OnFinalizar="@FinalizarCompra" />
+            <CompraItinerario @key="ClaveCompra" Itinerario="@CompraSeleccionada" IntentoPendiente="@PendienteRecuperado" OnCerrar="@CerrarCompra" OnFinalizar="@FinalizarCompra" OnAbandonarSinIntento="@AbandonarSinIntentoAsync" />
         </div>
     }
 
@@ -145,6 +157,10 @@ else
     private bool ParadasIguales { get; set; }
     private ItinerarioDto? CompraSeleccionada { get; set; }
     private bool CompraVisible { get; set; } = true;
+    private IntentoPendienteResponseDto? PendienteRecuperado { get; set; }
+    private string? ErrorPendiente { get; set; }
+    private int _secuenciaCompra;
+    private int ClaveCompra => _secuenciaCompra;
     private (string Origen, string Destino, DateOnly Fecha)? Ultima { get; set; }
     private bool Buscando => Estado == EstadoBusqueda.Buscando;
 
@@ -152,6 +168,25 @@ else
     {
         Form.Fecha = DateOnly.FromDateTime(Reloj.GetLocalNow().DateTime);
         await CargarParadasAsync();
+        await ConsultarPendienteAsync();
+    }
+
+    private async Task ConsultarPendienteAsync()
+    {
+        ErrorPendiente = null;
+        if (CompraSeleccionada is not null || !Sesion.Estado.Autenticada) return;
+        var resultado = await ClienteCompra.ObtenerIntentoPendienteAsync();
+        if (resultado.Tipo == TipoResultadoCompra.Exito && resultado.Datos is { } pendiente)
+        {
+            PendienteRecuperado = pendiente;
+            CompraSeleccionada = pendiente.Intento.Itinerario;
+            CompraVisible = true;
+            _secuenciaCompra++;
+        }
+        else if (resultado.Tipo == TipoResultadoCompra.Error && resultado.EstadoHttp is not (401 or 403))
+        {
+            ErrorPendiente = "No se pudo verificar si tenés una compra pendiente. Reintentá antes de iniciar otra compra.";
+        }
     }
 
     private async Task CargarParadasAsync()
@@ -198,13 +233,21 @@ else
     private void SeleccionarCompra(ItinerarioDto itinerario)
     {
         if (CompraSeleccionada is not null) return;
+        PendienteRecuperado = null;
         CompraSeleccionada = itinerario;
         CompraVisible = true;
+        _secuenciaCompra++;
     }
     private void CerrarCompra() => CompraVisible = false;
     private void FinalizarCompra()
     {
         CompraSeleccionada = null;
+        PendienteRecuperado = null;
         CompraVisible = true;
+    }
+    private async Task AbandonarSinIntentoAsync()
+    {
+        FinalizarCompra();
+        await ConsultarPendienteAsync();
     }
 }

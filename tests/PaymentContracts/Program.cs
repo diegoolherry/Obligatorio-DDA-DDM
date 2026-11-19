@@ -553,9 +553,14 @@ Check(successfulPaymentRepository.ReserveCalls == 1 && successfulGateway.CreateC
     && successfulPaymentRepository.Current?.Pago.Estado == EstadoPago.Pendiente,
     "fresh accepted quote reserves one payment and records the provider order");
 Check(successfulGateway.LastAmount == unchangedQuote.CotizacionActual.PrecioTotal
-    && successfulGateway.LastReference == successfulPaymentRepository.Current!.Pago.Id
+    && successfulGateway.LastReference == successfulPaymentRepository.Current!.Pago.ReferenciaExterna
     && successfulGateway.LastIdempotencyKey == successfulPaymentRepository.Current.Pago.ClaveCreacion,
-    "checkout uses the server quote amount and the durable payment ID and idempotency key");
+    "checkout uses the server quote amount, the durable creation GUID as external reference and the idempotency key");
+Check(successfulGateway.LastReference == successfulPaymentRepository.Current!.Pago.ClaveCreacion.ToString("D")
+    && successfulGateway.LastReference != successfulPaymentRepository.Current.Pago.Id
+    && !successfulGateway.LastReference!.StartsWith("PG-", StringComparison.Ordinal)
+    && Guid.TryParse(successfulGateway.LastReference, out _),
+    "external_reference sent to the provider is the globally unique creation GUID, not the local PG-n counter");
 Check(startedPayment.PagoId == successfulPaymentRepository.Current!.Pago.Id
     && startedPayment.IntentoId == "IC-123" && startedPayment.Importe == 350m
     && startedPayment.Moneda == "UYU" && startedPayment.Estado == EstadoPago.Pendiente
@@ -718,6 +723,26 @@ Check(invalidProviderResponse.Estado == EstadoPago.Desconocido
     && invalidProviderResponse.PagoId == invalidResponseRepository.Current!.Pago.Id
     && invalidResponseRepository.LastOrder is null,
     "mismatched checkout response leaves the durable payment unknown");
+
+var wrongReferenceRepository = new FakePagosRepository();
+var wrongReferenceGateway = new FakeMercadoPagoCheckoutClient { ReferenceOverride = "PG-1" };
+var wrongReferenceResponse = await CreatePaymentService(wrongReferenceRepository, paymentQuoteService,
+    wrongReferenceGateway, paymentNow).IniciarAsync("passenger", "IC-123", paymentRequest);
+Check(wrongReferenceResponse.Estado == EstadoPago.Desconocido && wrongReferenceRepository.LastOrder is null,
+    "provider order echoing the local PG id instead of the creation GUID is not recorded as the payment order");
+
+// S3g (b): after the original hold expired, a definitively rejected payment cannot be retried.
+var rejectedExpiredRepository = new FakePagosRepository(CreatePaymentRecord("P-rejected", EstadoPago.Rechazado,
+    paymentNow.GetUtcNow().UtcDateTime.AddMinutes(-1), null));
+var rejectedExpiredGateway = new FakeMercadoPagoCheckoutClient();
+await CheckThrowsAsync<CotizacionNoDisponibleException>(
+    () => CreatePaymentService(rejectedExpiredRepository,
+            new FakeCotizacionesCompraService { Response = expiredAcceptedQuote }, rejectedExpiredGateway, paymentNow)
+        .IniciarAsync("passenger", "IC-123", paymentRequest),
+    "retry after definitive rejection is refused once the original hold expired");
+Check(rejectedExpiredRepository.ReserveCalls == 0 && rejectedExpiredGateway.CreateCalls == 0
+    && rejectedExpiredRepository.Current!.Pago.Id == "P-rejected",
+    "expired-hold retry creates no new payment reservation or provider order");
 
 var canceledRepository = new FakePagosRepository();
 using (var afterReserveCancellation = new CancellationTokenSource())
@@ -1423,6 +1448,7 @@ await CheckThrowsAsync<InvalidOperationException>(
 Check(failingPurchaseStore.PublishedPurchaseCount == 0 && failingPurchaseStore.PublishedTicketCount == 0,
     "failed fake atomic publish leaves no visible purchase or partial tickets; this does not prove database rollback");
 
+const string confirmationReference = "11111111-1111-1111-1111-111111111111";
 var noOrderSnapshot = ConfirmationResult(EstadoPago.Desconocido, 0m, "", 350m, confirmationHoldExpiryUtc, null, false);
 var recoveryClock = new FakeTimeProvider(new DateTimeOffset(confirmationCreatedUtc.AddSeconds(20), TimeSpan.Zero));
 var noOrderRepository = new FakeConfirmationRepository(noOrderSnapshot);
@@ -1433,10 +1459,11 @@ Check(noOrderResponse.Pago.Estado == EstadoPago.Desconocido && noOrderResponse.C
     && noOrderGateway.QueryCalls == 0 && noOrderGateway.SearchCalls == 1 && noOrderGateway.RefundCalls == 0
     && noOrderGateway.CreateCalls == 0 && noOrderRepository.ConciliateCalls == 0,
     "missing stored provider order searches once, preserves unknown on no match, and never creates or issues tickets");
-Check(noOrderGateway.LastSearchReference == "PG-confirm"
-    && noOrderGateway.LastSearchStartUtc == noOrderSnapshot.Registro.Pago.CreadoUtc
+Check(noOrderGateway.LastSearchReference == confirmationReference
+    && noOrderGateway.LastSearchReference != noOrderSnapshot.Registro.Pago.Id
+    && noOrderGateway.LastSearchStartUtc == noOrderSnapshot.Registro.Pago.CreadoUtc - ConciliacionesPagoService.MargenDesfaseReloj
     && noOrderGateway.LastSearchEndUtc == recoveryClock.GetUtcNow().UtcDateTime,
-    "recovery search uses the durable PG reference and its persisted-creation-to-current-API time window");
+    "recovery search uses the durable creation GUID (not the PG id) and a creation-minus-clock-skew-margin to current-API time window");
 
 var searchFailureRepository = new FakeConfirmationRepository(noOrderSnapshot);
 var searchFailureGateway = new FakeMercadoPagoCheckoutClient { SearchException = new HttpRequestException("offline") };
@@ -1472,7 +1499,7 @@ Check(queryFailureResponse.Pago.Estado == EstadoPago.Desconocido && queryFailure
     && queryFailureRepository.ConciliateCalls == 0 && queryFailureGateway.CreateCalls == 0,
     "provider query failure preserves the last payment snapshot without fake rejection or fulfillment");
 Check(queryFailureGateway.LastQueryOrderId == "order-stored"
-    && queryFailureGateway.LastQueryReference == "PG-confirm"
+    && queryFailureGateway.LastQueryReference == confirmationReference
     && queryFailureGateway.LastQueryAmount == 350m,
     "payment sync queries the stored provider order with the durable payment reference and expected amount");
 
@@ -1507,7 +1534,7 @@ Check(approvedSync.Pago.Estado == EstadoPago.Aprobado && approvedSync.Compra?.Co
     "verified provider approval is reconciled after the owned DB snapshot and returns only repository-confirmed purchase");
 Check(approvedRepo.LastOwnerId == "passenger" && approvedRepo.LastAttemptId == "IC-confirm"
     && approvedGateway.LastQueryOrderId == "order-stored"
-    && approvedGateway.LastQueryReference == "PG-confirm"
+    && approvedGateway.LastQueryReference == confirmationReference
     && approvedGateway.LastQueryAmount == 350m,
     "synchronization is scoped to passenger and attempt while validating stored order, payment, and amount");
 Check(approvedGateway.SearchCalls == 0,
@@ -1529,8 +1556,8 @@ Check(recoveredResponse.Pago.Estado == EstadoPago.Aprobado && recoveredResponse.
     && recoveryRepository.ConciliateCalls == 1 && recoveryGateway.Events.SequenceEqual(["search"])
     && recoveryGateway.CreateCalls == 0,
     "one verified search match binds to the existing payment through ordinary locked reconciliation without recreating checkout");
-Check(recoveryGateway.LastSearchReference == "PG-confirm" && recoveryGateway.LastSearchAmount == 350m
-    && recoveryGateway.LastSearchStartUtc == noOrderSnapshot.Registro.Pago.CreadoUtc
+Check(recoveryGateway.LastSearchReference == confirmationReference && recoveryGateway.LastSearchAmount == 350m
+    && recoveryGateway.LastSearchStartUtc == noOrderSnapshot.Registro.Pago.CreadoUtc - ConciliacionesPagoService.MargenDesfaseReloj
     && recoveryGateway.LastSearchEndUtc == recoveryClock.GetUtcNow().UtcDateTime,
     "recovery passes the exact durable reference, expected amount, and uncapped persisted-to-now window");
 
@@ -1633,12 +1660,68 @@ var foreignControllerService = new FakeConciliacionesPagoService { Exception = n
 var foreignHttpResult = await CreateSyncController(foreignControllerService, "passenger-public-id").Sincronizar("IC-foreign");
 Check(foreignHttpResult.Result is NotFoundResult,
     "missing or foreign attempt maps to 404 without exposing ownership details");
+var internalSyncService = new FakeConciliacionesPagoService
+{
+    Exception = new InvalidOperationException("sensitive provider detail PG-1 credential")
+};
+var internalSyncResult = await CreateSyncController(internalSyncService, "passenger-public-id").Sincronizar("IC-opaque");
+Check(internalSyncResult.Result is ObjectResult { StatusCode: StatusCodes.Status500InternalServerError } internalSyncFailure
+    && Equals(internalSyncFailure.Value, "Error interno del servidor")
+    && !internalSyncFailure.Value!.ToString()!.Contains("sensitive provider detail", StringComparison.Ordinal),
+    "internal InvalidOperationException during synchronization maps to a sanitized 500, not a 400 with its message");
 var canceledControllerService = new FakeConciliacionesPagoService { Exception = new OperationCanceledException() };
 using var canceledControllerToken = new CancellationTokenSource();
 canceledControllerToken.Cancel();
 await CheckThrowsAsync<OperationCanceledException>(
     () => CreateSyncController(canceledControllerService, "passenger-public-id").Sincronizar("IC-opaque", canceledControllerToken.Token),
     "synchronization controller propagates caller cancellation");
+
+// T2 / S3f: authenticated passenger endpoint for the most recent attempt that still needs attention.
+var pendingAttempts = new FakeIntentosCompraService
+{
+    ReadResponse = new IniciarIntentoCompraResponseDto { IntentoId = "IC-pending", HoldVenceEn = quoteExpiry }
+};
+var pendingPayments = new FakePagosService
+{
+    CurrentResponse = new PagoResponseDto { PagoId = "PG-9", IntentoId = "IC-pending", Estado = EstadoPago.Desconocido }
+};
+var pendingRepository = new FakeIntentosPendientesRepository(new Dictionary<string, string> { ["owner-public-id"] = "IC-pending" });
+var pendingService = new IntentosPendientesService(pendingRepository, pendingAttempts, pendingPayments, paymentNow);
+var ownerPending = await pendingService.ConsultarAsync("owner-public-id");
+Check(ownerPending is not null && ownerPending.Intento.IntentoId == "IC-pending"
+    && ownerPending.Pago?.Estado == EstadoPago.Desconocido
+    && pendingAttempts.ReadPassengerId == "owner-public-id" && pendingAttempts.ReadAttemptId == "IC-pending"
+    && pendingPayments.PassengerId == "owner-public-id" && pendingPayments.AttemptId == "IC-pending"
+    && pendingRepository.LastNowUtc == paymentNow.GetUtcNow().UtcDateTime,
+    "pending-attempt service returns the owner's attempt and current payment using the server clock");
+var otherPendingAttempts = new FakeIntentosCompraService();
+var otherPending = await new IntentosPendientesService(pendingRepository, otherPendingAttempts, pendingPayments, paymentNow)
+    .ConsultarAsync("other-public-id");
+Check(otherPending is null && otherPendingAttempts.ReadPassengerId is null,
+    "another passenger gets no pending attempt and never reads the owner's attempt");
+await CheckThrowsAsync<ArgumentException>(() => pendingService.ConsultarAsync(" "),
+    "pending-attempt service rejects a blank passenger identity");
+
+var pendingController = CreatePendingController(new FakeIntentosPendientesService(ownerPending), "owner-public-id");
+Check((await pendingController.Consultar()).Result is OkObjectResult { Value: IntentoPendienteResponseDto },
+    "pending-attempt endpoint returns 200 with the attempt and payment for the owner");
+Check((await CreatePendingController(new FakeIntentosPendientesService(null), "other-public-id").Consultar()).Result is NoContentResult,
+    "pending-attempt endpoint returns 204 when nothing needs attention");
+Check((await CreatePendingController(new FakeIntentosPendientesService(null), null).Consultar()).Result is UnauthorizedResult,
+    "pending-attempt endpoint rejects a missing authenticated identity");
+var failingPending = await CreatePendingController(
+    new FakeIntentosPendientesService(null) { Exception = new InvalidOperationException("sensitive detail") },
+    "owner-public-id").Consultar();
+Check(failingPending.Result is ObjectResult { StatusCode: StatusCodes.Status500InternalServerError } pendingFailure
+    && Equals(pendingFailure.Value, "Error interno del servidor"),
+    "pending-attempt endpoint sanitizes unexpected failures as 500");
+Check(typeof(IntentosPendientesController).GetCustomAttributes(typeof(RouteAttribute), true).Cast<RouteAttribute>()
+        .Single().Template == "api/intentos-compra/pendiente"
+    && typeof(IntentosPendientesController).GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<AuthorizeAttribute>()
+        .Single().Roles == "Pasajero"
+    && typeof(IntentosPendientesController).GetMethod(nameof(IntentosPendientesController.Consultar))!
+        .GetCustomAttributes(typeof(HttpGetAttribute), true).Length == 1,
+    "pending-attempt endpoint is an authenticated passenger-only GET at the documented route");
 
 Console.WriteLine($"Checks: {checks}; failures: {failures}");
 return failures == 0 ? 0 : 1;
@@ -1683,6 +1766,23 @@ static PagosController CreatePaymentController(IPagosService service, string? pa
         ? Array.Empty<Claim>()
         : [new Claim(ClaimTypes.NameIdentifier, passengerId)];
     return new PagosController(service)
+    {
+        ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(claims, "test"))
+            }
+        }
+    };
+}
+
+static IntentosPendientesController CreatePendingController(IIntentosPendientesService service, string? passengerId)
+{
+    var claims = passengerId is null
+        ? Array.Empty<Claim>()
+        : [new Claim(ClaimTypes.NameIdentifier, passengerId)];
+    return new IntentosPendientesController(service)
     {
         ControllerContext = new ControllerContext
         {
@@ -1888,7 +1988,7 @@ static ResultadoConciliacionPago ConfirmationResult(EstadoPago state, decimal pa
 static OrdenCheckoutMercadoPago ConfirmationOrder(EstadoPago state, decimal paid, string orderId) => new()
 {
     Id = orderId,
-    ReferenciaExterna = "PG-confirm",
+    ReferenciaExterna = confirmationReference,
     Importe = 350m,
     ImportePagado = paid,
     Moneda = "UYU",
@@ -2079,6 +2179,7 @@ sealed class FakeMercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         CheckoutUrl = "https://www.mercadopago.com.uy/checkout/default"
     };
     public Exception? CreateException { get; set; }
+    public string? ReferenceOverride { get; set; }
     public Action? BeforeCreate { get; set; }
     public int CreateCalls => Volatile.Read(ref _createCalls);
     public int QueryCalls => Volatile.Read(ref _queryCalls);
@@ -2116,7 +2217,7 @@ sealed class FakeMercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         LastReference = referenciaExterna;
         LastAmount = importe;
         return CreateException is null
-            ? Task.FromResult(CreateResponse)
+            ? Task.FromResult(CreateResponse with { ReferenciaExterna = ReferenceOverride ?? referenciaExterna })
             : Task.FromException<OrdenCheckoutMercadoPago>(CreateException);
     }
 
@@ -2204,6 +2305,27 @@ sealed class FakeConfirmationRepository(ResultadoConciliacionPago? snapshot) : I
             ?? throw new InvalidOperationException("A reconciliation result must be configured.");
         return Task.FromResult(Snapshot);
     }
+}
+
+sealed class FakeIntentosPendientesRepository(IReadOnlyDictionary<string, string> attemptsByPassenger) : IIntentosPendientesRepository
+{
+    public DateTime? LastNowUtc { get; private set; }
+
+    public Task<string?> BuscarIdPendienteAsync(string identificadorPublico, DateTime ahoraUtc,
+        CancellationToken cancellationToken = default)
+    {
+        LastNowUtc = ahoraUtc;
+        return Task.FromResult(attemptsByPassenger.TryGetValue(identificadorPublico, out var id) ? id : null);
+    }
+}
+
+sealed class FakeIntentosPendientesService(IntentoPendienteResponseDto? response) : IIntentosPendientesService
+{
+    public Exception? Exception { get; set; }
+
+    public Task<IntentoPendienteResponseDto?> ConsultarAsync(string identificadorPublico,
+        CancellationToken cancellationToken = default) =>
+        Exception is null ? Task.FromResult(response) : Task.FromException<IntentoPendienteResponseDto?>(Exception);
 }
 
 sealed class FakeConciliacionesPagoService : IConciliacionesPagoService

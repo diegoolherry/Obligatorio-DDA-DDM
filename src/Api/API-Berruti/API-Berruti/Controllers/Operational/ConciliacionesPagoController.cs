@@ -50,10 +50,6 @@ public sealed class ConciliacionesPagoController : ControllerBase
         {
             throw;
         }
-        catch (InvalidOperationException exception)
-        {
-            return BadRequest(exception.Message);
-        }
         catch (Exception)
         {
             return StatusCode(StatusCodes.Status500InternalServerError, "Error interno del servidor");

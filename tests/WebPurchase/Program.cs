@@ -172,6 +172,79 @@ sealed class Checks
             Equal(TipoResultadoCompra.Exito, stateResult.Tipo, $"known sync payment state {state} is accepted");
             Equal(null, stateResult.Datos!.Compra, $"known sync payment state {state} has no fabricated purchase");
         }
+
+        await CheckPendingAttemptAsync(attempt, validPago);
+        CheckRazorAttributes();
+    }
+
+    private async Task CheckPendingAttemptAsync(string attempt, string validPago)
+    {
+        string Pending(string intento, string? pago) => $"{{\"intento\":{intento},\"pago\":{pago ?? "null"}}}";
+        var okSession = new FakeSession(new RespuestaApiAdministracion(true, 200, Pending(attempt, validPago), "ok"));
+        var ok = await new CompraCliente(okSession).ObtenerIntentoPendienteAsync();
+        Equal(TipoResultadoCompra.Exito, ok.Tipo, "pending attempt with payment is accepted");
+        Equal("IC-01", ok.Datos!.Intento.IntentoId, "pending attempt id returned");
+        Equal(EstadoPago.Pendiente, ok.Datos.Pago!.Estado, "pending payment state returned");
+        Equal(HttpMethod.Get, okSession.Calls[0].Metodo, "pending uses GET");
+        Equal("/api/intentos-compra/pendiente", okSession.Calls[0].Ruta, "pending path");
+        Equal(null, okSession.Calls[0].Json, "pending sends no body");
+
+        var noPayment = await new CompraCliente(new FakeSession(new RespuestaApiAdministracion(true, 200, Pending(attempt, null), "ok"))).ObtenerIntentoPendienteAsync();
+        Equal(TipoResultadoCompra.Exito, noPayment.Tipo, "pending attempt without payment is accepted");
+        True(noPayment.Datos!.Pago is null, "pending attempt without payment keeps null payment");
+
+        var invalid = new[]
+        {
+            Pending(attempt, validPago.Replace("\"intentoId\":\"IC-01\"", "\"intentoId\":\"IC-02\"")),
+            Pending(attempt, validPago.Replace("2026-11-18T09:15:00Z", "0001-01-01T00:00:00Z")),
+            Pending(attempt, validPago.Replace("\"pendiente\"", "\"estadoNoReconocido\"")),
+            Pending(attempt.Replace("\"intentoId\":\"IC-01\"", "\"intentoId\":\"IC/01\""), null),
+            Pending(attempt.Replace("\"holdVenceEn\":\"2026-11-18T09:15:00Z\"", "\"holdVenceEn\":\"2026-11-18T09:15:00\""), null),
+            """{"intento":null,"pago":null}""",
+            "{}",
+            "not json",
+        };
+        foreach (var body in invalid)
+        {
+            var invalidSession = new FakeSession(new RespuestaApiAdministracion(true, 200, body, "ok"));
+            var rejected = await new CompraCliente(invalidSession).ObtenerIntentoPendienteAsync();
+            Equal(TipoResultadoCompra.Error, rejected.Tipo, "malformed or mismatched pending response is rejected");
+            True(rejected.Datos is null, "rejected pending response exposes no DTO");
+            Equal(1, invalidSession.Calls.Count, "rejected pending response makes one GET only");
+        }
+
+        var none = await new CompraCliente(new FakeSession(new RespuestaApiAdministracion(true, 204, "", "ok"))).ObtenerIntentoPendienteAsync();
+        Equal(TipoResultadoCompra.SinPendiente, none.Tipo, "204 means nothing pending");
+        True(none.Datos is null, "204 has no DTO");
+
+        foreach (var status in new[] { 401, 403, 500 })
+        {
+            var failure = await new CompraCliente(new FakeSession(new RespuestaApiAdministracion(false, status, null, "fail"))).ObtenerIntentoPendienteAsync();
+            Equal(TipoResultadoCompra.Error, failure.Tipo, $"status {status} is a typed error, never ambiguous");
+            Equal(status, failure.EstadoHttp ?? 0, $"status {status} is preserved");
+            True(!failure.Mensaje.Contains("fail"), $"status {status} message is sanitized");
+        }
+        var offline = await new CompraCliente(new FakeSession(new RespuestaApiAdministracion(false, null, null, "sin red"))).ObtenerIntentoPendienteAsync();
+        Equal(TipoResultadoCompra.Error, offline.Tipo, "network failure is a typed error");
+    }
+
+    private void CheckRazorAttributes()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !Directory.Exists(Path.Combine(root.FullName, "src", "Web", "Web-App", "Web-App", "Components"))) root = root.Parent;
+        True(root is not null, "repository root is found for Razor structural checks");
+        var components = Path.Combine(root!.FullName, "src", "Web", "Web-App", "Web-App", "Components");
+        var files = Directory.GetFiles(Path.Combine(components, "Purchase"), "*.razor")
+            .Append(Path.Combine(components, "Pages", "BuscarItinerario.razor")).ToArray();
+        True(files.Length >= 2, "purchase Razor files are found");
+        var compound = new System.Text.RegularExpressions.Regex("""\b(disabled|hidden|checked|readonly)="@[^"(][^"]*(\|\||&&)""");
+        foreach (var file in files)
+        {
+            var text = File.ReadAllText(file);
+            True(!compound.IsMatch(text), $"{Path.GetFileName(file)} has no unparenthesized boolean attribute expression");
+        }
+        True(File.ReadAllText(Path.Combine(components, "Purchase", "CompraItinerario.razor")).Contains("disabled=\"@(Ocupado || Vencio)\""),
+            "retry button disabled expression is parenthesized");
     }
 }
 

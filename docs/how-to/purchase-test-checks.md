@@ -14,7 +14,6 @@ Esta guía separa evidencia local ya observada de pruebas futuras que requieren 
 - `--prepare --allow-test-db-writes` requiere una base vacía (cero tablas, incluida la historia de migraciones), aplica migraciones versionadas y siembra un pasajero de prueba más el escenario operativo existente. Si falla a mitad, no limpia ni reintenta: detente y pide revisión DBA. `scripts/reset-local-db.ps1` sigue siendo destructivo y no debe usarse.
 - La preparación lee `DemoSeed__Contrasena` solo tras opt-in. El flujo académico actual guarda y compara literalmente la contraseña; usa un valor de prueba desechable, nunca una contraseña real. No se imprime la contraseña; solo subject público e IDs de servicio.
 - Para API, configura `ConnectionStrings__Berruti` en el proceso y usa `ASPNETCORE_ENVIRONMENT=PurchaseTests` con el listener HTTPS existente; el arranque normal no migra ni siembra. Web usa InteractiveServer, así que sus llamadas al API son server-side y no requieren CORS de navegador. El listener/certificado TLS no se validó. El túnel Cloudflare para Mobile requiere autorización separada.
-- El review nativo sigue `correction_required`: `repair --preflight` fue de solo lectura y devolvió `unsupported`, una lineage, cero candidatos elegibles y ningún input requerido; no ofreció recuperación ni produjo ACK.
 
 ## Harness MySQL: solo con fixture aislado autorizado
 

@@ -20,7 +20,7 @@
         }
         @if (_creacionAmbigua)
         {
-            <p role="alert">No se pudo confirmar si se creó el intento. No lo vuelva a crear automáticamente; vuelva a buscar antes de iniciar otra compra.</p>
+            <p role="alert">No se pudo confirmar si se creó el intento. No lo vuelva a crear automáticamente. Vuelva a itinerarios: si el intento existe, se retomará al volver a esta pantalla.</p>
         }
         @if (_intento is not null)
         {
@@ -71,7 +71,7 @@
         @if (_estado == EstadoCompra.Rechazado)
         {
             <p role="status">El pago fue rechazado. No se emitieron tickets. Puede revisar el precio y reintentar mientras el hold siga vigente.</p>
-            <button type="button" class="btn btn-outline-primary" disabled="@Ocupado || Vencio" @onclick="CargarCotizacionAsync">@(Ocupado ? "Consultando…" : "Revisar cotización para reintentar")</button>
+            <button type="button" class="btn btn-outline-primary" disabled="@(Ocupado || Vencio)" @onclick="CargarCotizacionAsync">@(Ocupado ? "Consultando…" : "Revisar cotización para reintentar")</button>
         }
         @if (_estado == EstadoCompra.DevolucionPendiente)
         {
@@ -107,7 +107,9 @@
 
 @code {
     [Parameter, EditorRequired] public ItinerarioDto Itinerario { get; set; } = new();
+    [Parameter] public IntentoPendienteResponseDto? IntentoPendiente { get; set; }
     [Parameter] public EventCallback OnCerrar { get; set; }
+    [Parameter] public EventCallback OnAbandonarSinIntento { get; set; }
     [Parameter] public EventCallback OnFinalizar { get; set; }
     private enum EstadoCompra
     {
@@ -143,6 +145,37 @@
         PoliticaAsiento.SinAsiento => "sin asignar",
         PoliticaAsiento.AsignacionAutomatica => "automático",
         _ => "no informado"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (IntentoPendiente is null)
+        {
+            return;
+        }
+        // Retoma un intento que la API informó como pendiente: no crea otro hold ni otro pago.
+        _intento = IntentoPendiente.Intento;
+        _pago = IntentoPendiente.Pago;
+        if (_pago is null)
+        {
+            await CargarCotizacionAsync();
+            return;
+        }
+        _estado = EstadoDesdePago(_pago.Estado);
+        if (_pago.Estado is EstadoPago.Pendiente or EstadoPago.Desconocido or EstadoPago.Aprobado or EstadoPago.DevolucionPendiente)
+        {
+            await SincronizarAsync();
+        }
+    }
+
+    private static EstadoCompra EstadoDesdePago(EstadoPago estado) => estado switch
+    {
+        EstadoPago.Rechazado => EstadoCompra.Rechazado,
+        EstadoPago.Desconocido => EstadoCompra.ResultadoDesconocido,
+        EstadoPago.Aprobado => EstadoCompra.ResultadoDesconocido,
+        EstadoPago.DevolucionPendiente => EstadoCompra.DevolucionPendiente,
+        EstadoPago.Devuelto => EstadoCompra.Devuelto,
+        _ => EstadoCompra.PagoPendiente
     };
 
     private async Task CrearIntentoAsync()
@@ -225,12 +258,7 @@
         if (resultado.Tipo == TipoResultadoCompra.Exito && resultado.Datos is not null)
         {
             _pago = resultado.Datos;
-            _estado = _pago.Estado switch
-            {
-                EstadoPago.Rechazado => EstadoCompra.Rechazado,
-                EstadoPago.Desconocido => EstadoCompra.ResultadoDesconocido,
-                _ => EstadoCompra.PagoPendiente
-            };
+            _estado = EstadoDesdePago(_pago.Estado);
             return;
         }
         _estado = resultado.Tipo == TipoResultadoCompra.Ambiguo ? EstadoCompra.ResultadoDesconocido : EstadoCompra.Error;
@@ -244,11 +272,12 @@
             return;
         }
         _mensaje = null;
+        var anterior = _estado;
         _estado = EstadoCompra.CargandoSincronizacion;
         var resultado = await Cliente.SincronizarPagoAsync(_intento.IntentoId);
         if (resultado.Tipo != TipoResultadoCompra.Exito || resultado.Datos is null)
         {
-            _estado = resultado.Tipo == TipoResultadoCompra.Ambiguo ? EstadoCompra.ResultadoDesconocido : EstadoCompra.PagoPendiente;
+            _estado = resultado.Tipo == TipoResultadoCompra.Ambiguo ? EstadoCompra.ResultadoDesconocido : anterior;
             _mensaje = resultado.Mensaje;
             return;
         }
@@ -281,6 +310,12 @@
     {
         if (Ocupado)
         {
+            return;
+        }
+        if (_intento is null)
+        {
+            // Sin intento conocido no hay nada que retomar: se vuelve a la lista (la página consulta si quedó uno pendiente).
+            await OnAbandonarSinIntento.InvokeAsync();
             return;
         }
         var expiradoSinPagoPendiente = Vencio && (_estado == EstadoCompra.Error || _estado == EstadoCompra.EsperandoAceptacion || _estado == EstadoCompra.Rechazado);
