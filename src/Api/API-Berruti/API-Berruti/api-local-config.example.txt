@@ -4,3 +4,12 @@
 # Jwt__Key: clave HS256 aleatoria de al menos 32 bytes (nunca la del ejemplo de clase ni una real compartida).
 ConnectionStrings__Berruti=
 Jwt__Key=
+# Opcionales: compra con Mercado Pago TEST. Descomentar y completar solo si se usa.
+# Solo credenciales TEST del vendedor de prueba; nunca credenciales de produccion.
+# ExpectedSiteId=MLU corresponde a Uruguay.
+# TestCredentialOriginConfirmed=true es una confirmacion humana de que el origen es TEST.
+# Nunca versionar la copia completada de este archivo.
+# MercadoPago__AccessToken=
+# MercadoPago__ExpectedSellerId=
+# MercadoPago__ExpectedSiteId=
+# MercadoPago__TestCredentialOriginConfirmed=

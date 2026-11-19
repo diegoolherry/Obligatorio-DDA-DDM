@@ -69,7 +69,8 @@ copia nuevamente sobre configuración ya completada. La copia vacía no configur
 una DB sin contraseña, no cambia cuentas ni demuestra login/TLS. El archivo es
 texto plano, no una bóveda; es solo API, nunca Mobile ni `EXPO_PUBLIC`. La
 [sintaxis limitada y las garantías de entorno](../how-to/api-session-checks.md#arranque-opcional-con-env-solo-api-powershell-51)
-aceptan comentarios/líneas vacías y exactamente esas dos claves con valor literal, sin
+aceptan comentarios/líneas vacías, esas dos claves obligatorias y, de forma opcional, las cuatro
+`MercadoPago__*` de TEST (ver [compras TEST](../how-to/purchase-test-checks.md#checkout-pro-test-y-clientes)), cada una una vez con valor literal, sin
 comillas exteriores, `export` ni interpolación. El guard API sigue vigente.
 
 ## 3. Iniciá Mobile
