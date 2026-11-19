@@ -9,7 +9,7 @@ Preparar ocho PR encadenadas basadas en `origin/main` 60f9142b64181ecb3ed084801a
 - Ocho grupos aprobados y excepciones de tamaño autorizadas. Publicar solo si la integración, las pruebas y la comprobación remota final son correctas.
 - No modificar las ramas antiguas ni realizar pagos, devoluciones o escrituras MySQL.
 - Resolver conflictos preservando JWT y compra. Detener ante una resolución no demostrable con seguridad.
-- Estrategia: cadena de ramas nuevas sobre main, con corte 1 en borrador; cada PR posterior apunta a la rama anterior.
+- Estrategia: cadena de ramas nuevas sobre main; cada PR posterior apunta a la rama anterior.
 
 ## Tareas
 
@@ -21,8 +21,8 @@ Preparar ocho PR encadenadas basadas en `origin/main` 60f9142b64181ecb3ed084801a
 - [x] I6: Integrar flujo Web con JWT vigente.
 - [x] I7: Integrar flujo Mobile con JWT vigente.
 - [x] I8: Integrar pruebas, correcciones Mercado Pago y estilo de clase hasta `7687494`.
-- [ ] V1: Verificar ascendencia de todos los commits anteriores, código FIN-005 preservado, migraciones/snapshot y pruebas enfocadas.
-- [ ] P1: Verificar de nuevo refs remotas y dependencias de Diego; hacer push/crear ocho PR; confirmar bases, títulos y cuerpos; cerrar 30 PR anteriores sin borrar ramas.
+- [x] V1: Verificar ascendencia de todos los commits anteriores, código FIN-005 preservado, migraciones/snapshot y pruebas enfocadas.
+- [x] P1: Verificar de nuevo refs remotas y dependencias de Diego; hacer push/crear ocho PR; confirmar bases, títulos y cuerpos; cerrar 30 PR anteriores sin borrar ramas.
 
 ## Verificación proporcional
 
@@ -47,3 +47,11 @@ I6: rama local `mvp-004-main/06-compra-web` desde I5 (`51e19fc`); merge de `mvp-
 I7: rama local `mvp-004-main/07-compra-mobile` desde `a29eba0`; merge sin conflictos de código de `mvp-004/07-compra-mobile` (`fd80d0b`), commit `87c4c1c`, con `docs/tasks.json` reconciliado usando el estado/IDs/criterios vigentes de I6 y conservando `MVP-004` en `in_progress`. El flujo mantiene FIN-005 JWT y el catálogo; `PassengerLogin` aclara que solo descarta el token local y que la API no mantiene sesiones ni revoca copias JWT. Verificación: `npm run typecheck` PASS; `node --test tests/MobilePurchase/purchase-service.test.mjs` PASS (15/15); `dotnet build tests/MySqlPurchase/MySqlPurchase.csproj --no-restore -v:q` PASS (0 warnings/errors; solo build, no ejecutado); como cambió `CompraItinerario.razor`, `dotnet build tests/WebPurchase/WebPurchase.csproj --no-restore -v:q` PASS (0 warnings/errors) y DLL PASS (164/164). `npm run export:android` quedó bloqueado porque `hermesc.exe` devolvió `permission denied`; sin MySQL, proveedor, pagos ni push/PR.
 
 I8: rama local `mvp-004-main/08-verificacion-final` desde `858b541`; merge de `mvp-004/08-verificacion-final` (`7687494`), que incluye `412bee7`, commit de integración `155966d`. Resolví `AuthenticationSessions/Program.cs` preservando las pruebas JWT FIN-005 y agregando solo un modo unitario de validación de la configuración aislada `PurchaseTests`; no incorporé aserciones de la rama antigua que esperan sesiones de servidor. `ConfiguracionAutenticacion` conserva JwtBearer/HS256 y agrega únicamente la tupla local dedicada de configuración de compra. Se conservan las correcciones/documentación PG-9: búsqueda exacta/recovery fail-closed; el intento PG-9 permanece `desconocido` sin orden identificada y no se afirma recuperado. Verificación: API build PASS (0 warnings/errors); PaymentContracts PASS (285/285, build con NU1900 de índice NuGet inaccesible); AuthenticationSessions build PASS, `--unit` PASS (68/68) y `--purchase-configuration-unit` PASS (10/10); WebPurchase build PASS y DLL PASS (164/164). No se ejecutó MySQL, API, proveedor, checkout ni pago; sin push/PR.
+
+## Publicación y cierre
+
+- Los ocho tips anteriores y `origin/main` (`60f9142`) son ancestros de la cadena nueva; se conservaron los cambios JWT/FIN-005 y las correcciones de MVP-004, incluidos `412bee7` y `7687494`.
+- Las ramas `mvp-004-main/01-base-compra` a `mvp-004-main/08-verificacion-final` se publicaron en un push atómico. Las PR #121 a #128 están abiertas y encadenadas en ese orden; #121 apunta a `main`.
+- Antes de cerrar #90 a #119, se comprobó que sus 30 heads no habían cambiado, que no había otras PR abiertas ni ramas remotas descendientes de la cadena anterior y que no había PR abiertas de Diego. Las 30 PR anteriores se cerraron con referencia a su reemplazo; no se borraron ramas. Esto no permite conocer trabajo local no publicado de Diego.
+- El escaneo de credenciales no encontró secretos reales en archivos versionados. `main` remoto permaneció en `60f9142`; no se hizo merge.
+- Pendiente de validación real: PG-9 sigue bloqueado/desconocido; no se ejecutaron pagos completos TEST ni MySQL en esta integración. La exportación Android no terminó por permiso de ejecución de Hermes, aunque typecheck y pruebas Mobile pasaron.
