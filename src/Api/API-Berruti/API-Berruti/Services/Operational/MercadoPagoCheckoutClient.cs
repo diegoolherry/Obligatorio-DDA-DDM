@@ -149,6 +149,41 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
             throw ErrorProveedor();
     }
 
+    public async Task<OrdenCheckoutMercadoPago> CancelarOrdenAsync(
+        string ordenId,
+        Guid claveIdempotencia,
+        string referenciaExternaEsperada,
+        decimal importeEsperado,
+        CancellationToken cancellationToken = default)
+    {
+        ValidarIdOrden(ordenId);
+        ValidarClaveIdempotencia(claveIdempotencia);
+        ValidarDatosEsperados(referenciaExternaEsperada, importeEsperado);
+        await VerificarIdentidadTestAsync(cancellationToken);
+
+        var endpoint = new Uri($"{OrdersEndpoint.AbsoluteUri}/{Uri.EscapeDataString(ordenId)}");
+
+        // Solo se cancela lo que el proveedor informa sin pagar y todavía en "created" (no en curso ni con pago).
+        using (var lectura = CrearRequest(HttpMethod.Get, endpoint))
+        using (var actual = await EnviarAsync(lectura, cancellationToken))
+        {
+            var (ordenActual, estadoActual) = LeerOrdenConEstadoProveedor(
+                actual.RootElement, ordenId, referenciaExternaEsperada, importeEsperado);
+            if (!string.Equals(estadoActual, "created", StringComparison.Ordinal) || ordenActual.ImportePagado != 0m)
+                throw ErrorProveedor();
+        }
+
+        using var request = CrearRequest(HttpMethod.Post, new Uri($"{endpoint.AbsoluteUri}/cancel"));
+        request.Headers.Add("X-Idempotency-Key", claveIdempotencia.ToString("D"));
+        using var document = await EnviarAsync(request, cancellationToken);
+        var (cancelada, estadoCancelado) = LeerOrdenConEstadoProveedor(
+            document.RootElement, ordenId, referenciaExternaEsperada, importeEsperado);
+        if (!string.Equals(estadoCancelado, "canceled", StringComparison.Ordinal) || cancelada.ImportePagado != 0m)
+            throw ErrorProveedor();
+
+        return cancelada with { Estado = EstadoPago.Rechazado, CheckoutUrl = null };
+    }
+
     private HttpRequestMessage CrearRequest(HttpMethod method, Uri endpoint)
     {
         var request = new HttpRequestMessage(method, endpoint);
@@ -227,6 +262,13 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         JsonElement root,
         string? expectedId,
         string expectedReference,
+        decimal expectedAmount) =>
+        LeerOrdenConEstadoProveedor(root, expectedId, expectedReference, expectedAmount).Orden;
+
+    private static (OrdenCheckoutMercadoPago Orden, string EstadoProveedor) LeerOrdenConEstadoProveedor(
+        JsonElement root,
+        string? expectedId,
+        string expectedReference,
         decimal expectedAmount)
     {
         var id = LeerStringRequerido(root, "id");
@@ -236,7 +278,7 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         var status = LeerStringRequerido(root, "status");
         var paidAmount = root.TryGetProperty("total_paid_amount", out _)
             ? LeerDecimalRequerido(root, "total_paid_amount")
-            : string.Equals(status, "created", StringComparison.Ordinal)
+            : status is "created" or "canceled"
                 ? 0m
                 : throw ErrorProveedor();
         var statusDetail = LeerStringOpcional(root, "status_detail");
@@ -254,7 +296,7 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
             && (liveMode.ValueKind != JsonValueKind.False))
             throw ErrorProveedor();
 
-        return new OrdenCheckoutMercadoPago
+        var orden = new OrdenCheckoutMercadoPago
         {
             Id = id,
             ReferenciaExterna = reference,
@@ -263,6 +305,7 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
             Moneda = currency,
             Estado = MapearEstado(status, statusDetail, paidAmount, amount)
         };
+        return (orden, status);
     }
 
     private static EstadoPago MapearEstado(string status, string? statusDetail, decimal paidAmount, decimal expectedAmount) => (status, statusDetail) switch
@@ -284,7 +327,7 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
             or ("failed", "amount_limit_exceeded")
             or ("failed", "invalid_installments")
             or ("failed", "processing_error") => EstadoPago.Rechazado,
-        ("canceled", "canceled") => EstadoPago.Rechazado,
+        ("canceled", "canceled") or ("canceled", "canceled_transaction") => EstadoPago.Rechazado,
         _ => EstadoPago.Desconocido
     };
 

@@ -1769,6 +1769,298 @@ using (var canceledSync = new CancellationTokenSource())
         "canceled synchronization performs no provider side effect or destructive local transition");
 }
 
+// ---- Cancelación en el proveedor de la orden sin pagar cuando vence el hold ----
+const string expOrderId = "ORD-REAL-1";
+const string expCheckoutUrl = "https://www.mercadopago.com.uy/checkout/v1/redirect?pref_id=expired-case";
+var expCreationKey = Guid.Parse(confirmationReference);
+var expExpiredClock = new FakeTimeProvider(new DateTimeOffset(confirmationHoldExpiryUtc, TimeSpan.Zero));
+var expLiveClock = paymentNow;
+
+static string ExpOrderJson(string status, string? detail = null, string? paid = null, string id = expOrderId,
+    string amount = "350.00", string? reference = null, bool checkout = true) =>
+    "{\"id\":\"" + id + "\",\"type\":\"online\",\"processing_mode\":\"manual\",\"external_reference\":\""
+    + (reference ?? confirmationReference) + "\",\"total_amount\":\"" + amount + "\""
+    + (checkout ? ",\"checkout_url\":\"" + expCheckoutUrl + "\"" : "")
+    + ",\"country_code\":\"URY\",\"user_id\":\"987654321\",\"status\":\"" + status + "\""
+    + (detail is null ? "" : ",\"status_detail\":\"" + detail + "\"")
+    + (paid is null ? "" : ",\"total_paid_amount\":\"" + paid + "\"")
+    + ",\"capture_mode\":\"automatic_async\",\"currency\":\"UYU\",\"created_date\":\"2026-11-16T14:00:01.000Z\","
+    + "\"last_updated_date\":\"2026-11-16T14:00:01.000Z\",\"integration_data\":{\"application_id\":\"1\"},\"items\":[]}";
+
+static Guid? ExpHeaderKey(HttpRequestMessage request) =>
+    request.Headers.TryGetValues("X-Idempotency-Key", out var values) ? Guid.Parse(values.Single()) : null;
+
+static int ExpCancels(List<HttpRequestMessageSnapshot> requests) =>
+    requests.Count(r => r.Method == "POST" && r.Path.EndsWith("/cancel", StringComparison.Ordinal));
+static int ExpRefunds(List<HttpRequestMessageSnapshot> requests) =>
+    requests.Count(r => r.Method == "POST" && r.Path.EndsWith("/refund", StringComparison.Ordinal));
+
+static HttpResponseMessage ExpCanceledOk(HttpRequestMessage request, CancellationToken token) =>
+    JsonResponse(HttpStatusCode.OK, ExpOrderJson("canceled", "canceled_transaction", checkout: false));
+
+(FakeConfirmationRepository Repository, List<OrdenCheckoutMercadoPago> Reconciled,
+    List<HttpRequestMessageSnapshot> Requests, ConciliacionesPagoService Service) ExpBuild(
+    EstadoPago snapshotState, FakeTimeProvider clock, Func<bool, string> getBody,
+    Func<HttpRequestMessage, CancellationToken, HttpResponseMessage> cancelResponse)
+{
+    var reconciled = new List<OrdenCheckoutMercadoPago>();
+    var requests = new List<HttpRequestMessageSnapshot>();
+    var canceledByProvider = false;
+    var repository = new FakeConfirmationRepository(ConfirmationResult(snapshotState, 0m, expOrderId, 350m,
+        confirmationHoldExpiryUtc, null, false))
+    {
+        OnConciliate = (order, _) =>
+        {
+            reconciled.Add(order);
+            var refundRequired = order.Estado == EstadoPago.Aprobado;
+            var result = ConfirmationResult(refundRequired ? EstadoPago.DevolucionPendiente : order.Estado,
+                order.ImportePagado, order.Id, 350m, confirmationHoldExpiryUtc, null, refundRequired);
+            result.Registro.Pago.CheckoutUrl = order.CheckoutUrl;
+            return result;
+        }
+    };
+    var handler = new MockHttpMessageHandler((request, token) =>
+    {
+        var path = request.RequestUri!.AbsolutePath;
+        requests.Add(new HttpRequestMessageSnapshot(request.Method.Method, path, ExpHeaderKey(request), request.Content is not null));
+        if (path.EndsWith("/cancel", StringComparison.Ordinal))
+        {
+            var response = cancelResponse(request, token);
+            if (response.IsSuccessStatusCode)
+                canceledByProvider = true;
+            return response;
+        }
+        if (path.EndsWith("/refund", StringComparison.Ordinal))
+            return JsonResponse(HttpStatusCode.OK, "{}");
+        return JsonResponse(HttpStatusCode.OK, getBody(canceledByProvider));
+    });
+    var service = new ConciliacionesPagoService(repository, CreateCheckoutClient(handler), clock);
+    return (repository, reconciled, requests, service);
+}
+
+// 1. Hold vencido + orden "created" (forma real, sin status_detail): se cancela una vez y el pago queda Rechazado.
+var expCancelRun = ExpBuild(EstadoPago.Pendiente, expExpiredClock,
+    canceled => canceled ? ExpOrderJson("canceled", "canceled_transaction") : ExpOrderJson("created"), ExpCanceledOk);
+var expCancelResponse = await expCancelRun.Service.SincronizarAsync("passenger", "IC-confirm");
+var expCancelRequest = expCancelRun.Requests.FirstOrDefault(r => r.Path.EndsWith("/cancel", StringComparison.Ordinal));
+Check(ExpCancels(expCancelRun.Requests) == 1 && expCancelRequest is not null && expCancelRequest.Method == "POST"
+    && expCancelRequest!.Path == "/v1/orders/ORD-REAL-1/cancel" && !expCancelRequest.HasBody
+    && expCancelRequest.IdempotencyKey == ConciliacionesPagoService.ClaveCancelacion(expCreationKey),
+    "expired hold with an unpaid created order cancels it once at the provider with the stable per-payment idempotency key and no body");
+Check(expCancelResponse.Pago.Estado == EstadoPago.Rechazado && expCancelResponse.Pago.CheckoutUrl is null
+    && expCancelResponse.Compra is null && expCancelRun.Repository.ConciliateCalls == 1
+    && expCancelRun.Reconciled.Single().Estado == EstadoPago.Rechazado
+    && expCancelRun.Reconciled.Single().ImportePagado == 0m && expCancelRun.Reconciled.Single().Id == expOrderId
+    && expCancelRun.Repository.Events.SequenceEqual(["snapshot", "reconcile"]),
+    "verified provider cancellation is persisted through locked reconciliation as Rechazado with zero paid, the provider order id and no checkout URL");
+
+// 6. Una sincronización posterior sobre el pago ya Rechazado no vuelve a cancelar.
+var expRepeatResponse = await expCancelRun.Service.SincronizarAsync("passenger", "IC-confirm");
+Check(expRepeatResponse.Pago.Estado == EstadoPago.Rechazado && ExpCancels(expCancelRun.Requests) == 1
+    && expCancelRun.Requests.Count(r => r.Method == "GET") >= 2,
+    "repeated synchronization after Rechazado re-reads the order but never cancels again");
+
+var expDirectRejected = ExpBuild(EstadoPago.Rechazado, expExpiredClock,
+    _ => ExpOrderJson("canceled", "canceled_transaction", checkout: false), ExpCanceledOk);
+var expDirectRejectedResponse = await expDirectRejected.Service.SincronizarAsync("passenger", "IC-confirm");
+Check(expDirectRejectedResponse.Pago.Estado == EstadoPago.Rechazado && ExpCancels(expDirectRejected.Requests) == 0,
+    "an already rejected payment whose provider order is canceled is never canceled again");
+
+// Cancelación aceptada aunque la respuesta omita status_detail.
+var expNoDetail = ExpBuild(EstadoPago.Pendiente, expExpiredClock, _ => ExpOrderJson("created"),
+    (_, _) => JsonResponse(HttpStatusCode.OK, ExpOrderJson("canceled", checkout: false)));
+Check((await expNoDetail.Service.SincronizarAsync("passenger", "IC-confirm")).Pago.Estado == EstadoPago.Rechazado
+    && ExpCancels(expNoDetail.Requests) == 1,
+    "a verified order whose cancel response is canceled without status_detail is still persisted as Rechazado");
+
+// 2. Hold vigente: nunca se cancela.
+var expLive = ExpBuild(EstadoPago.Pendiente, expLiveClock, _ => ExpOrderJson("created"), ExpCanceledOk);
+var expLiveResponse = await expLive.Service.SincronizarAsync("passenger", "IC-confirm");
+Check(ExpCancels(expLive.Requests) == 0 && expLiveResponse.Pago.Estado == EstadoPago.Pendiente
+    && expLiveResponse.Pago.CheckoutUrl == expCheckoutUrl && expLive.Reconciled.Single().Estado == EstadoPago.Pendiente,
+    "live hold with a created order never cancels, stays Pendiente and keeps the checkout URL");
+
+// 3. Fallos al cancelar: se conserva el comportamiento actual (sin degradar el estado).
+var expFailures = new (string Name, Func<HttpRequestMessage, CancellationToken, HttpResponseMessage> Cancel)[]
+{
+    ("HTTP 500", (_, _) => JsonResponse(HttpStatusCode.InternalServerError, "{\"message\":\"boom\"}")),
+    ("HTTP 400 not cancelable", (_, _) => JsonResponse(HttpStatusCode.BadRequest, "{\"errors\":[]}")),
+    ("network error", (_, _) => throw new HttpRequestException("offline")),
+    ("timeout", (_, _) => throw new TaskCanceledException("timeout", new TimeoutException())),
+    ("malformed body", (_, _) => JsonResponse(HttpStatusCode.OK, "not-json")),
+    ("still created", (_, _) => JsonResponse(HttpStatusCode.OK, ExpOrderJson("created"))),
+    ("processed instead of canceled", (_, _) => JsonResponse(HttpStatusCode.OK, ExpOrderJson("processed", "accredited", "350.00"))),
+    ("different order id", (_, _) => JsonResponse(HttpStatusCode.OK, ExpOrderJson("canceled", "canceled_transaction", id: "ORD-OTHER"))),
+    ("different reference", (_, _) => JsonResponse(HttpStatusCode.OK, ExpOrderJson("canceled", "canceled_transaction", reference: "other-reference"))),
+    ("different amount", (_, _) => JsonResponse(HttpStatusCode.OK, ExpOrderJson("canceled", "canceled_transaction", amount: "10.00")))
+};
+foreach (var failure in expFailures)
+{
+    var failedRun = ExpBuild(EstadoPago.Pendiente, expExpiredClock, _ => ExpOrderJson("created"), failure.Cancel);
+    var failedResponse = await failedRun.Service.SincronizarAsync("passenger", "IC-confirm");
+    Check(ExpCancels(failedRun.Requests) == 1 && failedResponse.Pago.Estado == EstadoPago.Pendiente
+        && failedResponse.Pago.CheckoutUrl is null && failedRun.Reconciled.Count == 1
+        && failedRun.Reconciled.Single().Estado == EstadoPago.Pendiente && failedRun.Reconciled.Single().ImportePagado == 0m,
+        $"failed cancel ({failure.Name}) keeps today's behavior: still Pendiente, never Rechazado");
+}
+
+// El estado Desconocido tampoco se degrada cuando falla la cancelación.
+var expUnknownFailure = ExpBuild(EstadoPago.Desconocido, expExpiredClock, _ => ExpOrderJson("created"),
+    (_, _) => JsonResponse(HttpStatusCode.InternalServerError, "{}"));
+Check((await expUnknownFailure.Service.SincronizarAsync("passenger", "IC-confirm")).Pago.Estado == EstadoPago.Pendiente
+    && expUnknownFailure.Reconciled.Single().Estado == EstadoPago.Pendiente,
+    "failed cancel reconciles the order as read (Pendiente) without inventing a rejection");
+
+// Cancelación del llamador durante la cancelación: se propaga y no cambia el estado.
+using (var expCaller = new CancellationTokenSource())
+{
+    var callerRun = ExpBuild(EstadoPago.Pendiente, expExpiredClock, _ => ExpOrderJson("created"),
+        (_, _) => { expCaller.Cancel(); throw new OperationCanceledException(expCaller.Token); });
+    await CheckThrowsAsync<OperationCanceledException>(
+        () => callerRun.Service.SincronizarAsync("passenger", "IC-confirm", expCaller.Token),
+        "caller cancellation while canceling propagates");
+    Check(callerRun.Repository.ConciliateCalls == 0 && callerRun.Reconciled.Count == 0,
+        "caller cancellation while canceling does not change the persisted payment state");
+}
+
+// 4. Orden con pago o en curso: no se cancela y la ruta de aprobación tardía queda igual.
+var expApproved = ExpBuild(EstadoPago.Pendiente, expExpiredClock,
+    _ => ExpOrderJson("processed", "accredited", "350.00"), ExpCanceledOk);
+var expApprovedResponse = await expApproved.Service.SincronizarAsync("passenger", "IC-confirm");
+Check(ExpCancels(expApproved.Requests) == 0 && ExpRefunds(expApproved.Requests) == 1
+    && expApprovedResponse.Pago.Estado == EstadoPago.DevolucionPendiente
+    && expApproved.Reconciled.All(o => o.Estado == EstadoPago.Aprobado),
+    "expired hold with an accredited order never cancels and keeps the late-approval refund follow-up");
+foreach (var inFlight in new[]
+{
+    ("processing", "in_process", "0.00"),
+    ("processing", "pending_review_manual", "0.00"),
+    ("action_required", "waiting_capture", "0.00")
+})
+{
+    var inFlightRun = ExpBuild(EstadoPago.Pendiente, expExpiredClock,
+        _ => ExpOrderJson(inFlight.Item1, inFlight.Item2, inFlight.Item3), ExpCanceledOk);
+    var inFlightResponse = await inFlightRun.Service.SincronizarAsync("passenger", "IC-confirm");
+    Check(ExpCancels(inFlightRun.Requests) == 0 && inFlightResponse.Pago.Estado == EstadoPago.Pendiente
+        && inFlightRun.Reconciled.Single().Estado == EstadoPago.Pendiente,
+        $"expired hold with a provider order in {inFlight.Item1}/{inFlight.Item2} is never canceled");
+}
+
+// Defensa del servicio ante una orden devuelta que no verifica (cliente simulado).
+FakeMercadoPagoCheckoutClient ExpFakeGateway(OrdenCheckoutMercadoPago? cancelResponse) => new()
+{
+    QueryResponses = [ConfirmationOrder(EstadoPago.Pendiente, 0m, "order-stored")],
+    CancelResponse = cancelResponse
+};
+FakeConfirmationRepository ExpFakeRepository() => new(ConfirmationResult(EstadoPago.Pendiente, 0m, "order-stored", 350m,
+    confirmationHoldExpiryUtc, null, false))
+{
+    OnConciliate = (order, _) => ConfirmationResult(order.Estado, order.ImportePagado, order.Id, 350m,
+        confirmationHoldExpiryUtc, null, false)
+};
+var expFakeOk = ExpFakeGateway(ConfirmationOrder(EstadoPago.Rechazado, 0m, "order-stored"));
+var expFakeOkResponse = await new ConciliacionesPagoService(ExpFakeRepository(), expFakeOk, expExpiredClock)
+    .SincronizarAsync("passenger", "IC-confirm");
+Check(expFakeOkResponse.Pago.Estado == EstadoPago.Rechazado && expFakeOk.Events.SequenceEqual(["get", "cancel"])
+    && expFakeOk.LastCancelKey == ConciliacionesPagoService.ClaveCancelacion(expCreationKey),
+    "expired hold: provider read then cancel with the payment-derived key, in that order");
+foreach (var unverified in new[]
+{
+    ("still pending", ConfirmationOrder(EstadoPago.Pendiente, 0m, "order-stored")),
+    ("approved", ConfirmationOrder(EstadoPago.Aprobado, 350m, "order-stored")),
+    ("different order", ConfirmationOrder(EstadoPago.Rechazado, 0m, "order-other")),
+    ("different reference", ConfirmationOrder(EstadoPago.Rechazado, 0m, "order-stored") with { ReferenciaExterna = "other" }),
+    ("different amount", ConfirmationOrder(EstadoPago.Rechazado, 0m, "order-stored") with { Importe = 10m }),
+    ("different currency", ConfirmationOrder(EstadoPago.Rechazado, 0m, "order-stored") with { Moneda = "USD" }),
+    ("paid amount", ConfirmationOrder(EstadoPago.Rechazado, 100m, "order-stored"))
+})
+{
+    var unverifiedGateway = ExpFakeGateway(unverified.Item2);
+    var unverifiedRepository = ExpFakeRepository();
+    var unverifiedResponse = await new ConciliacionesPagoService(unverifiedRepository, unverifiedGateway, expExpiredClock)
+        .SincronizarAsync("passenger", "IC-confirm");
+    Check(unverifiedGateway.CancelCalls == 1 && unverifiedResponse.Pago.Estado == EstadoPago.Pendiente
+        && unverifiedRepository.ConciliateCalls == 1,
+        $"a cancel result that does not verify ({unverified.Item1}) is ignored and the order is reconciled as read");
+}
+var expLiveFake = ExpFakeGateway(ConfirmationOrder(EstadoPago.Rechazado, 0m, "order-stored"));
+await new ConciliacionesPagoService(ExpFakeRepository(), expLiveFake, expLiveClock).SincronizarAsync("passenger", "IC-confirm");
+Check(expLiveFake.CancelCalls == 0, "live hold never reaches the cancel call");
+
+// Clave de idempotencia estable derivada de la ClaveCreacion persistida.
+Check(ConciliacionesPagoService.ClaveCancelacion(expCreationKey) == Guid.Parse("baa6b3be-e75f-55fa-a3f9-c112607f08c2")
+    && ConciliacionesPagoService.ClaveCancelacion(expCreationKey) == ConciliacionesPagoService.ClaveCancelacion(expCreationKey)
+    && ConciliacionesPagoService.ClaveCancelacion(expCreationKey) != expCreationKey
+    && ConciliacionesPagoService.ClaveCancelacion(expCreationKey) != Guid.Parse("33333333-3333-3333-3333-333333333333")
+    && ConciliacionesPagoService.ClaveCancelacion(Guid.Parse("22222222-2222-2222-2222-222222222222"))
+        != ConciliacionesPagoService.ClaveCancelacion(expCreationKey)
+    && ConciliacionesPagoService.ClaveCancelacion(expCreationKey).ToString("D")[14] == '5',
+    "cancel idempotency key is a deterministic UUID v5 of the persisted creation key, distinct per payment and from creation/refund keys");
+
+// Contrato del cliente: endpoint, cabeceras, sin cuerpo y una sola verificación de identidad.
+var expClientRequests = new List<HttpRequestMessageSnapshot>();
+var expClientHandler = new MockHttpMessageHandler((request, _) =>
+{
+    expClientRequests.Add(new HttpRequestMessageSnapshot(request.Method.Method, request.RequestUri!.AbsolutePath,
+        ExpHeaderKey(request), request.Content is not null));
+    return request.Method == HttpMethod.Post
+        ? JsonResponse(HttpStatusCode.OK, ExpOrderJson("canceled", "canceled_transaction", checkout: false))
+        : JsonResponse(HttpStatusCode.OK, ExpOrderJson("created"));
+});
+var expClientKey = Guid.Parse("44444444-4444-4444-4444-444444444444");
+var expCanceledOrder = await CreateCheckoutClient(expClientHandler)
+    .CancelarOrdenAsync(expOrderId, expClientKey, confirmationReference, 350m);
+var expClientPost = expClientRequests.FirstOrDefault(r => r.Method == "POST") ?? new HttpRequestMessageSnapshot("none", "", null, false);
+Check(expClientPost.Path == "/v1/orders/ORD-REAL-1/cancel" && !expClientPost.HasBody
+    && expClientPost.IdempotencyKey == expClientKey && expClientHandler.IdentityRequestCount == 1
+    && expCanceledOrder.Estado == EstadoPago.Rechazado && expCanceledOrder.Id == expOrderId && expCanceledOrder.ImportePagado == 0m,
+    "client cancel verifies the TEST identity once, POSTs the official cancel endpoint with the caller's key and no body");
+await CheckThrowsAsync<ArgumentException>(
+    () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, "{}")))
+        .CancelarOrdenAsync(expOrderId, Guid.Empty, confirmationReference, 350m),
+    "client cancel rejects an empty idempotency key");
+foreach (var notCancelable in new (string Status, string? Detail, string Paid)[]
+{
+    ("processed", "accredited", "350.00"),
+    ("processing", "in_process", "0.00"),
+    ("action_required", "waiting_capture", "0.00"),
+    ("created", null, "50.00")
+})
+{
+    var posts = 0;
+    var notCancelableHandler = new MockHttpMessageHandler((request, _) =>
+    {
+        if (request.Method == HttpMethod.Post) posts++;
+        return JsonResponse(HttpStatusCode.OK, ExpOrderJson(notCancelable.Status, notCancelable.Detail, notCancelable.Paid));
+    });
+    await CheckThrowsAsync<InvalidOperationException>(
+        () => CreateCheckoutClient(notCancelableHandler).CancelarOrdenAsync(expOrderId, expClientKey, confirmationReference, 350m),
+        $"client cancel refuses an order in {notCancelable.Status}/{notCancelable.Detail} with paid {notCancelable.Paid}");
+    Check(posts == 0, $"client never POSTs a cancel for an order in {notCancelable.Status}/{notCancelable.Detail}");
+}
+
+// 5. Mapeo de estados del proveedor.
+foreach (var mapping in new (string Status, string? Detail, string? Paid, EstadoPago Expected)[]
+{
+    ("canceled", "canceled_transaction", null, EstadoPago.Rechazado),
+    ("canceled", "canceled_transaction", "0.00", EstadoPago.Rechazado),
+    ("canceled", "canceled", "0.00", EstadoPago.Rechazado),
+    ("canceled", "unexpected_detail", "0.00", EstadoPago.Desconocido),
+    ("created", null, null, EstadoPago.Pendiente),
+    ("created", "created", "0.00", EstadoPago.Pendiente),
+    ("processing", "in_process", "0.00", EstadoPago.Pendiente),
+    ("processed", "accredited", "350.00", EstadoPago.Aprobado),
+    ("failed", "processing_error", "0.00", EstadoPago.Rechazado),
+    ("processed", "refunded", "350.00", EstadoPago.Devuelto)
+})
+{
+    var mapped = await CreateCheckoutClient(new MockHttpMessageHandler((_, _) =>
+            JsonResponse(HttpStatusCode.OK, ExpOrderJson(mapping.Status, mapping.Detail, mapping.Paid))))
+        .ConsultarOrdenAsync(expOrderId, confirmationReference, 350m);
+    Check(mapped.Estado == mapping.Expected,
+        $"provider status {mapping.Status}/{mapping.Detail ?? "(none)"} maps to {mapping.Expected}");
+}
+
 var syncEndpoint = typeof(ConciliacionesPagoController).GetMethod(nameof(ConciliacionesPagoController.Sincronizar));
 var syncRoute = typeof(ConciliacionesPagoController).GetCustomAttributes(typeof(RouteAttribute), true)
     .Cast<RouteAttribute>().SingleOrDefault()?.Template;
@@ -2387,6 +2679,27 @@ sealed class FakeMercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
     public decimal? LastQueryAmount { get; private set; }
     public string? LastRefundOrderId { get; private set; }
     public Guid? LastRefundKey { get; private set; }
+    public int CancelCalls { get; private set; }
+    public Guid? LastCancelKey { get; private set; }
+    public OrdenCheckoutMercadoPago? CancelResponse { get; set; }
+    public Exception? CancelException { get; set; }
+
+    public Task<OrdenCheckoutMercadoPago> CancelarOrdenAsync(
+        string ordenId,
+        Guid claveIdempotencia,
+        string referenciaExternaEsperada,
+        decimal importeEsperado,
+        CancellationToken cancellationToken = default)
+    {
+        CancelCalls++;
+        Events.Add("cancel");
+        LastCancelKey = claveIdempotencia;
+        cancellationToken.ThrowIfCancellationRequested();
+        if (CancelException is not null)
+            return Task.FromException<OrdenCheckoutMercadoPago>(CancelException);
+        return Task.FromResult(CancelResponse
+            ?? throw new NotSupportedException("No cancel response was configured."));
+    }
 
     public Task<OrdenCheckoutMercadoPago> CrearOrdenAsync(
         Guid claveIdempotencia,
@@ -2641,3 +2954,5 @@ sealed class FakeCotizacionesCompraService : ICotizacionesCompraService
         return Exception is null ? Task.FromResult(Response) : Task.FromException<CotizarCompraResponseDto>(Exception);
     }
 }
+
+sealed record HttpRequestMessageSnapshot(string Method, string Path, Guid? IdempotencyKey, bool HasBody);
