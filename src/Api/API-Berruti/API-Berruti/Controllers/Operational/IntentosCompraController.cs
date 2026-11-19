@@ -2,6 +2,7 @@ using System.Security.Claims;
 using API_Berruti.DTOs.Operational;
 using API_Berruti.Services.Operational;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API_Berruti.Controllers.Operational;
