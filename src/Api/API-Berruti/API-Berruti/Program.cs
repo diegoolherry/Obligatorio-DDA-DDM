@@ -6,6 +6,7 @@ using API_Berruti.Repositories.Location;
 using API_Berruti.Services.Location;
 using API_Berruti.Repositories.Catalogo;
 using API_Berruti.Services.Catalogo;
+using API_Berruti.Repositories.Authentication;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -31,6 +32,9 @@ builder.Services.AddScoped<ITarifasRepository, TarifasRepository>();
 builder.Services.AddScoped<ITarifasService, TarifasService>();
 builder.Services.AddScoped<IBusquedaItinerariosRepository, BusquedaItinerariosRepository>();
 builder.Services.AddScoped<IItinerariosService, ItinerariosService>();
+builder.Services.AddScoped<IIntentosCompraRepository, IntentosCompraRepository>();
+builder.Services.AddScoped<IIntentosCompraService, IntentosCompraService>();
+builder.Services.AddSingleton(ParametrosCompra.Desde(builder.Configuration));
 builder.Services.AddScoped<ICatalogoRepository, CatalogoRepository>();
 builder.Services.AddScoped<ICatalogoService, CatalogoService>();
 builder.Services.AddScoped<IGeneracionServiciosRepository, GeneracionServiciosRepository>();

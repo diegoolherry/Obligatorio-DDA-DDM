@@ -92,18 +92,18 @@
     {
       "id": "MVP-004",
       "name": "Compra, pago TEST de Mercado Pago y emisión de tickets",
-      "description": "Completar la compra en ambos clientes con integración de la API de Mercado Pago mediante credenciales TEST, sin cobros reales. La API debe verificar el resultado del proveedor, registrar importe, fecha, usuario, referencia y estado, y solo tras aprobación verificada crear en una operación consistente la compra y un ticket por tramo con QR opaco y asiento opcional. Rige el acuerdo conceptual de docs/design/data-model.md: hold de 15 minutos configurables desde creación en API por actualización explícita del usuario, en reemplazo de los cinco minutos de la base conceptual conjunta previa y sin nueva aprobación conjunta, sin reinicio; rechazo definitivo admite reintento en el plazo restante, pendiente/desconocido bloquea otro pago hasta resolución autoritativa aun vencido el hold. Confirmar exige además disponibilidad y hold vigente; aprobación posterior al vencimiento no confirma ni emite y requiere seguimiento de devolución. Checkout, persistencia, concurrencia, comparación temporal, verificación y mecanismos de reintento/devolución TEST siguen pendientes.",
+      "description": "Completar la compra en ambos clientes con integración de la API de Mercado Pago mediante credenciales TEST, sin cobros reales. La API debe verificar el resultado del proveedor, registrar importe, fecha, usuario, referencia y estado, y solo tras aprobación verificada crear en una operación consistente la compra y un ticket por tramo con QR opaco y asiento opcional. Rige el acuerdo conceptual de docs/design/data-model.md: hold de 15 minutos configurables desde creación en API por actualización explícita del usuario, en reemplazo de los cinco minutos de la base conceptual conjunta previa y sin nueva aprobación conjunta, sin reinicio; rechazo definitivo admite reintento en el plazo restante, pendiente/desconocido bloquea otro pago hasta resolución autoritativa aun vencido el hold. Confirmar exige además disponibilidad y hold vigente; aprobación posterior al vencimiento no confirma ni emite y requiere seguimiento de devolución. El corte I2 implementa intentos, holds, persistencia y controles de tiempo/concurrencia, pero sus pruebas deterministas no acreditan persistencia ni concurrencia real contra MySQL. Checkout, verificación de pagos y mecanismos de reintento/devolución TEST siguen pendientes.",
       "priority": "alta",
       "area": [
         "API",
         "Web",
         "Mobile"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "assignee": "Enzo",
       "reviewer": "Diego",
       "createdAt": "2026-09-21T17:45:04-03:00",
-      "startedAt": null,
+      "startedAt":  "2026-11-16T21:48:18-03:00",
       "completedAt": null,
       "completedBy": null,
       "dependencies": [
@@ -115,7 +115,7 @@
         "La aplicación no solicita ni almacena números de tarjeta, CVV ni datos financieros equivalentes; no hay cobros reales ni credenciales de producción.",
         "El ticket del primer tramo no tiene asiento y el segundo tiene un asiento asignado automáticamente."
       ],
-      "evidence": "Aclaración de los criterios originales, sin implementación: rechazo definitivo permite reintentar solo con hold vigente y tiempo restante; no verificado o pendiente/desconocido no emite tickets ni habilita otro pago hasta resolución autoritativa. La cardinalidad conceptual es a lo sumo una compra confirmada por intento durable con pagos conservados; no define cardinalidad física. Rige docs/design/data-model.md §2, base conceptual aprobada por Diego y Enzo según lo informado por el usuario. Soporte de devolución TEST no verificado, sin reemplazo simulado; integración y pruebas del proveedor pendientes. Antes de implementar, diseñar los mockups de sus pantallas (pago, Cuenta) en OpenPencil con el sistema de diseño de FIN-010 (design/fin-010, decisión de Diego del 2026-11-16)."
+      "evidence": "Aclaración de los criterios originales: rechazo definitivo permite reintentar solo con hold vigente y tiempo restante; no verificado o pendiente/desconocido no emite tickets ni habilita otro pago hasta resolución autoritativa. La cardinalidad conceptual es a lo sumo una compra confirmada por intento durable con pagos conservados; no define cardinalidad física. Rige docs/design/data-model.md §2, base conceptual aprobada por Diego y Enzo según lo informado por el usuario. Soporte de devolución TEST no verificado, sin reemplazo simulado; Checkout/verificación del proveedor pendientes. Antes de implementar las pantallas de pago y Cuenta, diseñar mockups en OpenPencil con el sistema de diseño de FIN-010 (design/fin-010, decisión de Diego del 2026-11-16)."
     },
     {
       "id": "MVP-005",
