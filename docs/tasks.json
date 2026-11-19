@@ -92,7 +92,7 @@
     {
       "id": "MVP-004",
       "name": "Compra, pago TEST de Mercado Pago y emisión de tickets",
-      "description": "Completar la compra en ambos clientes con integración de la API de Mercado Pago mediante credenciales TEST, sin cobros reales. La API debe verificar el resultado del proveedor, registrar importe, fecha, usuario, referencia y estado, y solo tras aprobación verificada crear en una operación consistente la compra y un ticket por tramo con QR opaco y asiento opcional. Rige el acuerdo conceptual de docs/design/data-model.md: hold de 15 minutos configurables desde creación en API por actualización explícita del usuario, en reemplazo de los cinco minutos de la base conceptual conjunta previa y sin nueva aprobación conjunta, sin reinicio; rechazo definitivo admite reintento en el plazo restante, pendiente/desconocido bloquea otro pago hasta resolución autoritativa aun vencido el hold. Confirmar exige además disponibilidad y hold vigente; aprobación posterior al vencimiento no confirma ni emite y requiere seguimiento de devolución. El corte I2 implementa intentos, holds, persistencia y controles de tiempo/concurrencia, pero sus pruebas deterministas no acreditan persistencia ni concurrencia real contra MySQL. Checkout, verificación de pagos y mecanismos de reintento/devolución TEST siguen pendientes.",
+      "description": "Completar la compra en ambos clientes con integración de la API de Mercado Pago mediante credenciales TEST, sin cobros reales. La API debe verificar el resultado del proveedor, registrar importe, fecha, usuario, referencia y estado, y solo tras aprobación verificada crear en una operación consistente la compra y un ticket por tramo con QR opaco y asiento opcional. Rige el acuerdo conceptual de docs/design/data-model.md: hold de 15 minutos configurables desde creación en API por decisión aprobada por Diego y Enzo (confirmación de Diego en la revisión cruzada del 2026-11-19), en reemplazo de los cinco minutos de la base conceptual conjunta previa, sin reinicio; rechazo definitivo admite reintento en el plazo restante, pendiente/desconocido bloquea otro pago hasta resolución autoritativa aun vencido el hold. Confirmar exige además disponibilidad y hold vigente; aprobación posterior al vencimiento no confirma ni emite y requiere seguimiento de devolución. El corte I2 implementa intentos, holds, persistencia y controles de tiempo/concurrencia, pero sus pruebas deterministas no acreditan persistencia ni concurrencia real contra MySQL. Checkout, verificación de pagos y mecanismos de reintento/devolución TEST siguen pendientes.",
       "priority": "alta",
       "area": [
         "API",
@@ -115,7 +115,7 @@
         "La aplicación no solicita ni almacena números de tarjeta, CVV ni datos financieros equivalentes; no hay cobros reales ni credenciales de producción.",
         "El ticket del primer tramo no tiene asiento y el segundo tiene un asiento asignado automáticamente."
       ],
-      "evidence": "(1) PR/commit: integración I2 en `mvp-004-main/02-reservas`, merge local `b963635`; PR pendiente.\n(2) Commands: API build 0 warnings; PurchaseHolds 74/74; PurchaseHoldSchema 12/12 (NU1900 en índice de vulnerabilidades); AuthenticationSessions --unit 68/68. Sin HTTP/MySQL/Mercado Pago; no acredita enforcement ni concurrencia real en proveedor.\n(3) Revisión cruzada de Diego: pendiente. Base conceptual de docs/design/data-model.md §2 informada como aprobada por Diego y Enzo; mockups de pago/Cuenta en OpenPencil con FIN-010 antes de UI; devolución TEST no verificada."
+      "evidence": "(1) PR: cadena #121–#128 más correcciones de revisión en la rama mvp-004-main/09-correcciones-revision (PR pendiente).\n(2) #128: API/Web build PASS; PaymentContracts 285/285; WebPurchase 164/164; AuthenticationSessions 68/68; MobilePurchase y typecheck PASS; sin MySQL, API runtime ni Checkout Pro TEST real.\n(3) Revisión cruzada de Diego en curso: hallazgos corregidos en la rama de correcciones; hold de 15 minutos aprobado por Diego el 2026-11-19."
     },
     {
       "id": "MVP-005",
@@ -364,7 +364,7 @@
         "Pruebas concurrentes impiden doble venta superpuesta; solicitudes repetidas o respuesta perdida no duplican compra ni tickets y confirmación revalida configuración e inventario.",
         "Solo aprobación TEST verificada por API permite emisión según política acordada; no hay cobros reales, credenciales de producción ni almacenamiento de tarjetas/CVV."
       ],
-      "evidence": "Planificado, no iniciado. Diego/Enzo son responsables propuestos para esta tarea, sin aprobación humana de asignación. El primer criterio conserva su significado y se traza al acuerdo conceptual de docs/design/data-model.md §2: base evolutiva aprobada por ambos según lo informado por el usuario; hold de 15 minutos configurables desde creación en API por actualización explícita del usuario, en reemplazo de los cinco minutos de la base conceptual conjunta previa y sin nueva aprobación conjunta, sin reinicio, liberación por vencimiento sin inferir rechazo; rechazo definitivo reintenta con tiempo restante, pendiente/desconocido bloquea otro pago hasta resolución autoritativa aun vencido el hold, aprobación posterior al vencimiento no confirma ni emite aunque haya lugar y sigue devolución hasta confirmación autoritativa. PUERTA TÉCNICA ABIERTA: persistencia, checkout/verificación/mapeo, concurrencia e idempotencia, liberación y comparación temporal autoritativa requieren diseño y revisión, además de dependencias done. Soporte de devolución TEST no verificado, sin reemplazo simulado. Atomicidad/idempotencia son aceptación de diseño, no implementación ni pruebas comprobadas; esta evidencia conceptual no completa los restantes criterios de FIN-003."
+      "evidence": "Planificado, no iniciado. Diego/Enzo son responsables propuestos para esta tarea, sin aprobación humana de asignación. El primer criterio conserva su significado y se traza al acuerdo conceptual de docs/design/data-model.md §2: base evolutiva aprobada por ambos según lo informado por el usuario; hold de 15 minutos configurables desde creación en API por decisión aprobada por Diego y Enzo (confirmación de Diego en la revisión cruzada del 2026-11-19), en reemplazo de los cinco minutos de la base conceptual conjunta previa, sin reinicio, liberación por vencimiento sin inferir rechazo; rechazo definitivo reintenta con tiempo restante, pendiente/desconocido bloquea otro pago hasta resolución autoritativa aun vencido el hold, aprobación posterior al vencimiento no confirma ni emite aunque haya lugar y sigue devolución hasta confirmación autoritativa. PUERTA TÉCNICA ABIERTA: persistencia, checkout/verificación/mapeo, concurrencia e idempotencia, liberación y comparación temporal autoritativa requieren diseño y revisión, además de dependencias done. Soporte de devolución TEST no verificado, sin reemplazo simulado. Atomicidad/idempotencia son aceptación de diseño, no implementación ni pruebas comprobadas; esta evidencia conceptual no completa los restantes criterios de FIN-003."
     },
     {
       "id": "FIN-004",
@@ -1114,6 +1114,35 @@
         "Hay una reproducción documentada para la generación de Servicios y al menos una escritura operativa, antes y después del cambio."
       ],
       "evidence": "PR #85 (merge 37e5239; commits be7f807, 062233d).\nBloqueo forzado en MySQL local: generación, PUT de parada y PUT/DELETE de servicio responden 409 en ~3 s sin cambiar datos; global 50; tests 48/48, 139, 129/129, 27/27; tres verificaciones independientes PASS.\nRevisor Enzo: aprobó el PR y los criterios según el reporte de Diego; sin review registrada en GitHub."
+    },
+    {
+      "id": "FIN-013",
+      "name": "Invalidar tickets de una compra cuyo pago fue devuelto",
+      "description": "Si el pago que financió una compra confirmada termina en estado Devuelto (por ejemplo, devolución hecha manualmente desde el panel de Mercado Pago TEST), sus tickets no deben servir para viajar. Los tickets no se borran: la validación del QR recorre ticket → compra → pago y rechaza el código cuando el pago está Devuelto, conservando el historial. Decisión de Diego del 2026-11-19 en la revisión cruzada de MVP-004.",
+      "priority": "media",
+      "area": [
+        "API",
+        "Web",
+        "Mobile"
+      ],
+      "status": "pending",
+      "assignee": null,
+      "reviewer": null,
+      "createdAt": "2026-11-19T15:04:45-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [
+        "MVP-004",
+        "MVP-005"
+      ],
+      "acceptanceCriteria": [
+        "Escanear el QR de un ticket cuya compra tiene el pago en estado Devuelto devuelve un resultado claro de ticket anulado por devolución y no consume el ticket.",
+        "Los tickets, la compra y el pago devuelto se conservan en la base; ningún flujo borra tickets.",
+        "El pasajero ve esos tickets como anulados y no puede mostrarlos como válidos.",
+        "Una prueba automatizada cubre la validación de un ticket con pago Devuelto y la de un ticket con pago Aprobado."
+      ],
+      "evidence": "Planificado, no iniciado. Surge de la revisión cruzada de MVP-004 (rama mvp-004-main/09-correcciones-revision); asignación y revisión pendientes de acuerdo entre Diego y Enzo."
     }
   ]
 }

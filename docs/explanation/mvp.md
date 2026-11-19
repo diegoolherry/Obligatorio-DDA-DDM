@@ -134,7 +134,7 @@ La aplicación móvil será una sola. Después de iniciar sesión, la navegació
 ### 5.6 Pago de prueba con Mercado Pago
 
 - Integrar la API de Mercado Pago con credenciales TEST como decisión vigente revisable; probar aprobación y rechazo con escenarios del proveedor, sin inventar mecánica determinista local.
-- Registrar importe, fecha, usuario, referencia del intento y estado de dominio. La política conceptual de intento durable, pagos conservados, hold y reintentos está acordada en [el modelo canónico](data-model.md#acuerdo-conceptual-de-compra-hold-y-reintentos); la duración vigente del hold es 15 minutos configurables por actualización explícita del usuario, en reemplazo de la duración conjunta previa de cinco minutos. Representación física, checkout, mapeo/verificación de estados, concurrencia, comparación temporal y mecanismos de devolución TEST siguen pendientes, sin integración ni pruebas ejecutadas.
+- Registrar importe, fecha, usuario, referencia del intento y estado de dominio. La política conceptual de intento durable, pagos conservados, hold y reintentos está acordada en [el modelo canónico](data-model.md#acuerdo-conceptual-de-compra-hold-y-reintentos); la duración vigente del hold es 15 minutos configurables por decisión aprobada por Diego y Enzo (confirmación de Diego en la revisión cruzada del 2026-11-19), en reemplazo de la duración conjunta previa de cinco minutos. Representación física, checkout, mapeo/verificación de estados, concurrencia, comparación temporal y mecanismos de devolución TEST siguen pendientes, sin integración ni pruebas ejecutadas.
 - La API debe verificar el resultado con el proveedor antes de emitir tickets; nunca confiar únicamente en un éxito informado por el cliente.
 - La aplicación no debe solicitar ni guardar número de tarjeta, CVV o datos financieros equivalentes. El producto de checkout está pendiente de selección; producción y cobros reales requieren decisión de alcance explícita.
 
@@ -247,7 +247,7 @@ Los estados de pago son del dominio propuesto, no una afirmación sobre estados 
 | React Native + Expo | Compra/consulta del pasajero y escaneo/validación del cobrador según el rol. |
 | API ASP.NET Core | Autenticación, autorización, reglas, contratos, verificación del resultado del proveedor TEST antes de emitir tickets, posiciones y validaciones atómicas. |
 | Persistencia | MySQL almacenará usuarios, configuración operativa, compras, tickets, abonos, pagos, validaciones y posiciones recibidas. La API accederá mediante EF Core y el patrón Repository. |
-| Mercado Pago TEST | Integración API propuesta, aún no implementada; escenarios de prueba del proveedor sin cobro real. Producto de checkout y mecanismo de verificación por decidir. |
+| Mercado Pago Checkout Pro TEST | Producto elegido para pruebas con credenciales TEST, sin cobro real. La integración está implementada parcialmente, pero no se verificó contra el proveedor en vivo; la recuperación busca la orden por su referencia persistida si se pierde la respuesta de creación. |
 
 MySQL es la tecnología de persistencia decidida para el proyecto y su conexión administrativa local ya fue comprobada. Antes de crear migraciones se deberá seleccionar y verificar un proveedor de EF Core compatible con la versión de .NET, crear un usuario exclusivo para la API y resolver el alojamiento de producción. Las bibliotecas de QR y autenticación continúan pendientes y deberán considerar la consigna, la compatibilidad con Expo Go y el contenido enseñado en clase.
 

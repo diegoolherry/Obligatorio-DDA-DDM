@@ -7,8 +7,8 @@ export interface ParadaDto {
 
 export interface TramoItinerarioDto {
   orden: number;
-  servicioId: number;
-  tramoId: number;
+  servicioId: string;
+  tramoId: string;
   origen: ParadaDto;
   destino: ParadaDto;
   salida: string;

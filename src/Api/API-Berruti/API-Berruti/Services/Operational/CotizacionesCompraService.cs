@@ -7,12 +7,22 @@ using API_Berruti.Models.Operational;
 
 namespace API_Berruti.Services.Operational;
 
-public sealed class CotizacionesCompraService(
-    IIntentosCompraService intentos,
-    IItinerariosService itinerarios,
-    TimeProvider timeProvider) : ICotizacionesCompraService
+public sealed class CotizacionesCompraService : ICotizacionesCompraService
 {
     private const string Moneda = "UYU";
+    private readonly IIntentosCompraService _intentos;
+    private readonly IItinerariosService _itinerarios;
+    private readonly TimeProvider _timeProvider;
+
+    public CotizacionesCompraService(
+        IIntentosCompraService intentos,
+        IItinerariosService itinerarios,
+        TimeProvider timeProvider)
+    {
+        _intentos = intentos;
+        _itinerarios = itinerarios;
+        _timeProvider = timeProvider;
+    }
 
     public async Task<CotizarCompraResponseDto> CotizarAsync(
         string identificadorPublico,
@@ -25,7 +35,7 @@ public sealed class CotizacionesCompraService(
             throw new ArgumentException("El identificador del intento es obligatorio.", nameof(intentoId));
 
         cancellationToken.ThrowIfCancellationRequested();
-        var intento = await intentos.ConsultarAsync(identificadorPublico, intentoId, cancellationToken);
+        var intento = await _intentos.ConsultarAsync(identificadorPublico, intentoId, cancellationToken);
         if (intento.HoldVenceEn.Kind != DateTimeKind.Utc)
             throw new InvalidOperationException("El vencimiento persistido del hold debe estar en UTC.");
         var holdVenceUtc = intento.HoldVenceEn;
@@ -35,7 +45,7 @@ public sealed class CotizacionesCompraService(
         ValidarCotizacion(original);
         var secuenciaOriginal = original.Tramos.OrderBy(tramo => tramo.Orden).ToArray();
         var fechaLocal = DateOnly.FromDateTime(secuenciaOriginal[0].Salida);
-        var ofertas = await itinerarios.BuscarAsync(
+        var ofertas = await _itinerarios.BuscarAsync(
             secuenciaOriginal[0].Origen.Id,
             secuenciaOriginal[^1].Destino.Id,
             fechaLocal);
@@ -67,7 +77,7 @@ public sealed class CotizacionesCompraService(
 
     private void AsegurarVigente(DateTime holdVenceUtc)
     {
-        if (timeProvider.GetUtcNow().UtcDateTime >= holdVenceUtc)
+        if (_timeProvider.GetUtcNow().UtcDateTime >= holdVenceUtc)
             throw new CotizacionNoDisponibleException("El hold original venció.");
     }
 

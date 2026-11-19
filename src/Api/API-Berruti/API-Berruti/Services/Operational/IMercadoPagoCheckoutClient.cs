@@ -16,6 +16,13 @@ public interface IMercadoPagoCheckoutClient
         decimal importeEsperado,
         CancellationToken cancellationToken = default);
 
+    Task<OrdenCheckoutMercadoPago?> BuscarOrdenAsync(
+        string referenciaExternaEsperada,
+        DateTime desdeUtc,
+        DateTime hastaUtc,
+        decimal importeEsperado,
+        CancellationToken cancellationToken = default);
+
     Task SolicitarDevolucionCompletaAsync(
         string ordenId,
         Guid claveIdempotencia,
