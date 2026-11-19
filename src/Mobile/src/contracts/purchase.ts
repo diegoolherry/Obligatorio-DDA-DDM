@@ -50,6 +50,10 @@ export interface CompraConfirmadaResponseDto {
   importeTotal: number;
   tickets: TicketEmitidoDto[];
 }
+export interface IntentoPendienteResponseDto {
+  intento: IniciarIntentoCompraResponseDto;
+  pago: PagoResponseDto | null;
+}
 export interface SincronizarPagoResponseDto { pago: PagoResponseDto; compra: CompraConfirmadaResponseDto | null; }
 
 export type PurchaseResult<T> = { ok: true; data: T; status: number } | {

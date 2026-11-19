@@ -1,13 +1,15 @@
 ﻿import type { IAuthenticationService } from '../Authentication/IAuthenticationService';
 import type { ItinerarioDto, TramoItinerarioDto } from '../../contracts/itinerary';
 import type {
-  CotizarCompraResponseDto, IniciarIntentoCompraResponseDto, PagoResponseDto,
+  CotizarCompraResponseDto, IniciarIntentoCompraResponseDto, IntentoPendienteResponseDto, PagoResponseDto,
   PurchaseResult, PurchaseStartResult, SeleccionTramoCompraDto, SincronizarPagoResponseDto,
 } from '../../contracts/purchase';
 
 const genericMessage = 'La API no pudo completar la compra. Revise la conexión e intente verificar el estado.';
 const unauthenticatedMessage = 'Ingrese con tu cuenta de pasajero para continuar.';
 const ambiguousCreateMessage = 'No se pudo confirmar la creación del intento. No vuelva a crearlo automáticamente.';
+
+const pendingMessage = 'No se pudo consultar si tenés una compra pendiente. Revisá la conexión e intentá de nuevo.';
 
 type ApiReply = { outcome: string; status?: number; body?: unknown };
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -49,6 +51,8 @@ const isPurchase = (value: unknown): boolean => isRecord(value) && nonEmpty(valu
   && Array.isArray(value.tickets) && value.tickets.every(isTicket);
 const isSync = (value: unknown): value is SincronizarPagoResponseDto => isRecord(value)
   && isPayment(value.pago) && (value.compra === null || isPurchase(value.compra));
+const isPending = (value: unknown): value is IntentoPendienteResponseDto => isRecord(value)
+  && isAttempt(value.intento) && (value.pago === null || (isPayment(value.pago) && value.pago.intentoId === value.intento.intentoId));
 const attemptPath = (id: string): string | undefined => /^[A-Za-z0-9-]+$/.test(id)
   ? `/api/intentos-compra/${id}` : undefined;
 
@@ -83,6 +87,16 @@ export class PurchaseService {
       ? { ok: true, data: reply.body, status: reply.status }
       : { ok: false, kind: 'ambiguous', message: ambiguousCreateMessage, status: reply.status };
     return { ok: false, kind: 'error', message: genericMessage, status: reply.status };
+  }
+
+  // 200 -> pending attempt, 204 -> nothing pending (data null). Runs with the current session only.
+  async getPendingAttempt(): Promise<PurchaseResult<IntentoPendienteResponseDto | null>> {
+    const reply = await this.authentication.authorizedRequest({ method: 'GET', path: '/api/intentos-compra/pendiente' });
+    if (reply.outcome === 'network' || reply.outcome === 'cancelled' || reply.outcome === 'invalidResponse') return { ok: false, kind: 'unknown', message: pendingMessage, status: reply.status };
+    if (reply.outcome !== 'response') return { ok: false, kind: 'error', message: reply.outcome === 'unauthenticated' ? unauthenticatedMessage : genericMessage, status: reply.status };
+    if (reply.status === 204) return { ok: true, data: null, status: 204 };
+    if (reply.status === 200 && isPending(reply.body)) return { ok: true, data: reply.body, status: 200 };
+    return { ok: false, kind: reply.status === undefined || reply.status >= 500 || reply.status === 200 ? 'unknown' : 'error', message: reply.status === 200 || (reply.status ?? 500) >= 500 ? pendingMessage : genericMessage, status: reply.status };
   }
 
   async getQuote(id: string): Promise<PurchaseResult<CotizarCompraResponseDto>> {
