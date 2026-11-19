@@ -13,8 +13,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-var checks = 0;
-var failures = 0;
+try
+{
+    if (args.Length == 1 && args[0] == "--verify-failure-exit")
+        throw new InvalidOperationException("CONTROLLED-TEST-HARNESS-FAILURE");
+
+    var checks = 0;
+    var failures = 0;
 
 void Check(bool condition, string name)
 {
@@ -1078,7 +1083,7 @@ foreach (var (name, invalidRecord, invalidPrices, invalidSelection, compraId, cs
     ("partial payment", ConfirmationRecord(EstadoPago.Aprobado, 349m, confirmationHoldExpiryUtc), frozenPaymentPrices, frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
     ("expired hold", ConfirmationRecord(EstadoPago.Aprobado, 350m, confirmationCreatedUtc), frozenPaymentPrices, frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
     ("missing frozen price", approvedConfirmation, frozenPaymentPrices[..1], frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
-    ("wrong total", approvedConfirmation, [.. frozenPaymentPrices, new TramoPago { PagoId = "PG-confirm", IntentoId = "IC-confirm", Orden = 3, Importe = 1m }], frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
+    ("wrong total", approvedConfirmation, [new TramoPago { PagoId = "PG-confirm", IntentoId = "IC-confirm", Orden = 1, Importe = 211m }, new TramoPago { PagoId = "PG-confirm", IntentoId = "IC-confirm", Orden = 2, Importe = 140m }], frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
     ("wrong generated identity count", approvedConfirmation, frozenPaymentPrices, frozenSelection, "CO-x", new[] { "CS-1" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
     ("non-UTC confirmation time", approvedConfirmation, frozenPaymentPrices, frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, DateTime.SpecifyKind(confirmationCreatedUtc, DateTimeKind.Unspecified))
 })
@@ -1298,8 +1303,6 @@ using (var canceledSync = new CancellationTokenSource())
         "canceled synchronization performs no provider side effect or destructive local transition");
 }
 
-
-
 var syncEndpoint = typeof(ConciliacionesPagoController).GetMethod(nameof(ConciliacionesPagoController.Sincronizar));
 var syncRoute = typeof(ConciliacionesPagoController).GetCustomAttributes(typeof(RouteAttribute), true)
     .Cast<RouteAttribute>().SingleOrDefault()?.Template;
@@ -1507,6 +1510,20 @@ void CheckThrows<TException>(Action action, string name) where TException : Exce
     }
 }
 
+static MercadoPagoCheckoutClient CreateCheckoutClient(MockHttpMessageHandler handler, string token = "TEST-contract-token")
+{
+    var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["MercadoPago:AccessToken"] = token
+    }).Build();
+    return new MercadoPagoCheckoutClient(new HttpClient(handler), ParametrosMercadoPago.Desde(configuration));
+}
+
+static HttpResponseMessage JsonResponse(HttpStatusCode statusCode, string body) => new(statusCode)
+{
+    Content = new StringContent(body, Encoding.UTF8, "application/json")
+};
+
 static TramoIntentoCompra ConfirmationSelection(int order, string serviceId, string segmentId,
     string originId, string originName, string destinationId, string destinationName, decimal originalAmount,
     PoliticaAsiento seatPolicy, int? seatNumber, DateTime departure, DateTime arrival) => new()
@@ -1576,20 +1593,6 @@ static OrdenCheckoutMercadoPago ConfirmationOrder(EstadoPago state, decimal paid
     CheckoutUrl = "https://www.mercadopago.com.uy/checkout/confirmed"
 };
 
-static MercadoPagoCheckoutClient CreateCheckoutClient(MockHttpMessageHandler handler, string token = "TEST-contract-token")
-{
-    var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
-    {
-        ["MercadoPago:AccessToken"] = token
-    }).Build();
-    return new MercadoPagoCheckoutClient(new HttpClient(handler), ParametrosMercadoPago.Desde(configuration));
-}
-
-static HttpResponseMessage JsonResponse(HttpStatusCode statusCode, string body) => new(statusCode)
-{
-    Content = new StringContent(body, Encoding.UTF8, "application/json")
-};
-
 async Task CheckThrowsAsync<TException>(Func<Task> action, string name) where TException : Exception
 {
     try
@@ -1601,6 +1604,13 @@ async Task CheckThrowsAsync<TException>(Func<Task> action, string name) where TE
     {
         Check(true, name);
     }
+}
+
+}
+catch (Exception exception)
+{
+    Console.Error.WriteLine(exception.ToString());
+    return 1;
 }
 
 sealed class MockHttpMessageHandler(Func<HttpRequestMessage, CancellationToken, HttpResponseMessage> responseFactory) : HttpMessageHandler
