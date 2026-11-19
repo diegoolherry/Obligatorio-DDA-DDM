@@ -70,7 +70,12 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         var endpoint = new Uri($"{OrdersEndpoint.AbsoluteUri}/{Uri.EscapeDataString(ordenId)}");
         using var request = CrearRequest(HttpMethod.Get, endpoint);
         using var document = await EnviarAsync(request, cancellationToken);
-        return LeerOrden(document.RootElement, ordenId, referenciaExternaEsperada, importeEsperado);
+        var orden = LeerOrden(document.RootElement, ordenId, referenciaExternaEsperada, importeEsperado);
+        var checkoutUrl = LeerStringOpcional(document.RootElement, "checkout_url");
+        if (checkoutUrl is not null && !EsCheckoutUrlSeguro(checkoutUrl))
+            throw ErrorProveedor();
+
+        return orden with { CheckoutUrl = checkoutUrl };
     }
 
     public async Task<OrdenCheckoutMercadoPago?> BuscarOrdenAsync(
@@ -110,7 +115,7 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
             || !TryReadInt(paging, "total_pages", out var totalPages)
             || !TryReadInt(paging, "offset", out var offset)
             || !TryReadInt(paging, "limit", out var limit)
-            || total < 0 || totalPages < 0 || offset != 0 || limit != 2
+            || total < 0 || totalPages < 0 || offset != 0 || limit <= 0 || total > limit
             || total != data.GetArrayLength())
             throw ErrorProveedor();
 
@@ -124,7 +129,7 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
 
         var orden = LeerOrden(data[0], expectedId: null, referenciaExternaEsperada, importeEsperado);
         ValidarIdOrden(orden.Id);
-        return orden;
+        return await ConsultarOrdenAsync(orden.Id, referenciaExternaEsperada, importeEsperado, cancellationToken);
     }
 
     public async Task SolicitarDevolucionCompletaAsync(
@@ -212,9 +217,13 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         var id = LeerStringRequerido(root, "id");
         var reference = LeerStringRequerido(root, "external_reference");
         var amount = LeerDecimalRequerido(root, "total_amount");
-        var paidAmount = LeerDecimalRequerido(root, "total_paid_amount");
         var currency = LeerStringRequerido(root, "currency");
         var status = LeerStringRequerido(root, "status");
+        var paidAmount = root.TryGetProperty("total_paid_amount", out _)
+            ? LeerDecimalRequerido(root, "total_paid_amount")
+            : string.Equals(status, "created", StringComparison.Ordinal)
+                ? 0m
+                : throw ErrorProveedor();
         var statusDetail = LeerStringOpcional(root, "status_detail");
 
         if (id.Length > 256
@@ -273,17 +282,17 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         return value.GetString()!;
     }
 
-    private static bool TryReadInt(JsonElement root, string name, out int value) =>
-        root.TryGetProperty(name, out var element)
-        && element.ValueKind == JsonValueKind.Number
-        && element.TryGetInt32(out value)
-        ? true
-        : SetDefault(out value);
-
-    private static bool SetDefault(out int value)
+    private static bool TryReadInt(JsonElement root, string name, out int value)
     {
         value = 0;
-        return false;
+        if (!root.TryGetProperty(name, out var element))
+            return false;
+
+        if (element.ValueKind == JsonValueKind.Number)
+            return element.TryGetInt32(out value);
+
+        return element.ValueKind == JsonValueKind.String
+            && int.TryParse(element.GetString(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out value);
     }
 
     private static string? LeerStringOpcional(JsonElement root, string name)

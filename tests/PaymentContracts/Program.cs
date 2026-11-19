@@ -38,7 +38,7 @@ void Check(bool condition, string name)
 if (args.Length == 1 && args[0] == "--mercado-pago-test-identity")
 {
     await RunMercadoPagoIdentityChecksAsync();
-    Console.WriteLine($"{checks - failures}/{checks} focused provider identity checks passed.");
+    Console.WriteLine($"{checks - failures}/{checks} focused provider identity and search checks passed.");
     return failures == 0 ? 0 : 1;
 }
 
@@ -49,7 +49,7 @@ async Task RunMercadoPagoIdentityChecksAsync()
     const string siteId = "SITE_TEST_FIXTURE";
     const string validIdentity = "{\"id\":987654321,\"site_id\":\"SITE_TEST_FIXTURE\",\"tags\":[\"normal\",\"test_user\"]}";
     const string validOrder = "{\"id\":\"order-1\",\"external_reference\":\"attempt-reference\",\"total_amount\":\"125.50\",\"total_paid_amount\":\"125.50\",\"currency\":\"UYU\",\"status\":\"processed\",\"status_detail\":\"accredited\",\"checkout_url\":\"https://www.mercadopago.com.uy/checkout/v1/redirect?order_id=order-1\"}";
-    const string validSearch = "{\"data\":[{\"id\":\"order-1\",\"external_reference\":\"attempt-reference\",\"total_amount\":\"125.50\",\"total_paid_amount\":\"125.50\",\"currency\":\"UYU\",\"status\":\"processed\",\"status_detail\":\"accredited\"}],\"paging\":{\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":2}}";
+    const string validSearch = "{\"data\":[],\"paging\":{\"total\":0,\"total_pages\":0,\"offset\":0,\"limit\":2}}";
 
     ParametrosMercadoPago CreateParameters(string token = opaqueTestToken, bool confirmed = true,
         string configuredSeller = sellerId, string configuredSite = siteId)
@@ -182,6 +182,67 @@ async Task RunMercadoPagoIdentityChecksAsync()
             Check(rejected && invalidHandler.IdentityRequestCount == 1 && providerRequests == 0,
                 $"{operation.Name} fails closed before provider call for {invalidIdentity.Name}");
         }
+    }
+
+    const string searchOrder = "{\"id\":\"order-1\",\"external_reference\":\"attempt-reference\",\"total_amount\":\"125.50\",\"total_paid_amount\":\"125.50\",\"currency\":\"UYU\",\"status\":\"processed\",\"status_detail\":\"accredited\"}";
+    static string SearchPage(string data, string paging) => $"{{\"data\":[{data}],\"paging\":{{{paging}}}}}";
+
+    var zeroSearchRejected = false;
+    try
+    {
+        var zeroSearch = await SearchWithResponseAsync(SearchPage("", "\"total\":0,\"total_pages\":0,\"offset\":0,\"limit\":\"20\""));
+        Check(zeroSearch is null, "empty search page accepts provider effective limit as an integer string");
+    }
+    catch (InvalidOperationException)
+    {
+        zeroSearchRejected = true;
+    }
+    Check(!zeroSearchRejected, "empty search page is not rejected because the provider used a larger effective limit");
+
+    var oneSearchRejected = false;
+    try
+    {
+        var oneSearch = await SearchWithResponseAsync(SearchPage(searchOrder, "\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":\"20\""));
+        Check(oneSearch?.Id == "order-1", "one exact search match accepts a larger effective page limit");
+    }
+    catch (InvalidOperationException)
+    {
+        oneSearchRejected = true;
+    }
+    Check(!oneSearchRejected, "unique exact search result survives the provider's larger effective limit");
+
+    var overLimitData = string.Join(',', Enumerable.Repeat(searchOrder, 21));
+    var invalidSearchPages = new (string Name, string Body)[]
+    {
+        ("response count exceeds effective limit", SearchPage(overLimitData, "\"total\":21,\"total_pages\":2,\"offset\":0,\"limit\":\"20\"")),
+        ("inconsistent total pages", SearchPage(searchOrder, "\"total\":1,\"total_pages\":2,\"offset\":0,\"limit\":\"20\"")),
+        ("nonzero search offset", SearchPage(searchOrder, "\"total\":1,\"total_pages\":1,\"offset\":1,\"limit\":\"20\"")),
+        ("missing effective page limit", SearchPage(searchOrder, "\"total\":1,\"total_pages\":1,\"offset\":0"))
+    };
+    foreach (var invalidPage in invalidSearchPages)
+        await CheckThrowsAsync<InvalidOperationException>(
+            () => SearchWithResponseAsync(invalidPage.Body),
+            $"search rejects {invalidPage.Name}");
+
+    async Task<OrdenCheckoutMercadoPago?> SearchWithResponseAsync(string body)
+    {
+        var requestedLimit = false;
+        var handler = new MockHttpMessageHandler((request, _) =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/orders/order-1", StringComparison.Ordinal))
+                return JsonResponse(HttpStatusCode.OK, validOrder);
+            requestedLimit = request.RequestUri.Query.Contains("limit=2", StringComparison.Ordinal);
+            return JsonResponse(HttpStatusCode.OK, body);
+        })
+        {
+            IdentityResponseFactory = (_, _) => JsonResponse(HttpStatusCode.OK, validIdentity)
+        };
+        var client = new MercadoPagoCheckoutClient(new HttpClient(handler), CreateParameters("TEST-contract-token"));
+        var result = await client.BuscarOrdenAsync("attempt-reference",
+            new DateTime(2026, 11, 17, 12, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 11, 17, 12, 1, 0, DateTimeKind.Utc), 125.50m);
+        Check(requestedLimit, "search request asks for a page size without assuming the response limit is identical");
+        return result;
     }
 
     var canceledHandler = new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, validOrder))
@@ -989,6 +1050,13 @@ var getHandler = new MockHttpMessageHandler((request, _) =>
 });
 var readOrder = await CreateCheckoutClient(getHandler).ConsultarOrdenAsync("provider/id", checkoutReference, checkoutAmount);
 Check(readOrder.Id == "provider/id" && readOrder.Estado == EstadoPago.Aprobado, "GET validates requested order identity");
+Check(readOrder.CheckoutUrl == "https://www.mercadopago.com.uy/checkout/v1/redirect?order_id=provider/id",
+    "GET propagates the provider-hosted checkout URL after validating the order");
+await CheckThrowsAsync<InvalidOperationException>(
+    () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK,
+        checkoutResponse.Replace("https://www.mercadopago.com.uy/checkout/v1/redirect?order_id=order-1", "https://attacker.example/checkout", StringComparison.Ordinal))))
+        .ConsultarOrdenAsync("order-1", checkoutReference, checkoutAmount),
+    "GET refuses a checkout URL outside the trusted Mercado Pago host");
 
 var searchStartUtc = new DateTime(2026, 11, 16, 14, 0, 0, DateTimeKind.Utc);
 var searchEndUtc = searchStartUtc.AddMinutes(10);
@@ -997,6 +1065,9 @@ var searchedOrderJson = """
     """;
 var searchHandler = new MockHttpMessageHandler((request, _) =>
 {
+    if (!request.RequestUri!.Query.Contains("external_reference", StringComparison.Ordinal))
+        return JsonResponse(HttpStatusCode.OK, searchedOrderJson);
+
     Check(request.Method == HttpMethod.Get && request.RequestUri!.GetLeftPart(UriPartial.Path) == "https://api.mercadopago.com/v1/orders",
         "lost-order recovery uses the fixed public Orders search endpoint");
     Check(request.Headers.Authorization?.Scheme == "Bearer" && request.Headers.Authorization.Parameter == checkoutToken,
@@ -1015,6 +1086,49 @@ var searchedOrder = await CreateCheckoutClient(searchHandler).BuscarOrdenAsync(
 Check(searchedOrder is { Id: "order-1", Estado: EstadoPago.Aprobado, CheckoutUrl: null },
     "one complete matching result recovers validated order facts without inventing a checkout URL");
 
+var recoveredUrlHandler = new MockHttpMessageHandler((request, _) =>
+{
+    if (request.RequestUri!.Query.Contains("external_reference", StringComparison.Ordinal))
+        return JsonResponse(HttpStatusCode.OK,
+            $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}");
+
+    Check(request.Method == HttpMethod.Get
+        && request.RequestUri == new Uri("https://api.mercadopago.com/v1/orders/order-1"),
+        "unique search result is followed by a detail GET using its validated provider order ID");
+    return JsonResponse(HttpStatusCode.OK, checkoutResponse);
+});
+var recoveredOrder = await CreateCheckoutClient(recoveredUrlHandler).BuscarOrdenAsync(
+    checkoutReference, searchStartUtc, searchEndUtc, checkoutAmount);
+Check(recoveredOrder is { Id: "order-1", Estado: EstadoPago.Aprobado,
+    CheckoutUrl: "https://www.mercadopago.com.uy/checkout/v1/redirect?order_id=order-1" },
+    "unique exact search result recovers only its validated detail checkout URL");
+
+var stringPaginationOrder = await CreateCheckoutClient(new MockHttpMessageHandler((request, _) => JsonResponse(
+    HttpStatusCode.OK,
+    request.RequestUri!.Query.Contains("external_reference", StringComparison.Ordinal)
+        ? $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":\"1\",\"total_pages\":\"1\",\"offset\":\"0\",\"limit\":\"2\"}}}}"
+        : searchedOrderJson)))
+    .BuscarOrdenAsync(checkoutReference, searchStartUtc, searchEndUtc, checkoutAmount);
+Check(stringPaginationOrder is { Id: "order-1", Estado: EstadoPago.Aprobado },
+    "numeric-string pagination recovers the same validated order as numeric JSON fields");
+
+var createdOrderWithoutPaidAmountJson = """
+    {"id":"order-created","external_reference":"payment-123","total_amount":"125.50","currency":"UYU","status":"created","status_detail":"created"}
+    """;
+var createdOrderWithoutPaidAmount = await CreateCheckoutClient(new MockHttpMessageHandler((request, _) => JsonResponse(
+    HttpStatusCode.OK,
+    request.RequestUri!.Query.Contains("external_reference", StringComparison.Ordinal)
+        ? $"{{\"data\":[{createdOrderWithoutPaidAmountJson}],\"paging\":{{\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}"
+        : createdOrderWithoutPaidAmountJson)))
+    .BuscarOrdenAsync(checkoutReference, searchStartUtc, searchEndUtc, checkoutAmount);
+Check(createdOrderWithoutPaidAmount is { Id: "order-created", Estado: EstadoPago.Pendiente, ImportePagado: 0m, CheckoutUrl: null },
+    "created order without paid amount safely reconciles as unpaid without inventing a checkout URL");
+await CheckThrowsAsync<InvalidOperationException>(
+    () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK,
+        checkoutResponse.Replace(",\"total_paid_amount\":\"125.50\"", "", StringComparison.Ordinal))))
+        .ConsultarOrdenAsync("order-1", checkoutReference, checkoutAmount),
+    "approved order without paid amount fails closed");
+
 var emptySearch = await CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK,
     "{\"data\":[],\"paging\":{\"total\":0,\"total_pages\":0,\"offset\":0,\"limit\":2}}")))
     .BuscarOrdenAsync(checkoutReference, searchStartUtc, searchEndUtc, checkoutAmount);
@@ -1026,7 +1140,16 @@ foreach (var ambiguousSearch in new[]
     $"{{\"data\":[{searchedOrderJson.Replace("payment-123", "other-payment", StringComparison.Ordinal)}],\"paging\":{{\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}",
     $"{{\"data\":[{searchedOrderJson.Replace("125.50", "125.51", StringComparison.Ordinal)}],\"paging\":{{\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}",
     $"{{\"data\":[{searchedOrderJson.Replace("UYU", "USD", StringComparison.Ordinal)}],\"paging\":{{\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}",
-    "{\"data\":[],\"paging\":{\"total\":0,\"total_pages\":0,\"offset\":1,\"limit\":2}}"
+    "{\"data\":[],\"paging\":{\"total\":0,\"total_pages\":0,\"offset\":1,\"limit\":2}}",
+    $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":\"1.0\",\"total_pages\":\"1\",\"offset\":\"0\",\"limit\":\"2\"}}}}",
+    $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":\"one\",\"total_pages\":\"1\",\"offset\":\"0\",\"limit\":\"2\"}}}}",
+    $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":\"2147483648\",\"total_pages\":\"1\",\"offset\":\"0\",\"limit\":\"2\"}}}}",
+    $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":2147483648,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}",
+    $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":\"-1\",\"total_pages\":\"1\",\"offset\":\"0\",\"limit\":\"2\"}}}}",
+    $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":-1,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}",
+    $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":\"1\",\"total_pages\":\"0\",\"offset\":\"0\",\"limit\":\"2\"}}}}",
+    $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":\"1\",\"total_pages\":\"1\",\"offset\":\"1\",\"limit\":\"2\"}}}}",
+    $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":\"1\",\"total_pages\":\"1\",\"offset\":\"0\",\"limit\":\"3\"}}}}"
 })
 {
     await CheckThrowsAsync<InvalidOperationException>(
