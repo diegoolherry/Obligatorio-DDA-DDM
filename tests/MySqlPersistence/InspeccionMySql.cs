@@ -40,7 +40,7 @@ public static class InspeccionMySql
                     Mostrar("Clave [tabla,restricción,columna,posición,baseFK,tablaFK,columnaFK]", claves);
                     Mostrar("Trigger [nombre,tabla,momento,evento]", triggers);
                     // Solo estas constantes pueden formar un identificador SQL; nunca nombres del inventario.
-                    foreach (var tabla in new[] { "usuario", "rol", "usuario_rol", "contador_entidad", "sesion" })
+                    foreach (var tabla in new[] { "usuario", "rol", "usuario_rol", "contador_entidad" })
                     {
                         if (!tablas.Any(f => Equals(f[0], tabla) && Equals(f[1], "BASE TABLE")))
                         {

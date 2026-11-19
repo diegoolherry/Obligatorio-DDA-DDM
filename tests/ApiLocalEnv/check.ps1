@@ -51,14 +51,17 @@ function Invoke-Probe([string]$Name, [string]$Text, [bool]$Valid = $false,
     $result = Get-Content -LiteralPath $capture -Raw | ConvertFrom-Json
     $expectedPrevious = 'PREVIOUS_SYNTHETIC'
     if ($AbsentPrevious) { $expectedPrevious = $null }
-    $safe = $result.Restored -ceq $expectedPrevious -and $result.Other -ceq 'UNCHANGED'
+    $expectedJwtPrevious = 'PREVIOUS_JWT_SYNTHETIC'
+    if ($AbsentPrevious) { $expectedJwtPrevious = $null }
+    $safe = $result.Restored -ceq $expectedPrevious -and $result.JwtRestored -ceq $expectedJwtPrevious -and $result.Other -ceq 'UNCHANGED'
     if ($Valid) {
         $expectedValue = $Text.Split("`n") | Where-Object { $_.StartsWith('ConnectionStrings__Berruti=') }
         $expectedValue = $expectedValue.Substring('ConnectionStrings__Berruti='.Length)
+        $expectedJwt = ($Text.Split("`n") | Where-Object { $_.StartsWith('Jwt__Key=') }).Substring('Jwt__Key='.Length)
         $expectedProfile = $Profile
         if ($Profile -eq 'default') { $expectedProfile = 'https' }
         $expectedArgs = @('run', '--project', (Join-Path $tree "$apiRelative/API-Berruti.csproj"), '--launch-profile', $expectedProfile)
-        $safe = $safe -and $result.Called -and $result.Value -ceq $expectedValue -and `
+        $safe = $safe -and $result.Called -and $result.Value -ceq $expectedValue -and $result.JwtValue -ceq $expectedJwt -and `
             (($result.Arguments -join '|') -ceq ($expectedArgs -join '|'))
         if ($ThrowChild) {
             $safe = $safe -and $process.ExitCode -eq 2 -and $stdout -ceq '' -and `
@@ -76,23 +79,38 @@ function Invoke-Probe([string]$Name, [string]$Text, [bool]$Valid = $false,
 }
 $value = 'Server=synthetic;Database=fixture;Password=marker==;Literal=$(not-executed);Other=#data'
 $entry = 'ConnectionStrings__Berruti=' + $value
+$jwtValue = 'synthetic-jwt-key==with$(not-executed)#and;literal-chars-0123456789'
+$jwtEntry = 'Jwt__Key=' + $jwtValue
+$both = $entry + "`n" + $jwtEntry
 Invoke-Probe 'missing-file' '' -MissingFile
 Invoke-Probe 'missing-key' "# comment`n`n"
-Invoke-Probe 'empty-value' 'ConnectionStrings__Berruti='
-Invoke-Probe 'whitespace-value' 'ConnectionStrings__Berruti=   '
-Invoke-Probe 'malformed-line' 'SYNTHETIC_MALFORMED'
-Invoke-Probe 'unknown-key' ($entry + "`nOTHER=synthetic")
-Invoke-Probe 'duplicate-key' ($entry + "`n" + $entry)
-Invoke-Probe 'wrong-case' 'connectionstrings__berruti=synthetic'
-Invoke-Probe 'export-not-supported' ('export ' + $entry)
-Invoke-Probe 'outer-quotes-not-supported' 'ConnectionStrings__Berruti="synthetic"'
-Invoke-Probe 'unbalanced-quote' 'ConnectionStrings__Berruti="synthetic'
-Invoke-Probe 'invalid-profile' $entry -Profile 'invalid'
-Invoke-Probe 'https-forward-literal' ("# comment`n`n" + $entry) -Valid $true
-Invoke-Probe 'http-profile' $entry -Valid $true -Profile 'http'
-Invoke-Probe 'restore-child-nonzero' $entry -Valid $true -ChildExit 17
-Invoke-Probe 'restore-absent-env' $entry -Valid $true -AbsentPrevious
-Invoke-Probe 'restore-child-exception' $entry -Valid $true -ThrowChild
+Invoke-Probe 'missing-jwt-key' $entry
+Invoke-Probe 'missing-connection-key' $jwtEntry
+Invoke-Probe 'empty-value' ('ConnectionStrings__Berruti=' + "`n" + $jwtEntry)
+Invoke-Probe 'whitespace-value' ('ConnectionStrings__Berruti=   ' + "`n" + $jwtEntry)
+Invoke-Probe 'empty-jwt-value' ($entry + "`nJwt__Key=")
+Invoke-Probe 'whitespace-jwt-value' ($entry + "`nJwt__Key=   ")
+Invoke-Probe 'malformed-line' ($both + "`nSYNTHETIC_MALFORMED")
+Invoke-Probe 'unknown-key' ($both + "`nOTHER=synthetic")
+Invoke-Probe 'duplicate-key' ($both + "`n" + $entry)
+Invoke-Probe 'duplicate-jwt-key' ($both + "`n" + $jwtEntry)
+Invoke-Probe 'wrong-case' ('connectionstrings__berruti=synthetic' + "`n" + $jwtEntry)
+Invoke-Probe 'wrong-case-jwt' ($entry + "`njwt__key=" + $jwtValue)
+Invoke-Probe 'jwt-colon-name-not-supported' ($entry + "`nJwt:Key=" + $jwtValue)
+Invoke-Probe 'export-not-supported' ('export ' + $entry + "`n" + $jwtEntry)
+Invoke-Probe 'export-jwt-not-supported' ($entry + "`nexport " + $jwtEntry)
+Invoke-Probe 'outer-quotes-not-supported' ('ConnectionStrings__Berruti="synthetic"' + "`n" + $jwtEntry)
+Invoke-Probe 'unbalanced-quote' ('ConnectionStrings__Berruti="synthetic' + "`n" + $jwtEntry)
+Invoke-Probe 'jwt-double-quotes-not-supported' ($entry + "`nJwt__Key=`"$jwtValue`"")
+Invoke-Probe 'jwt-single-quotes-not-supported' ($entry + "`nJwt__Key='$jwtValue'")
+Invoke-Probe 'jwt-unbalanced-quote' ($entry + "`nJwt__Key=`"$jwtValue")
+Invoke-Probe 'invalid-profile' $both -Profile 'invalid'
+Invoke-Probe 'https-forward-literal' ("# comment`n`n" + $both) -Valid $true
+Invoke-Probe 'jwt-first-order' ($jwtEntry + "`n" + $entry) -Valid $true
+Invoke-Probe 'http-profile' $both -Valid $true -Profile 'http'
+Invoke-Probe 'restore-child-nonzero' $both -Valid $true -ChildExit 17
+Invoke-Probe 'restore-absent-env' $both -Valid $true -AbsentPrevious
+Invoke-Probe 'restore-child-exception' $both -Valid $true -ThrowChild
 $privatePaths = @('src/Api/API-Berruti/API-Berruti/.env',
     'src/Api/API-Berruti/API-Berruti/.env.local', 'src/Api/API-Berruti/API-Berruti/.env.production',
     '.local/mysql-tests.json', 'src/Api/API-Berruti/API-Berruti/bin/probe.dll')
@@ -105,9 +123,9 @@ $examplePath = Join-Path $root $example
 $blankExample = (Test-Path -LiteralPath $examplePath)
 if ($blankExample) {
     $lines = @(Get-Content -LiteralPath $examplePath | Where-Object { $_.Trim() -ne '' -and !$_.Trim().StartsWith('#') })
-    $blankExample = $lines.Count -eq 1 -and $lines[0] -ceq 'ConnectionStrings__Berruti='
+    $blankExample = $lines.Count -eq 2 -and $lines[0] -ceq 'ConnectionStrings__Berruti=' -and $lines[1] -ceq 'Jwt__Key='
 }
-Check 'example-only-empty-key' $blankExample
+Check 'example-only-empty-keys' $blankExample
 Write-Output ("RESULT {0}/{1} PASS" -f ($script:count - $script:failures), $script:count)
 if ($script:failures -gt 0) { exit 1 }
 exit 0

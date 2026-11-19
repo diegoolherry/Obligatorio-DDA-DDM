@@ -6,6 +6,7 @@ public class Usuario
     public string Identificador { get; set; } = string.Empty;
     public string IdentificadorPublico { get; set; } = string.Empty;
     public string Correo { get; set; } = string.Empty;
+    // Hash con sal (IPasswordHasher<Usuario>), nunca la contraseña legible. Se conserva el nombre de columna.
     public string Contrasena { get; set; } = string.Empty;
     public bool Activo { get; set; } = true;
 }

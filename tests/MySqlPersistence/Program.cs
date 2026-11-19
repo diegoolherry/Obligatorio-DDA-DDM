@@ -4,12 +4,15 @@ using API_Berruti.Data;
 using API_Berruti.DTOs.Authentication;
 using API_Berruti.Repositories.Authentication;
 using API_Berruti.Services.Identifiers;
+using API_Berruti.Models.Authentication;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MySql.Data.MySqlClient;
 
 ICorrelativo correlativo = new Correlativo();
+IPasswordHasher<Usuario> hasher = new PasswordHasher<Usuario>();
 ICuentasRepository Cuentas(BerrutiDbContext contexto) =>
-    new CuentasRepository(contexto, new ContadoresRepository(contexto, correlativo));
+    new CuentasRepository(contexto, new ContadoresRepository(contexto, correlativo), hasher);
 var fallos = 0;
 void Comprobar(bool condicion, string nombre)
 {
@@ -164,6 +167,9 @@ try
             var usuarioFrontera = await repositorio.CrearUsuarioAsync(correoFrontera, "ficticia-local", rolUsuario.Identificador);
             Comprobar(usuarioFrontera.Identificador == $"US-{numero}", $"US-{numero} por alta pública");
             var leido = await repositorio.BuscarPorCorreoAsync(correoFrontera);
+            Comprobar(leido != null && leido.Contrasena != "ficticia-local" &&
+                hasher.VerifyHashedPassword(leido, leido.Contrasena, "ficticia-local") == PasswordVerificationResult.Success,
+                $"contraseña de US-{numero} persistida solo como hash que verifica");
             Comprobar(leido?.Identificador == $"US-{numero}" && leido.Activo &&
                 (await repositorio.ConsultarRolesAsync(usuarioFrontera.Identificador)).SequenceEqual(new[] { rolUsuario.Nombre }),
                 $"lectura pública y rol de US-{numero}");
@@ -200,6 +206,13 @@ try
     Comprobar((await Estado()).Rol == previo.Rol, "contador usuario no incrementa rol");
     Comprobar((await repositorio.BuscarPorCorreoAsync(correo))?.Identificador == usuario.Identificador &&
         (await repositorio.ConsultarRolesAsync(usuario.Identificador)).SequenceEqual(new[] { "Pasajero" }), "lectura cuenta y membresía");
+    var guardada = await contexto.Usuarios.AsNoTracking().Where(u => u.Identificador == usuario.Identificador)
+        .Select(u => u.Contrasena).SingleAsync();
+    Comprobar(guardada != "ficticia-local" && usuario.Contrasena == guardada &&
+        hasher.VerifyHashedPassword(usuario, guardada, "ficticia-local") == PasswordVerificationResult.Success &&
+        hasher.VerifyHashedPassword(usuario, guardada, "otra") == PasswordVerificationResult.Failed,
+        "contraseña persistida solo como hash que verifica");
+    Comprobar(!await contexto.Usuarios.AnyAsync(u => u.Contrasena == "ficticia-local"), "ninguna fila guarda la contraseña legible");
     previo = await Estado();
     try { await repositorio.CrearUsuarioAsync(correo, "ficticia-local", rol.Identificador); Comprobar(false, "unicidad rechaza duplicado"); }
     catch (DbUpdateException) { Comprobar(true, "unicidad rechaza duplicado"); }

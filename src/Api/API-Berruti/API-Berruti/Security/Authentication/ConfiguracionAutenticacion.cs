@@ -1,9 +1,12 @@
 using API_Berruti.Data;
+using API_Berruti.Models.Authentication;
 using API_Berruti.Repositories.Authentication;
 using API_Berruti.Services.Authentication;
 using API_Berruti.Services.Identifiers;
-using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using MySql.Data.MySqlClient;
 
 namespace API_Berruti.Security.Authentication;
@@ -40,10 +43,36 @@ public static class ConfiguracionAutenticacion
         servicios.AddScoped<ICorrelativo, Correlativo>();
         servicios.AddScoped<IContadoresRepository, ContadoresRepository>();
         servicios.AddScoped<ICuentasRepository, CuentasRepository>();
-        servicios.AddScoped<ISesionesRepository, SesionesRepository>();
+        // Hash con sal y costo de ASP.NET Core Identity; solo se registra el hasher, no el sistema de usuarios de Identity.
+        servicios.AddSingleton<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>();
+        servicios.AddSingleton(new EmisorJwt(configuracion));
         servicios.AddScoped<IAutenticacionService, AutenticacionService>();
-        servicios.AddAuthentication("Bearer")
-            .AddScheme<AuthenticationSchemeOptions, SesionBearerHandler>("Bearer", _ => { });
+        servicios.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(opciones =>
+            {
+                // Se lee al construir las opciones (primer uso), no al registrar: construir DI no exige configuración.
+                var jwt = ConfiguracionJwt.Leer(configuracion);
+                opciones.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true, ValidIssuer = jwt.Emisor,
+                    ValidateAudience = true, ValidAudience = jwt.Audiencia,
+                    ValidateIssuerSigningKey = true, IssuerSigningKey = jwt.Clave,
+                    ValidateLifetime = true,
+                    // Solo HS256 con la clave local; rechaza `alg: none` y otros algoritmos.
+                    ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 }
+                };
+                opciones.Events = new JwtBearerEvents
+                {
+                    // Mismo 401 que antes para ausente, inválido o vencido, sin revelar el motivo.
+                    OnChallenge = contexto =>
+                    {
+                        contexto.HandleResponse();
+                        contexto.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        contexto.Response.Headers.WWWAuthenticate = "Bearer";
+                        return Task.CompletedTask;
+                    }
+                };
+            });
         servicios.AddAuthorization();
         return servicios;
     }

@@ -1,3 +1,7 @@
+-- OBSOLETO desde FIN-005: el esquema vigente lo crean las migraciones de EF Core (--reset-local o
+-- scripts/reset-local-db.ps1). Este DDL histórico no se usa para bases nuevas. La columna contrasena
+-- guarda únicamente el hash con sal de IPasswordHasher<Usuario> (VARCHAR(255) alcanza), nunca texto
+-- legible, y la tabla sesion fue eliminada por la migración QuitarSesion (JWT sin estado).
 -- SOLO berrutilocal existente. Propuesta T6 para revisión MANUAL administrativa.
 -- NO ejecutar el archivo completo: seleccionar UNA sentencia y parar al primer error.
 -- La aplicación no debe estar ejecutándose; excluir otros escritores/administradores.

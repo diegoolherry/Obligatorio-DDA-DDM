@@ -73,44 +73,6 @@ namespace API_Berruti.Data.Migrations
                         });
                 });
 
-            modelBuilder.Entity("API_Berruti.Models.Authentication.Sesion", b =>
-                {
-                    b.Property<string>("Huella")
-                        .HasColumnType("char(64)")
-                        .HasColumnName("huella")
-                        .HasAnnotation("MySQL:Charset", "ascii")
-                        .HasAnnotation("MySQL:Collation", "ascii_bin");
-
-                    b.Property<DateTime>("CreadaUtc")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("creada_utc");
-
-                    b.Property<DateTime?>("RevocadaUtc")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("revocada_utc");
-
-                    b.Property<string>("UsuarioId")
-                        .IsRequired()
-                        .HasMaxLength(8)
-                        .HasColumnType("varchar(8)")
-                        .HasColumnName("usuario_id")
-                        .HasAnnotation("MySQL:Charset", "ascii")
-                        .HasAnnotation("MySQL:Collation", "ascii_bin");
-
-                    b.Property<DateTime>("VenceUtc")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("vence_utc");
-
-                    b.HasKey("Huella");
-
-                    b.HasIndex("UsuarioId");
-
-                    b.ToTable("sesion", null, t =>
-                        {
-                            t.HasCheckConstraint("ck_sesion_vence", "vence_utc = DATE_ADD(creada_utc, INTERVAL 7 DAY)");
-                        });
-                });
-
             modelBuilder.Entity("API_Berruti.Models.Authentication.Usuario", b =>
                 {
                     b.Property<string>("Identificador")
@@ -637,16 +599,6 @@ namespace API_Berruti.Data.Migrations
                     b.HasIndex("OrigenId");
 
                     b.ToTable("tramo", (string)null);
-                });
-
-            modelBuilder.Entity("API_Berruti.Models.Authentication.Sesion", b =>
-                {
-                    b.HasOne("API_Berruti.Models.Authentication.Usuario", null)
-                        .WithMany()
-                        .HasForeignKey("UsuarioId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_sesion_usuario");
                 });
 
             modelBuilder.Entity("API_Berruti.Models.Authentication.UsuarioRol", b =>

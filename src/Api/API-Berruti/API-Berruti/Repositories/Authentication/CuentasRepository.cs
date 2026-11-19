@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using API_Berruti.Data;
 using API_Berruti.DTOs.Authentication;
 using API_Berruti.Models.Authentication;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace API_Berruti.Repositories.Authentication;
@@ -10,10 +11,12 @@ public class CuentasRepository : ICuentasRepository
 {
     private readonly BerrutiDbContext _contexto;
     private readonly IContadoresRepository _contadores;
-    public CuentasRepository(BerrutiDbContext contexto, IContadoresRepository contadores)
+    private readonly IPasswordHasher<Usuario> _hasher;
+    public CuentasRepository(BerrutiDbContext contexto, IContadoresRepository contadores, IPasswordHasher<Usuario> hasher)
     {
         _contexto = contexto;
         _contadores = contadores;
+        _hasher = hasher;
     }
 
     public async Task<Rol> CrearRolAsync(RolIngreso nombre)
@@ -49,8 +52,10 @@ public class CuentasRepository : ICuentasRepository
         if (_contexto.ChangeTracker.HasChanges())
             throw new InvalidOperationException("El contexto debe estar libre de cambios pendientes.");
         await using var transaccion = await _contexto.Database.BeginTransactionAsync();
-        var usuario = new Usuario { Correo = correo, Contrasena = contrasena,
+        var usuario = new Usuario { Correo = correo,
             IdentificadorPublico = API_Berruti.Security.Authentication.PoliticaSesion.NuevoToken() };
+        // Único punto de escritura de la contraseña: se recibe en texto plano y solo se guarda el hash con sal.
+        usuario.Contrasena = _hasher.HashPassword(usuario, contrasena);
         var membresia = new UsuarioRol { RolId = rolId };
         try
         {
@@ -71,7 +76,7 @@ public class CuentasRepository : ICuentasRepository
         }
     }
 
-    // Devuelve entidades solo a servicios internos; no serializar ni registrar contraseñas.
+    // Devuelve entidades solo a servicios internos; no serializar ni registrar el hash de la contraseña.
     public Task<Usuario?> BuscarPorCorreoAsync(string correo) =>
         _contexto.Usuarios.AsNoTracking().SingleOrDefaultAsync(u => u.Correo == correo);
 

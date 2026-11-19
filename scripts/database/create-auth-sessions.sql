@@ -1,3 +1,5 @@
+-- OBSOLETO desde FIN-005: la tabla sesion fue eliminada por la migración QuitarSesion (JWT sin estado).
+-- No crear ni reutilizar esta tabla. Se conserva solo como historial de la propuesta T2.
 -- SOLO berrutiauthtests, propuesta T2 para revisión MANUAL administrativa.
 -- NO ejecutar el archivo completo. Ejecutar UNA sentencia por vez y parar al error.
 -- NO crea bases ni grants, NO altera/borrra tablas ni reinicia contadores.

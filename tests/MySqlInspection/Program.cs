@@ -39,7 +39,7 @@ await Probar("tablas vacías sin semilla, metadatos y objetos extra", c => { }, 
 {
     Correcta(c, n, s, e);
     Exigir(s.Contains("Conteo usuario: 0") && s.Contains("Contadores:") && s.Contains("vista_extra"), "metadatos y ceros");
-    Exigir(c.Consultas.Count(q => q.StartsWith("SELECT COUNT(*) FROM `berrutiauthtests`.")) == 5, "solo cinco tablas conocidas");
+    Exigir(c.Consultas.Count(q => q.StartsWith("SELECT COUNT(*) FROM `berrutiauthtests`.")) == 4, "solo cuatro tablas conocidas");
     Exigir(!c.Consultas.Any(q => q.Contains("FROM `berrutiauthtests`.`vista_extra`") || q.Contains("FROM `berrutiauthtests`.`extra`")), "no contar extras/vistas");
     Exigir(!c.Consultas.Any(q => q.Contains("COLUMN_DEFAULT") || q.Contains("COMMENT") || q.Contains("ACTION_STATEMENT") || q.Contains("CHECK_CLAUSE")), "sin SQL/defaults/cuerpos");
     Exigir(s.Contains("FOREIGN KEY") && s.Contains("BEFORE"), "claves y trigger sin cuerpo");
@@ -137,7 +137,7 @@ sealed class ConexionFalsa : DbConnection
             if (Vacio) return Filas(3);
             return Filas(3, ["usuario", VistaUsuario ? "VIEW" : "BASE TABLE", "InnoDB"], ["rol", "BASE TABLE", "InnoDB"],
                 ["usuario_rol", "BASE TABLE", "InnoDB"], ["contador_entidad", "BASE TABLE", "InnoDB"],
-                ["sesion", "BASE TABLE", "InnoDB"], ["vista_extra", "VIEW", DBNull.Value], ["extra", "BASE TABLE", "InnoDB"]);
+                ["vista_extra", "VIEW", DBNull.Value], ["extra", "BASE TABLE", "InnoDB"]);
         }
         if (sql.Contains("information_schema.COLUMNS")) return Vacio ? Filas(5) : Filas(5,
             ["contador_entidad", "prefijo", "varchar", "NO", "ascii_bin"],
@@ -147,7 +147,7 @@ sealed class ConexionFalsa : DbConnection
         if (sql.Contains("information_schema.TRIGGERS")) return Filas(4, ["trigger_extra", "usuario", "BEFORE", "INSERT"]);
         if (sql.StartsWith("SELECT COUNT(*) FROM `berrutiauthtests`."))
         {
-            if (!new[] { "usuario", "rol", "usuario_rol", "contador_entidad", "sesion" }.Any(t => sql == $"SELECT COUNT(*) FROM `berrutiauthtests`.`{t}`"))
+            if (!new[] { "usuario", "rol", "usuario_rol", "contador_entidad" }.Any(t => sql == $"SELECT COUNT(*) FROM `berrutiauthtests`.`{t}`"))
                 throw new Exception("conteo no permitido");
             return Filas(1, [0L]);
         }
@@ -157,7 +157,7 @@ sealed class ConexionFalsa : DbConnection
         throw new Exception("consulta no permitida");
     }
     public static bool EsPermitida(string sql) => Permitidas.Contains(sql) ||
-        new[] { "usuario", "rol", "usuario_rol", "contador_entidad", "sesion" }
+        new[] { "usuario", "rol", "usuario_rol", "contador_entidad" }
             .Any(t => sql == $"SELECT COUNT(*) FROM `berrutiauthtests`.`{t}`");
     private static readonly HashSet<string> Permitidas = new()
     {
