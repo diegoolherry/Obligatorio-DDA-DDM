@@ -14,6 +14,7 @@ import { ItinerarySearchService } from './src/services/Itinerary/ItinerarySearch
 import type { IItinerarySearchService } from './src/services/Itinerary/IItinerarySearchService';
 import type { ILocationService } from './src/services/Location/ILocationService';
 import { LocationService } from './src/services/Location/LocationService';
+import { PurchaseService } from './src/services/Purchase/PurchaseService';
 
 type Screen = 'buscar' | 'ingreso' | 'compartir' | 'ubicacion';
 
@@ -24,9 +25,11 @@ export default function App() {
   const [itineraries] = useState<IItinerarySearchService>(
     () => new ItinerarySearchService(process.env.EXPO_PUBLIC_API_URL),
   );
+  const [purchase] = useState(() => new PurchaseService(authentication));
   // The location service asks the session to send its requests: the token stays inside it.
   const [location] = useState<ILocationService>(() => new LocationService(authentication));
   const [screen, setScreen] = useState<Screen>('buscar');
+  const [sessionEpoch, setSessionEpoch] = useState(0);
   // The in-memory session outlives tab switches and is discarded only when the app root unmounts.
   useEffect(() => () => authentication.discard(), [authentication]);
   return (
@@ -41,8 +44,10 @@ export default function App() {
             <Tab label="Compartir ubicación" selected={screen === 'compartir'} onPress={() => setScreen('compartir')} />
             <Tab label="Ubicación del servicio" selected={screen === 'ubicacion'} onPress={() => setScreen('ubicacion')} />
           </View>
-          {screen === 'buscar' && <ItinerarySearch service={itineraries} />}
-          {screen === 'ingreso' && <PassengerLogin service={authentication} />}
+          <View className={screen === 'buscar' ? 'flex-1' : 'hidden'}>
+            <ItinerarySearch service={itineraries} authentication={authentication} purchase={purchase} sessionEpoch={sessionEpoch} />
+          </View>
+          {screen === 'ingreso' && <PassengerLogin service={authentication} onSessionChanged={() => setSessionEpoch(epoch => epoch + 1)} />}
           {/* Stays mounted while hidden so the collector keeps sharing from any tab (foreground only). */}
           <View className={screen === 'compartir' ? 'flex-1' : 'hidden'}>
             <LocationSharing session={authentication} service={location} />

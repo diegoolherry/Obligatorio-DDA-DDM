@@ -7,6 +7,7 @@ using API_Berruti.DTOs.Operational;
 using API_Berruti.Models.Operational;
 using API_Berruti.Repositories.Operational;
 using API_Berruti.Services.Operational;
+using API_Berruti.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -20,6 +21,7 @@ internal static class OperationalExecutableChecks
         await CheckAuthorizationAsync(check);
         await CheckServiceScheduleAsync(check);
         CheckDemoScenario(check);
+        CheckDepartureStopSequence(check);
         CheckDecimalRangeValidation(check);
         await ItinerarySearchChecks.RunAsync(check);
         await ServiciosFechaChecks.RunAsync(check);
@@ -61,10 +63,48 @@ internal static class OperationalExecutableChecks
             "invalid schedule update leaves the stored service unchanged");
     }
 
+    private static void CheckDepartureStopSequence(Action<bool, string> check)
+    {
+        var assembly = typeof(Servicio).Assembly;
+        var occurrenceType = assembly.GetType("API_Berruti.Models.Operational.ParadaSalida");
+        check(occurrenceType is not null, "departure stop occurrence model exists");
+        if (occurrenceType is null) return;
+
+        var properties = occurrenceType.GetProperties().ToDictionary(property => property.Name);
+        check(properties.TryGetValue("SalidaId", out var salidaId) && salidaId.PropertyType == typeof(string) &&
+            properties.TryGetValue("Orden", out var order) && order.PropertyType == typeof(int) &&
+            properties.TryGetValue("ParadaId", out var paradaId) && paradaId.PropertyType == typeof(string),
+            "departure stop occurrence has only the approved typed key and stop reference");
+
+        var scenario = EscenarioOperativoDemo.Construir(new DateTime(2031, 5, 12));
+        var stopsProperty = scenario.GetType().GetProperty("ParadasSalida");
+        var stops = (stopsProperty?.GetValue(scenario) as System.Collections.IEnumerable)?.Cast<object>().ToArray() ?? [];
+        check(stops.Length == 2 && stops.All(item => (string?)properties["SalidaId"].GetValue(item) == "SA-1") &&
+            stops.Select(item => (int)properties["Orden"].GetValue(item)!).SequenceEqual(new[] { 1, 2 }),
+            "demo departure has two ordered stop occurrences");
+        check(scenario.Servicios[0].OrdenEmbarque is null && scenario.Servicios[0].OrdenDesembarque is null &&
+            scenario.Servicios[1].OrdenEmbarque == 1 && scenario.Servicios[1].OrdenDesembarque == 2 &&
+            stops.Select(item => (string?)properties["ParadaId"].GetValue(item))
+                .SequenceEqual(new[] { scenario.Paradas[1].Id, scenario.Paradas[2].Id }),
+            "demo leaves first service bounds absent and maps second service to Radial through Colonia");
+        check(scenario.Servicios[0].SalidaId is null && scenario.Servicios[0].Capacidad == 30 &&
+            scenario.Servicios[0].PoliticaAsiento == PoliticaAsiento.SinAsiento &&
+            scenario.Servicios[1].SalidaId == "SA-1" && scenario.Servicios[1].Capacidad == 46 &&
+            scenario.Servicios[1].PoliticaAsiento == PoliticaAsiento.AsignacionAutomatica,
+            "demo keeps first no-seat service unchanged and links second service to departure");
+        check(properties.ContainsKey("Orden") && occurrenceType.GetProperties().Length == 3 &&
+            scenario.GetType().GetConstructor(new[] { typeof(IReadOnlyList<API_Berruti.Models.Operational.Parada>),
+                typeof(IReadOnlyList<API_Berruti.Models.Operational.Tramo>), typeof(IReadOnlyList<Servicio>),
+                typeof(IReadOnlyList<API_Berruti.Models.Operational.Tarifa>) }) is not null,
+            "scenario preserves the four-parameter positional constructor");
+    }
+
     private static void CheckDemoScenario(Action<bool, string> check)
     {
         var date = new DateTime(2031, 5, 12, 17, 45, 0);
         var scenario = API_Berruti.Data.EscenarioOperativoDemo.Construir(date);
+        check(typeof(API_Berruti.Data.EscenarioOperativo).GetConstructors().Any(constructor => constructor.GetParameters().Length == 4),
+            "demo scenario preserves its original four-argument positional constructor");
         check(scenario.Paradas.Count == 3 && scenario.Tramos.Count == 2 && scenario.Servicios.Count == 2 && scenario.Tarifas.Count == 2,
             "demo scenario has 3 stops, 2 tramos, 2 services, and 2 tariffs");
         check(scenario.Paradas.Select(p => p.Nombre).SequenceEqual(["Ombúes", "Radial de Conchillas", "Colonia"]) &&
@@ -75,8 +115,30 @@ internal static class OperationalExecutableChecks
             scenario.Tarifas[0].TramoId == scenario.Tramos[0].Id && scenario.Tarifas[1].TramoId == scenario.Tramos[1].Id,
             "demo services and tariffs reference their tramo IDs");
         check(scenario.Servicios[0].PoliticaAsiento == PoliticaAsiento.SinAsiento && scenario.Servicios[0].Capacidad == 30 &&
-            scenario.Servicios[1].PoliticaAsiento == PoliticaAsiento.AsignacionAutomatica && scenario.Servicios[1].Capacidad == 40,
+            scenario.Servicios[1].PoliticaAsiento == PoliticaAsiento.AsignacionAutomatica && scenario.Servicios[1].Capacidad == 46,
             "demo services keep capacity and seat policies");
+        var departures = scenario.GetType().GetProperty("Salidas")?.GetValue(scenario) as System.Collections.IEnumerable;
+        var departure = departures?.Cast<object>().SingleOrDefault();
+        var inventory = scenario.GetType().GetProperty("AsientosSalida")?.GetValue(scenario) as System.Collections.IEnumerable;
+        string? DepartureId(object? value) => value?.GetType().GetProperty("Id")?.GetValue(value) as string;
+        object? ServiceDepartureId(Servicio service) => service.GetType().GetProperty("SalidaId")?.GetValue(service);
+        check(departure != null && DepartureId(departure) == "SA-1" &&
+            Equals(departure.GetType().GetProperty("Fecha")?.GetValue(departure), DateOnly.FromDateTime(date)) &&
+            ServiceDepartureId(scenario.Servicios[0]) is null && Equals(ServiceDepartureId(scenario.Servicios[1]), DepartureId(departure)),
+            "demo uses one local-date departure and links only the second service");
+        var seats = inventory?.Cast<object>().ToArray() ?? [];
+        var seatNumbers = seats.Select(a => (int?)a.GetType().GetProperty("NumeroAsiento")?.GetValue(a)).ToArray();
+        var seatDepartureIds = seats.Select(a => a.GetType().GetProperty("SalidaId")?.GetValue(a) as string).ToArray();
+        check(seats.Length == 46 && seatNumbers.Order().SequenceEqual(Enumerable.Range(1, 46).Select(n => (int?)n)) &&
+            seatDepartureIds.All(id => id == "SA-1") && seatDepartureIds.Distinct().Count() == 1,
+            "demo departure inventory contains distinct seats 1 through 46 for the same departure");
+        var secondScenario = API_Berruti.Data.EscenarioOperativoDemo.Construir(date.AddDays(1));
+        var secondDeparture = (secondScenario.GetType().GetProperty("Salidas")?.GetValue(secondScenario) as System.Collections.IEnumerable)?.Cast<object>().SingleOrDefault();
+        var secondSeats = (secondScenario.GetType().GetProperty("AsientosSalida")?.GetValue(secondScenario) as System.Collections.IEnumerable)?.Cast<object>().ToArray() ?? [];
+        check(secondDeparture != null && !ReferenceEquals(secondDeparture, departure) && secondSeats.Length > 0 &&
+            seats.Length > 0 && !ReferenceEquals(secondSeats[0], seats[0]) &&
+            Equals(ServiceDepartureId(secondScenario.Servicios[1]), DepartureId(secondDeparture)),
+            "separate demo fixtures do not share mutable departure or inventory instances");
         check(scenario.Servicios.All(s => s.Llegada > s.Salida && s.Salida.Date == date.Date && s.Llegada.Date == date.Date) &&
             scenario.Servicios[0].Salida == date.Date.AddHours(8) && scenario.Servicios[1].Llegada == date.Date.AddHours(10),
             "demo services run on the given date with arrival after departure");

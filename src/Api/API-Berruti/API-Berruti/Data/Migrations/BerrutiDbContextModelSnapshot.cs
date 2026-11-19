@@ -36,7 +36,7 @@ namespace API_Berruti.Data.Migrations
 
                     b.ToTable("contador_entidad", null, t =>
                         {
-                            t.HasCheckConstraint("ck_contador_prefijo", "prefijo IN ('US-', 'RO-')");
+                            t.HasCheckConstraint("ck_contador_prefijo", "prefijo IN ('US-', 'RO-', 'SA-', 'IC-', 'PG-', 'CO-', 'CS-', 'TI-')");
 
                             t.HasCheckConstraint("ck_contador_rango", "ultimo BETWEEN 0 AND 50000");
                         });
@@ -472,6 +472,346 @@ namespace API_Berruti.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("API_Berruti.Models.Operational.AsientoSalida", b =>
+                {
+                    b.Property<string>("SalidaId")
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("salida_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<int>("NumeroAsiento")
+                        .HasColumnType("int")
+                        .HasColumnName("numero_asiento");
+
+                    b.HasKey("SalidaId", "NumeroAsiento");
+
+                    b.ToTable("asiento_salida", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_asiento_salida_numero", "numero_asiento >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.Compra", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("compra_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<DateTime>("ConfirmadoUtc")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("confirmado_utc");
+
+                    b.Property<decimal>("ImporteTotal")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("importe_total");
+
+                    b.Property<string>("IntentoId")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("intento_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<string>("PagoId")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("pago_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "IntentoId", "PagoId")
+                        .HasName("ak_compra_intento_pago");
+
+                    b.HasIndex("IntentoId")
+                        .IsUnique()
+                        .HasDatabaseName("uq_compra_intento");
+
+                    b.HasIndex("PagoId")
+                        .IsUnique()
+                        .HasDatabaseName("uq_compra_pago");
+
+                    b.HasIndex("PagoId", "IntentoId");
+
+                    b.ToTable("compra", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_compra_id", "compra_id REGEXP '^CO-([1-9][0-9]{0,3}|[1-4][0-9]{4}|50000)$'");
+
+                            t.HasCheckConstraint("ck_compra_importe", "importe_total > 0");
+                        });
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.CompraServicio", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("compra_servicio_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<string>("CompraId")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("compra_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<decimal>("Importe")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("importe");
+
+                    b.Property<string>("IntentoId")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("intento_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("int")
+                        .HasColumnName("orden");
+
+                    b.Property<string>("PagoId")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("pago_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompraId", "Orden")
+                        .IsUnique()
+                        .HasDatabaseName("uq_compra_servicio_orden");
+
+                    b.HasIndex("PagoId", "Orden");
+
+                    b.HasIndex("CompraId", "IntentoId", "PagoId");
+
+                    b.ToTable("compra_servicio", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_compra_servicio_id", "compra_servicio_id REGEXP '^CS-([1-9][0-9]{0,3}|[1-4][0-9]{4}|50000)$'");
+
+                            t.HasCheckConstraint("ck_compra_servicio_importe", "importe >= 0");
+
+                            t.HasCheckConstraint("ck_compra_servicio_orden", "orden >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.HoldAsiento", b =>
+                {
+                    b.Property<string>("IntentoId")
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("intento_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("int")
+                        .HasColumnName("orden");
+
+                    b.Property<int>("NumeroAsiento")
+                        .HasColumnType("int")
+                        .HasColumnName("numero_asiento");
+
+                    b.Property<int>("OrdenDesembarque")
+                        .HasColumnType("int")
+                        .HasColumnName("orden_desembarque");
+
+                    b.Property<int>("OrdenEmbarque")
+                        .HasColumnType("int")
+                        .HasColumnName("orden_embarque");
+
+                    b.Property<string>("SalidaId")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("salida_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.HasKey("IntentoId", "Orden");
+
+                    b.HasIndex("SalidaId", "NumeroAsiento")
+                        .HasDatabaseName("ix_hold_asiento_inventario");
+
+                    b.HasIndex("SalidaId", "OrdenDesembarque");
+
+                    b.HasIndex("SalidaId", "OrdenEmbarque");
+
+                    b.ToTable("hold_asiento", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_hold_asiento_intervalo", "orden_embarque >= 1 AND orden_embarque < orden_desembarque");
+
+                            t.HasCheckConstraint("ck_hold_asiento_numero", "numero_asiento >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.IntentoCompra", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("intento_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<DateTime>("CreadoUtc")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("creado_utc");
+
+                    b.Property<DateTime>("HoldVenceUtc")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("hold_vence_utc");
+
+                    b.Property<string>("UsuarioId")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("usuario_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UsuarioId");
+
+                    b.ToTable("intento_compra", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_intento_compra_plazo", "hold_vence_utc > creado_utc");
+                        });
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.Pago", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("pago_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<DateTime>("ActualizadoUtc")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("actualizado_utc");
+
+                    b.Property<string>("CheckoutUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("varchar(2048)")
+                        .HasColumnName("checkout_url");
+
+                    b.Property<Guid>("ClaveCreacion")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("clave_creacion")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<Guid?>("ClaveDevolucion")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("clave_devolucion")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<DateTime>("CreadoUtc")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("creado_utc");
+
+                    b.Property<DateTime?>("DevolucionConfirmadaUtc")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("devolucion_confirmada_utc");
+
+                    b.Property<DateTime?>("DevolucionSolicitadaUtc")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("devolucion_solicitada_utc");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("varchar(24)")
+                        .HasColumnName("estado");
+
+                    b.Property<decimal>("ImporteEsperado")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("importe_esperado");
+
+                    b.Property<decimal>("ImportePagado")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("importe_pagado");
+
+                    b.Property<string>("IntentoId")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("intento_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<string>("Moneda")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("varchar(3)")
+                        .HasColumnName("moneda")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<string>("OrdenProveedorId")
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)")
+                        .HasColumnName("orden_proveedor_id");
+
+                    b.Property<DateTime?>("UltimaVerificacionUtc")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("ultima_verificacion_utc");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("Id", "IntentoId")
+                        .HasName("ak_pago_intento");
+
+                    b.HasIndex("ClaveCreacion")
+                        .IsUnique()
+                        .HasDatabaseName("uq_pago_clave_creacion");
+
+                    b.HasIndex("ClaveDevolucion")
+                        .IsUnique()
+                        .HasDatabaseName("uq_pago_clave_devolucion");
+
+                    b.HasIndex("OrdenProveedorId")
+                        .IsUnique()
+                        .HasDatabaseName("uq_pago_orden_proveedor");
+
+                    b.HasIndex("IntentoId", "CreadoUtc")
+                        .HasDatabaseName("ix_pago_intento_creado");
+
+                    b.ToTable("pago", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_pago_estado", "estado IN ('Pendiente', 'Desconocido', 'Aprobado', 'Rechazado', 'DevolucionPendiente', 'Devuelto')");
+
+                            t.HasCheckConstraint("ck_pago_id", "pago_id REGEXP '^PG-([1-9][0-9]{0,3}|[1-4][0-9]{4}|50000)$'");
+
+                            t.HasCheckConstraint("ck_pago_importes", "importe_esperado > 0 AND importe_pagado >= 0 AND importe_pagado <= importe_esperado");
+
+                            t.HasCheckConstraint("ck_pago_moneda", "moneda = 'UYU'");
+                        });
+                });
+
             modelBuilder.Entity("API_Berruti.Models.Operational.Parada", b =>
                 {
                     b.Property<string>("Id")
@@ -490,6 +830,56 @@ namespace API_Berruti.Data.Migrations
                     b.ToTable("parada", (string)null);
                 });
 
+            modelBuilder.Entity("API_Berruti.Models.Operational.ParadaSalida", b =>
+                {
+                    b.Property<string>("SalidaId")
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("salida_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("int")
+                        .HasColumnName("orden");
+
+                    b.Property<string>("ParadaId")
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("parada_id");
+
+                    b.HasKey("SalidaId", "Orden");
+
+                    b.HasIndex("ParadaId");
+
+                    b.ToTable("parada_salida", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_parada_salida_orden", "orden >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.Salida", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("salida_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<DateOnly>("Fecha")
+                        .HasColumnType("date")
+                        .HasColumnName("fecha");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("salida", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_salida_id", "salida_id REGEXP '^SA-([1-9][0-9]{0,3}|[1-4][0-9]{4}|50000)$'");
+                        });
+                });
+
             modelBuilder.Entity("API_Berruti.Models.Operational.Servicio", b =>
                 {
                     b.Property<string>("Id")
@@ -504,6 +894,14 @@ namespace API_Berruti.Data.Migrations
                     b.Property<DateTime>("Llegada")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("llegada");
+
+                    b.Property<int?>("OrdenDesembarque")
+                        .HasColumnType("int")
+                        .HasColumnName("orden_desembarque");
+
+                    b.Property<int?>("OrdenEmbarque")
+                        .HasColumnType("int")
+                        .HasColumnName("orden_embarque");
 
                     b.Property<string>("PoliticaAsiento")
                         .IsRequired()
@@ -520,6 +918,13 @@ namespace API_Berruti.Data.Migrations
                         .HasColumnType("varchar(36)")
                         .HasColumnName("salida_catalogo_id");
 
+                    b.Property<string>("SalidaId")
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("salida_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
                     b.Property<string>("TramoId")
                         .IsRequired()
                         .HasMaxLength(36)
@@ -528,7 +933,14 @@ namespace API_Berruti.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("SalidaId")
+                        .HasDatabaseName("IX_servicio_salida_id");
+
                     b.HasIndex("TramoId");
+
+                    b.HasIndex("SalidaId", "OrdenDesembarque");
+
+                    b.HasIndex("SalidaId", "OrdenEmbarque");
 
                     b.HasIndex("SalidaCatalogoId", "TramoId", "Salida")
                         .IsUnique()
@@ -537,6 +949,8 @@ namespace API_Berruti.Data.Migrations
                     b.ToTable("servicio", null, t =>
                         {
                             t.HasCheckConstraint("ck_servicio_llegada", "llegada > salida");
+
+                            t.HasCheckConstraint("ck_servicio_rango_paradas", "((orden_embarque IS NULL AND orden_desembarque IS NULL) OR (salida_id IS NOT NULL AND orden_embarque IS NOT NULL AND orden_desembarque IS NOT NULL AND orden_embarque < orden_desembarque))");
                         });
                 });
 
@@ -573,6 +987,51 @@ namespace API_Berruti.Data.Migrations
                     b.ToTable("tarifa", (string)null);
                 });
 
+            modelBuilder.Entity("API_Berruti.Models.Operational.Ticket", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("ticket_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<string>("CompraServicioId")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("compra_servicio_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<DateTime>("EmitidoUtc")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("emitido_utc");
+
+                    b.Property<string>("QrOpaco")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("qr_opaco")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompraServicioId")
+                        .IsUnique()
+                        .HasDatabaseName("uq_ticket_compra_servicio");
+
+                    b.HasIndex("QrOpaco")
+                        .IsUnique()
+                        .HasDatabaseName("uq_ticket_qr_opaco");
+
+                    b.ToTable("ticket", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_ticket_id", "ticket_id REGEXP '^TI-([1-9][0-9]{0,3}|[1-4][0-9]{4}|50000)$'");
+                        });
+                });
+
             modelBuilder.Entity("API_Berruti.Models.Operational.Tramo", b =>
                 {
                     b.Property<string>("Id")
@@ -599,6 +1058,151 @@ namespace API_Berruti.Data.Migrations
                     b.HasIndex("OrigenId");
 
                     b.ToTable("tramo", (string)null);
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.TramoIntentoCompra", b =>
+                {
+                    b.Property<string>("IntentoId")
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("intento_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("int")
+                        .HasColumnName("orden");
+
+                    b.Property<string>("DestinoId")
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("destino_id");
+
+                    b.Property<string>("DestinoNombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("destino_nombre");
+
+                    b.Property<decimal>("Importe")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("importe");
+
+                    b.Property<DateTime>("Llegada")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("llegada");
+
+                    b.Property<int?>("NumeroAsiento")
+                        .HasColumnType("int")
+                        .HasColumnName("numero_asiento");
+
+                    b.Property<int?>("OrdenDesembarque")
+                        .HasColumnType("int")
+                        .HasColumnName("orden_desembarque");
+
+                    b.Property<int?>("OrdenEmbarque")
+                        .HasColumnType("int")
+                        .HasColumnName("orden_embarque");
+
+                    b.Property<string>("OrigenId")
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("origen_id");
+
+                    b.Property<string>("OrigenNombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("origen_nombre");
+
+                    b.Property<string>("PoliticaAsiento")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("varchar(24)")
+                        .HasColumnName("politica_asiento");
+
+                    b.Property<DateTime>("Salida")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("salida");
+
+                    b.Property<string>("SalidaId")
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("salida_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<string>("ServicioId")
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("servicio_id");
+
+                    b.Property<string>("TramoId")
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("varchar(36)")
+                        .HasColumnName("tramo_id");
+
+                    b.HasKey("IntentoId", "Orden");
+
+                    b.HasIndex("SalidaId");
+
+                    b.HasIndex("ServicioId")
+                        .HasDatabaseName("ix_tramo_intento_servicio");
+
+                    b.ToTable("tramo_intento_compra", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_tramo_intento_asiento", "(numero_asiento IS NULL AND salida_id IS NULL AND orden_embarque IS NULL AND orden_desembarque IS NULL) OR (numero_asiento IS NOT NULL AND salida_id IS NOT NULL AND orden_embarque IS NOT NULL AND orden_desembarque IS NOT NULL AND orden_embarque < orden_desembarque)");
+
+                            t.HasCheckConstraint("ck_tramo_intento_importe", "importe >= 0");
+
+                            t.HasCheckConstraint("ck_tramo_intento_llegada", "llegada > salida");
+
+                            t.HasCheckConstraint("ck_tramo_intento_orden", "orden >= 1");
+                        });
+                });
+            modelBuilder.Entity("API_Berruti.Models.Operational.TramoPago", b =>
+                {
+                    b.Property<string>("PagoId")
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("pago_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("int")
+                        .HasColumnName("orden");
+
+                    b.Property<decimal>("Importe")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("importe");
+
+                    b.Property<string>("IntentoId")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("intento_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
+                    b.HasKey("PagoId", "Orden");
+
+                    b.HasIndex("IntentoId", "Orden");
+
+                    b.HasIndex("PagoId", "IntentoId");
+
+                    b.ToTable("tramo_pago", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_tramo_pago_importe", "importe >= 0");
+
+                            t.HasCheckConstraint("ck_tramo_pago_orden", "orden >= 1");
+                        });
                 });
 
             modelBuilder.Entity("API_Berruti.Models.Authentication.UsuarioRol", b =>
@@ -695,6 +1299,120 @@ namespace API_Berruti.Data.Migrations
                         .HasConstraintName("fk_posicion_asignacion");
                 });
 
+            modelBuilder.Entity("API_Berruti.Models.Operational.AsientoSalida", b =>
+                {
+                    b.HasOne("API_Berruti.Models.Operational.Salida", null)
+                        .WithMany()
+                        .HasForeignKey("SalidaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_asiento_salida_salida");
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.Compra", b =>
+                {
+                    b.HasOne("API_Berruti.Models.Operational.IntentoCompra", null)
+                        .WithMany()
+                        .HasForeignKey("IntentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_compra_intento");
+
+                    b.HasOne("API_Berruti.Models.Operational.Pago", null)
+                        .WithMany()
+                        .HasForeignKey("PagoId", "IntentoId")
+                        .HasPrincipalKey("Id", "IntentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_compra_pago_intento");
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.CompraServicio", b =>
+                {
+                    b.HasOne("API_Berruti.Models.Operational.TramoPago", null)
+                        .WithMany()
+                        .HasForeignKey("PagoId", "Orden")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_compra_servicio_tramo_pago");
+
+                    b.HasOne("API_Berruti.Models.Operational.Compra", null)
+                        .WithMany()
+                        .HasForeignKey("CompraId", "IntentoId", "PagoId")
+                        .HasPrincipalKey("Id", "IntentoId", "PagoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_compra_servicio_compra_intento_pago");
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.HoldAsiento", b =>
+                {
+                    b.HasOne("API_Berruti.Models.Operational.TramoIntentoCompra", null)
+                        .WithMany()
+                        .HasForeignKey("IntentoId", "Orden")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hold_asiento_seleccion");
+
+                    b.HasOne("API_Berruti.Models.Operational.AsientoSalida", null)
+                        .WithMany()
+                        .HasForeignKey("SalidaId", "NumeroAsiento")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hold_asiento_inventario");
+
+                    b.HasOne("API_Berruti.Models.Operational.ParadaSalida", null)
+                        .WithMany()
+                        .HasForeignKey("SalidaId", "OrdenDesembarque")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hold_asiento_desembarque");
+
+                    b.HasOne("API_Berruti.Models.Operational.ParadaSalida", null)
+                        .WithMany()
+                        .HasForeignKey("SalidaId", "OrdenEmbarque")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_hold_asiento_embarque");
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.IntentoCompra", b =>
+                {
+                    b.HasOne("API_Berruti.Models.Authentication.Usuario", null)
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_intento_compra_usuario");
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.Pago", b =>
+                {
+                    b.HasOne("API_Berruti.Models.Operational.IntentoCompra", null)
+                        .WithMany()
+                        .HasForeignKey("IntentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_pago_intento");
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.ParadaSalida", b =>
+                {
+                    b.HasOne("API_Berruti.Models.Operational.Parada", null)
+                        .WithMany()
+                        .HasForeignKey("ParadaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_parada_salida_parada");
+
+                    b.HasOne("API_Berruti.Models.Operational.Salida", null)
+                        .WithMany()
+                        .HasForeignKey("SalidaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_parada_salida_salida");
+                });
+
             modelBuilder.Entity("API_Berruti.Models.Operational.Servicio", b =>
                 {
                     b.HasOne("API_Berruti.Models.Catalogo.SalidaCatalogo", null)
@@ -702,11 +1420,29 @@ namespace API_Berruti.Data.Migrations
                         .HasForeignKey("SalidaCatalogoId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("API_Berruti.Models.Operational.Salida", null)
+                        .WithMany()
+                        .HasForeignKey("SalidaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_servicio_salida");
+
                     b.HasOne("API_Berruti.Models.Operational.Tramo", null)
                         .WithMany()
                         .HasForeignKey("TramoId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("API_Berruti.Models.Operational.ParadaSalida", null)
+                        .WithMany()
+                        .HasForeignKey("SalidaId", "OrdenDesembarque")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_servicio_parada_desembarque");
+
+                    b.HasOne("API_Berruti.Models.Operational.ParadaSalida", null)
+                        .WithMany()
+                        .HasForeignKey("SalidaId", "OrdenEmbarque")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_servicio_parada_embarque");
                 });
 
             modelBuilder.Entity("API_Berruti.Models.Operational.Tarifa", b =>
@@ -716,6 +1452,16 @@ namespace API_Berruti.Data.Migrations
                         .HasForeignKey("TramoId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.Ticket", b =>
+                {
+                    b.HasOne("API_Berruti.Models.Operational.CompraServicio", null)
+                        .WithMany()
+                        .HasForeignKey("CompraServicioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_ticket_compra_servicio");
                 });
 
             modelBuilder.Entity("API_Berruti.Models.Operational.Tramo", b =>
@@ -731,6 +1477,47 @@ namespace API_Berruti.Data.Migrations
                         .HasForeignKey("OrigenId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.TramoIntentoCompra", b =>
+                {
+                    b.HasOne("API_Berruti.Models.Operational.IntentoCompra", null)
+                        .WithMany()
+                        .HasForeignKey("IntentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_tramo_intento_intento");
+
+                    b.HasOne("API_Berruti.Models.Operational.Salida", null)
+                        .WithMany()
+                        .HasForeignKey("SalidaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_tramo_intento_salida");
+
+                    b.HasOne("API_Berruti.Models.Operational.Servicio", null)
+                        .WithMany()
+                        .HasForeignKey("ServicioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_tramo_intento_servicio");
+                });
+
+            modelBuilder.Entity("API_Berruti.Models.Operational.TramoPago", b =>
+                {
+                    b.HasOne("API_Berruti.Models.Operational.TramoIntentoCompra", null)
+                        .WithMany()
+                        .HasForeignKey("IntentoId", "Orden")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_tramo_pago_seleccion");
+
+                    b.HasOne("API_Berruti.Models.Operational.Pago", null)
+                        .WithMany()
+                        .HasForeignKey("PagoId", "IntentoId")
+                        .HasPrincipalKey("Id", "IntentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_tramo_pago_pago_intento");
                 });
 #pragma warning restore 612, 618
         }
