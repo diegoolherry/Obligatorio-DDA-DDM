@@ -4,12 +4,24 @@ using API_Berruti.Repositories.Operational;
 
 namespace API_Berruti.Services.Operational;
 
-public sealed class PagosService(
-    IPagosRepository pagos,
-    ICotizacionesCompraService cotizaciones,
-    IMercadoPagoCheckoutClient checkout,
-    TimeProvider timeProvider) : IPagosService
+public sealed class PagosService : IPagosService
 {
+    private readonly IPagosRepository _pagos;
+    private readonly ICotizacionesCompraService _cotizaciones;
+    private readonly IMercadoPagoCheckoutClient _checkout;
+    private readonly TimeProvider _timeProvider;
+
+    public PagosService(
+        IPagosRepository pagos,
+        ICotizacionesCompraService cotizaciones,
+        IMercadoPagoCheckoutClient checkout,
+        TimeProvider timeProvider)
+    {
+        _pagos = pagos;
+        _cotizaciones = cotizaciones;
+        _checkout = checkout;
+        _timeProvider = timeProvider;
+    }
     public async Task<PagoResponseDto> IniciarAsync(
         string identificadorPublico,
         string intentoId,
@@ -25,18 +37,18 @@ public sealed class PagosService(
             throw new ArgumentException("La huella de cotización aceptada no es válida.", nameof(solicitud));
 
         cancellationToken.ThrowIfCancellationRequested();
-        var actual = await pagos.ConsultarActualAsync(identificadorPublico, intentoId, cancellationToken);
+        var actual = await _pagos.ConsultarActualAsync(identificadorPublico, intentoId, cancellationToken);
         if (actual is not null && actual.Pago.Estado != EstadoPago.Rechazado)
             return CrearRespuesta(actual);
 
-        var cotizacion = await cotizaciones.CotizarAsync(identificadorPublico, intentoId, cancellationToken);
+        var cotizacion = await _cotizaciones.CotizarAsync(identificadorPublico, intentoId, cancellationToken);
         if (!string.Equals(cotizacion.IntentoId, intentoId, StringComparison.Ordinal) ||
             !ReglasInicioPago.EsHuellaValida(cotizacion.HuellaCotizacion))
             throw new InvalidOperationException("La cotización actual no corresponde al intento solicitado.");
         if (!ReglasInicioPago.CoincideHuella(solicitud.HuellaCotizacionAceptada, cotizacion.HuellaCotizacion))
             throw new CotizacionModificadaException(cotizacion);
 
-        var reserva = await pagos.ReservarAsync(
+        var reserva = await _pagos.ReservarAsync(
             identificadorPublico,
             cotizacion,
             solicitud.HuellaCotizacionAceptada,
@@ -47,7 +59,7 @@ public sealed class PagosService(
         OrdenCheckoutMercadoPago orden;
         try
         {
-            orden = await checkout.CrearOrdenAsync(
+            orden = await _checkout.CrearOrdenAsync(
                 reserva.Pago.ClaveCreacion,
                 reserva.Pago.Id,
                 reserva.Pago.ImporteEsperado,
@@ -65,7 +77,7 @@ public sealed class PagosService(
         if (!OrdenCoincideConPago(orden, reserva.Pago))
             return CrearRespuesta(reserva);
 
-        var registrado = await pagos.RegistrarOrdenAsync(
+        var registrado = await _pagos.RegistrarOrdenAsync(
             identificadorPublico,
             reserva.Pago.Id,
             orden,
@@ -84,14 +96,14 @@ public sealed class PagosService(
             throw new ArgumentException("El identificador del intento es obligatorio.", nameof(intentoId));
 
         cancellationToken.ThrowIfCancellationRequested();
-        var actual = await pagos.ConsultarActualAsync(identificadorPublico, intentoId, cancellationToken);
+        var actual = await _pagos.ConsultarActualAsync(identificadorPublico, intentoId, cancellationToken);
         return actual is null ? null : CrearRespuesta(actual);
     }
 
     private PagoResponseDto CrearRespuesta(RegistroPago registro)
     {
         var pago = registro.Pago;
-        var ahoraUtc = timeProvider.GetUtcNow().UtcDateTime;
+        var ahoraUtc = _timeProvider.GetUtcNow().UtcDateTime;
         var urlVigente = pago.Estado == EstadoPago.Pendiente &&
             ReglasInicioPago.HoldVigente(registro.HoldVenceEn, ahoraUtc);
         return new PagoResponseDto

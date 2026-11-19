@@ -11,14 +11,28 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace API_Berruti.Repositories.Operational;
 
-public sealed class PagosRepository(
-    BerrutiDbContext contexto,
-    IIntentosCompraRepository intentos,
-    IContadoresRepository contadores,
-    ICorrelativo correlativo,
-    TimeProvider timeProvider) : IPagosRepository
+public sealed class PagosRepository : IPagosRepository
 {
     private const string PrefijoPago = "PG-";
+    private readonly BerrutiDbContext contexto;
+    private readonly IIntentosCompraRepository intentos;
+    private readonly IContadoresRepository contadores;
+    private readonly ICorrelativo correlativo;
+    private readonly TimeProvider timeProvider;
+
+    public PagosRepository(
+        BerrutiDbContext contexto,
+        IIntentosCompraRepository intentos,
+        IContadoresRepository contadores,
+        ICorrelativo correlativo,
+        TimeProvider timeProvider)
+    {
+        this.contexto = contexto;
+        this.intentos = intentos;
+        this.contadores = contadores;
+        this.correlativo = correlativo;
+        this.timeProvider = timeProvider;
+    }
 
     public async Task<RegistroPago?> ConsultarActualAsync(
         string identificadorPublico,

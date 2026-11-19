@@ -9,12 +9,24 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace API_Berruti.Repositories.Operational;
 
-public sealed class ConfirmacionesCompraRepository(
-    BerrutiDbContext contexto,
-    IIntentosCompraRepository intentos,
-    IContadoresRepository contadores,
-    TimeProvider reloj) : IConfirmacionesCompraRepository
+public sealed class ConfirmacionesCompraRepository : IConfirmacionesCompraRepository
 {
+    private readonly BerrutiDbContext contexto;
+    private readonly IIntentosCompraRepository intentos;
+    private readonly IContadoresRepository contadores;
+    private readonly TimeProvider reloj;
+
+    public ConfirmacionesCompraRepository(
+        BerrutiDbContext contexto,
+        IIntentosCompraRepository intentos,
+        IContadoresRepository contadores,
+        TimeProvider reloj)
+    {
+        this.contexto = contexto;
+        this.intentos = intentos;
+        this.contadores = contadores;
+        this.reloj = reloj;
+    }
     public async Task<ResultadoConciliacionPago?> ConsultarAsync(
         string identificadorPublico,
         string intentoId,
@@ -119,7 +131,7 @@ public sealed class ConfirmacionesCompraRepository(
 
             if (decision == DecisionConfirmacion.SeguimientoDevolucion)
             {
-                await IniciarDevolucionAsync(pago, cancellationToken);
+                MarcarDevolucionPendiente(pago);
                 await contexto.SaveChangesAsync(cancellationToken);
                 await tx.CommitAsync(cancellationToken);
                 return Resultado(pago, snapshotIntento.HoldVenceEn, null, true);
@@ -147,7 +159,7 @@ public sealed class ConfirmacionesCompraRepository(
             if (horaConfirmacionApi >= snapshotIntento.HoldVenceEn || !disponibleFinal)
             {
                 await tx.RollbackToSavepointAsync("antes_contadores_compra", CancellationToken.None);
-                await IniciarDevolucionAsync(pago, cancellationToken);
+                MarcarDevolucionPendiente(pago);
                 await contexto.SaveChangesAsync(cancellationToken);
                 await tx.CommitAsync(cancellationToken);
                 return Resultado(pago, snapshotIntento.HoldVenceEn, null, true);
@@ -184,7 +196,7 @@ public sealed class ConfirmacionesCompraRepository(
     private async Task<ResultadoConciliacionPago> GuardarSeguimientoAsync(
         Pago pago, DateTime holdVence, IDbContextTransaction tx, CancellationToken ct, List<Pago> tracked)
     {
-        await IniciarDevolucionAsync(pago, ct);
+        MarcarDevolucionPendiente(pago);
         tracked.Add(pago);
         await contexto.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
@@ -194,19 +206,31 @@ public sealed class ConfirmacionesCompraRepository(
     private async Task<bool> VerificarDisponibilidadAsync(
         IntentoCompra intento, IReadOnlyList<TramoIntentoCompra> seleccion, DateTime ahoraUtc, CancellationToken ct)
     {
-        if (seleccion.Count == 0) return false;
+        if (seleccion.Count == 0)
+        {
+            return false;
+        }
         var servicioIds = seleccion.Select(s => s.ServicioId).ToArray();
         var servicios = await contexto.Servicios.AsNoTracking().Where(s => servicioIds.Contains(s.Id)).ToListAsync(ct);
-        if (servicios.Count != seleccion.Count) return false;
+        if (servicios.Count != seleccion.Count)
+        {
+            return false;
+        }
         foreach (var tramo in seleccion)
         {
             var servicio = servicios.SingleOrDefault(s => s.Id == tramo.ServicioId);
             if (servicio is null || servicio.TramoId != tramo.TramoId || servicio.Salida != tramo.Salida ||
                 servicio.Llegada != tramo.Llegada || servicio.PoliticaAsiento != tramo.PoliticaAsiento ||
                 servicio.SalidaId != tramo.SalidaId || servicio.OrdenEmbarque != tramo.OrdenEmbarque ||
-                servicio.OrdenDesembarque != tramo.OrdenDesembarque) return false;
+                servicio.OrdenDesembarque != tramo.OrdenDesembarque)
+            {
+                return false;
+            }
             var ruta = await contexto.Tramos.AsNoTracking().SingleOrDefaultAsync(t => t.Id == tramo.TramoId, ct);
-            if (ruta is null || ruta.OrigenId != tramo.OrigenId || ruta.DestinoId != tramo.DestinoId) return false;
+            if (ruta is null || ruta.OrigenId != tramo.OrigenId || ruta.DestinoId != tramo.DestinoId)
+            {
+                return false;
+            }
             if (tramo.PoliticaAsiento == PoliticaAsiento.AsignacionAutomatica)
             {
                 if (tramo.SalidaId is null || !tramo.OrdenEmbarque.HasValue || !tramo.OrdenDesembarque.HasValue)
@@ -215,24 +239,39 @@ public sealed class ConfirmacionesCompraRepository(
                     p.SalidaId == tramo.SalidaId && p.ParadaId == tramo.OrigenId && p.Orden == tramo.OrdenEmbarque, ct);
                 var destino = await contexto.ParadasSalida.AsNoTracking().SingleOrDefaultAsync(p =>
                     p.SalidaId == tramo.SalidaId && p.ParadaId == tramo.DestinoId && p.Orden == tramo.OrdenDesembarque, ct);
-                if (origen is null || destino is null || origen.Orden >= destino.Orden) return false;
+                if (origen is null || destino is null || origen.Orden >= destino.Orden)
+                {
+                    return false;
+                }
             }
             if (tramo.NumeroAsiento is null) continue;
             if (!await contexto.AsientosSalida.AsNoTracking().AnyAsync(a =>
-                    a.SalidaId == tramo.SalidaId && a.NumeroAsiento == tramo.NumeroAsiento, ct)) return false;
+                    a.SalidaId == tramo.SalidaId && a.NumeroAsiento == tramo.NumeroAsiento, ct))
+            {
+                return false;
+            }
             var hold = await contexto.HoldsAsiento.AsNoTracking().AnyAsync(h => h.IntentoId == intento.Id && h.Orden == tramo.Orden &&
                 h.SalidaId == tramo.SalidaId && h.NumeroAsiento == tramo.NumeroAsiento && h.OrdenEmbarque == tramo.OrdenEmbarque &&
                 h.OrdenDesembarque == tramo.OrdenDesembarque, ct);
-            if (!hold) return false;
+            if (!hold)
+            {
+                return false;
+            }
             if (await (from h in contexto.HoldsAsiento.AsNoTracking()
                        join owner in contexto.IntentosCompra.AsNoTracking() on h.IntentoId equals owner.Id
                        where h.IntentoId != intento.Id && owner.HoldVenceUtc > ahoraUtc &&
                              h.SalidaId == tramo.SalidaId && h.NumeroAsiento == tramo.NumeroAsiento &&
                              h.OrdenEmbarque < tramo.OrdenDesembarque && tramo.OrdenEmbarque < h.OrdenDesembarque
-                       select h).AnyAsync(ct)) return false;
+                       select h).AnyAsync(ct))
+            {
+                return false;
+            }
             var confirmed = OcupacionAsientosCompra.TicketsConfirmados(
                 contexto.Set<Ticket>().AsNoTracking(), contexto.Set<CompraServicio>().AsNoTracking(), contexto.TramosIntentoCompra.AsNoTracking());
-            if (await confirmed.AnyAsync(OcupacionAsientosCompra.Superpuestos(tramo), ct)) return false;
+            if (await confirmed.AnyAsync(OcupacionAsientosCompra.Superpuestos(tramo), ct))
+            {
+                return false;
+            }
         }
         return true;
     }
@@ -240,7 +279,10 @@ public sealed class ConfirmacionesCompraRepository(
     private async Task<CompraConfirmadaResponseDto?> CompraActualAsync(string intentoId, CancellationToken ct)
     {
         var compra = await contexto.Set<Compra>().AsNoTracking().SingleOrDefaultAsync(c => c.IntentoId == intentoId, ct);
-        if (compra is null) return null;
+        if (compra is null)
+        {
+            return null;
+        }
         var tickets = await (from ticket in contexto.Set<Ticket>().AsNoTracking()
                              join servicio in contexto.Set<CompraServicio>().AsNoTracking() on ticket.CompraServicioId equals servicio.Id
                              join tramo in contexto.TramosIntentoCompra.AsNoTracking() on new { servicio.IntentoId, servicio.Orden } equals new { tramo.IntentoId, tramo.Orden }
@@ -270,8 +312,14 @@ public sealed class ConfirmacionesCompraRepository(
         await using var command = contexto.Database.GetDbConnection().CreateCommand();
         command.Transaction = tx.GetDbTransaction();
         command.CommandText = $"SELECT {columna} FROM {tabla} WHERE {columna} = @id FOR UPDATE";
-        var parameter = command.CreateParameter(); parameter.ParameterName = "@id"; parameter.Value = id; command.Parameters.Add(parameter);
-        if (await command.ExecuteScalarAsync(ct) is null) throw new KeyNotFoundException("El intento de compra no existe.");
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = "@id";
+        parameter.Value = id;
+        command.Parameters.Add(parameter);
+        if (await command.ExecuteScalarAsync(ct) is null)
+        {
+            throw new KeyNotFoundException("El intento de compra no existe.");
+        }
     }
 
     private static void ValidarOrden(Pago pago, OrdenCheckoutMercadoPago orden)
@@ -290,14 +338,13 @@ public sealed class ConfirmacionesCompraRepository(
         _ => reportado
     };
 
-    private async Task IniciarDevolucionAsync(Pago pago, CancellationToken ct)
+    private void MarcarDevolucionPendiente(Pago pago)
     {
         pago.Estado = EstadoPago.DevolucionPendiente;
         pago.ClaveDevolucion ??= Guid.NewGuid();
         pago.DevolucionSolicitadaUtc ??= TruncarMicrosegundos(reloj.GetUtcNow().UtcDateTime);
         pago.UltimaVerificacionUtc = TruncarMicrosegundos(reloj.GetUtcNow().UtcDateTime);
         pago.ActualizadoUtc = pago.UltimaVerificacionUtc.Value;
-        await Task.CompletedTask;
     }
 
     private static ResultadoConciliacionPago Resultado(Pago pago, DateTime vence, CompraConfirmadaResponseDto? compra, bool refund) =>

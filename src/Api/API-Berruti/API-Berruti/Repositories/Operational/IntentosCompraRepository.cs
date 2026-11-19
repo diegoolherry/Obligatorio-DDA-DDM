@@ -11,13 +11,25 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace API_Berruti.Repositories.Operational;
 
-public class IntentosCompraRepository(
-    BerrutiDbContext contexto,
-    IContadoresRepository contadores,
-    ParametrosCompra parametros,
-    TimeProvider reloj) : IIntentosCompraRepository
+public class IntentosCompraRepository : IIntentosCompraRepository
 {
     private const string PrefijoIntento = "IC-";
+    private readonly BerrutiDbContext contexto;
+    private readonly IContadoresRepository contadores;
+    private readonly ParametrosCompra parametros;
+    private readonly TimeProvider reloj;
+
+    public IntentosCompraRepository(
+        BerrutiDbContext contexto,
+        IContadoresRepository contadores,
+        ParametrosCompra parametros,
+        TimeProvider reloj)
+    {
+        this.contexto = contexto;
+        this.contadores = contadores;
+        this.parametros = parametros;
+        this.reloj = reloj;
+    }
 
     public async Task<IReadOnlyList<ServicioCompra>> BuscarServiciosAsync(IReadOnlyCollection<string> servicioIds)
     {
