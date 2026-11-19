@@ -80,5 +80,11 @@ public sealed class SincronizarPagoResponseDto
     public CompraConfirmadaResponseDto? Compra { get; set; }
 }
 
-public enum TipoResultadoCompra { Exito, CotizacionModificada, Ambiguo, Error }
+public sealed class IntentoPendienteResponseDto
+{
+    public IniciarIntentoCompraResponseDto Intento { get; set; } = new();
+    public PagoResponseDto? Pago { get; set; }
+}
+
+public enum TipoResultadoCompra { Exito, CotizacionModificada, Ambiguo, Error, SinPendiente }
 public sealed record ResultadoCompra<T>(TipoResultadoCompra Tipo, T? Datos, int? EstadoHttp, string Mensaje, CotizarCompraResponseDto? Cotizacion = null);

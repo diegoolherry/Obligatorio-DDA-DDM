@@ -25,14 +25,22 @@ public sealed class CompraCliente
             new IniciarIntentoCompraRequestDto { Tramos = tramos.ToList() }, ambigua: true);
         if (resultado.Tipo != TipoResultadoCompra.Exito || resultado.Datos is not { } intento) return resultado;
 
-        var respuestaValida = EsIdentificadorValido(intento.IntentoId)
-            && intento.Itinerario?.Tramos is { Count: > 0 } legs
-            && legs.All(leg => leg is not null && leg.Orden > 0 && !string.IsNullOrWhiteSpace(leg.ServicioId))
-            && intento.HoldVenceEn != default && intento.HoldVenceEn.Kind == DateTimeKind.Utc;
-        return respuestaValida
+        return EsIntentoValido(intento)
             ? resultado
             : new(TipoResultadoCompra.Ambiguo, default, resultado.EstadoHttp,
                 "No se pudo confirmar el resultado. Verifique el estado del mismo intento; no cree otro.");
+    }
+
+    public async Task<ResultadoCompra<IntentoPendienteResponseDto>> ObtenerIntentoPendienteAsync()
+    {
+        var respuesta = await sesion.SolicitarAutenticadaAsync(HttpMethod.Get, "/api/intentos-compra/pendiente", null);
+        if (respuesta.Exito && respuesta.EstadoHttp == (int)HttpStatusCode.NoContent)
+            return new(TipoResultadoCompra.SinPendiente, default, respuesta.EstadoHttp, "No hay una compra pendiente.");
+        var resultado = Convertir<IntentoPendienteResponseDto>(respuesta, ambigua: false);
+        if (resultado.Tipo != TipoResultadoCompra.Exito || resultado.Datos is not { } pendiente) return resultado;
+        var valido = EsIntentoValido(pendiente.Intento)
+            && (pendiente.Pago is null || EsPagoValido(pendiente.Pago, pendiente.Intento.IntentoId));
+        return valido ? resultado : Error<IntentoPendienteResponseDto>(resultado.EstadoHttp, ErrorSeguro);
     }
 
     public Task<ResultadoCompra<CotizarCompraResponseDto>> ObtenerCotizacionAsync(string intentoId) =>
@@ -112,6 +120,13 @@ public sealed class CompraCliente
     private static string Ruta(string intentoId, string sufijo) =>
         EsIdentificadorValido(intentoId)
             ? $"/api/intentos-compra/{intentoId}{sufijo}" : string.Empty;
+
+    private static bool EsIntentoValido(IniciarIntentoCompraResponseDto? intento) =>
+        intento is not null
+        && EsIdentificadorValido(intento.IntentoId)
+        && intento.Itinerario?.Tramos is { Count: > 0 } legs
+        && legs.All(leg => leg is not null && leg.Orden > 0 && !string.IsNullOrWhiteSpace(leg.ServicioId))
+        && EsUtcNoPredeterminado(intento.HoldVenceEn);
 
     private static bool EsPagoValido(PagoResponseDto? pago, string intentoId) =>
         pago is not null
