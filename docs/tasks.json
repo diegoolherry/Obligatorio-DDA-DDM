@@ -115,7 +115,7 @@
         "La aplicación no solicita ni almacena números de tarjeta, CVV ni datos financieros equivalentes; no hay cobros reales ni credenciales de producción.",
         "El ticket del primer tramo no tiene asiento y el segundo tiene un asiento asignado automáticamente."
       ],
-      "evidence": "(1) PR/commit: integración I2 en `mvp-004-main/02-reservas`, merge local `b963635`; PR pendiente.\n(2) Commands: API build 0 warnings; PurchaseHolds 74/74; PurchaseHoldSchema 12/12 (NU1900 en índice de vulnerabilidades); AuthenticationSessions --unit 68/68. Sin HTTP/MySQL/Mercado Pago; no acredita enforcement ni concurrencia real en proveedor.\n(3) Revisión cruzada de Diego: pendiente. Base conceptual de docs/design/data-model.md §2 informada como aprobada por Diego y Enzo; mockups de pago/Cuenta en OpenPencil con FIN-010 antes de UI; devolución TEST no verificada."
+      "evidence": "(1) PR/commit: cadena local I2 `b963635` e I7 `87c4c1c`; PR pendiente/no publicado.\n(2) I7: `npm run typecheck`, MobilePurchase 15/15, WebPurchase 164/164 y build MySqlPurchase PASS; export Android bloqueado por permiso denegado de `hermesc.exe`. Sin MySQL, proveedor ni pagos reales.\n(3) Revisión cruzada de Diego: pendiente; MVP-004 continúa `in_progress`, sin fecha de cierre ni aprobación inventada."
     },
     {
       "id": "MVP-005",
