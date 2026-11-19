@@ -10,6 +10,9 @@ import { Banner } from '../ui/Banner';
 import { Button } from '../ui/Button';
 import { StatusBadge } from '../ui/StatusBadge';
 import { TextField } from '../ui/TextField';
+import type { IAuthenticationService } from '../../services/Authentication/IAuthenticationService';
+import type { PurchaseFinalization, PurchaseService } from '../../services/Purchase/PurchaseService';
+import { PurchaseFlow } from '../Purchase/PurchaseFlow';
 
 type StopsState =
   | { status: 'loading' }
@@ -57,16 +60,32 @@ function money(value: number): string {
   return `$ ${whole.replace(/\B(?=(\d{3})+(?!\d))/g, '.')},${cents}`;
 }
 
-export function ItinerarySearch({ service }: { service: IItinerarySearchService }) {
+export function purchaseFlowInstanceKey(sessionEpoch: number, selectionRevision: number): string {
+  return `${sessionEpoch}:${selectionRevision}`;
+}
+
+export function ItinerarySearch({ service, authentication, purchase, sessionEpoch }: {
+  service: IItinerarySearchService; authentication: IAuthenticationService; purchase: PurchaseService; sessionEpoch: number;
+}) {
   const [stops, setStops] = useState<StopsState>({ status: 'loading' });
   const [originId, setOriginId] = useState<number | undefined>();
   const [destinationId, setDestinationId] = useState<number | undefined>();
   const [date, setDate] = useState(todayLocal);
   const [submitted, setSubmitted] = useState(false);
   const [search, setSearch] = useState<SearchState>({ status: 'idle' });
+  const [purchaseItinerary, setPurchaseItinerary] = useState<ItinerarioDto>();
+  const [purchaseSessionEpoch, setPurchaseSessionEpoch] = useState(sessionEpoch);
+  const [purchaseRevision, setPurchaseRevision] = useState(0);
+  const [purchaseVisible, setPurchaseVisible] = useState(true);
   const lastRequest = useRef<BusquedaItinerarioRequest | undefined>(undefined);
   const active = useRef<AbortController | undefined>(undefined);
   const searchCounter = useRef(0);
+
+  useEffect(() => {
+    setPurchaseItinerary(undefined);
+    setPurchaseSessionEpoch(sessionEpoch);
+    setPurchaseVisible(true);
+  }, [sessionEpoch]);
 
   const loadStops = useCallback(() => {
     const controller = new AbortController();
@@ -162,13 +181,38 @@ export function ItinerarySearch({ service }: { service: IItinerarySearchService 
   );
 
   const results = search.status === 'success' ? search.results : [];
+  const activePurchaseItinerary = purchaseSessionEpoch === sessionEpoch ? purchaseItinerary : undefined;
+  const purchaseHeader = activePurchaseItinerary
+    ? (
+      <View className="gap-3">
+        <View className={purchaseVisible ? '' : 'hidden'}>
+          <PurchaseFlow key={purchaseFlowInstanceKey(sessionEpoch, purchaseRevision)} itinerary={activePurchaseItinerary} authentication={authentication} service={purchase}
+            onClose={() => setPurchaseVisible(false)} onFinalize={(_reason: PurchaseFinalization) => {
+              setPurchaseItinerary(undefined);
+              setPurchaseVisible(false);
+            }} />
+        </View>
+        {!purchaseVisible && (
+          <View className="gap-2">
+            <Text className="text-base text-ink-900" accessibilityLiveRegion="polite">Hay una compra en curso en esta aplicación.</Text>
+            <Button label="Volver a la compra en curso" onPress={() => setPurchaseVisible(true)} />
+          </View>
+        )}
+      </View>
+    ) : header;
   return (
     <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <FlatList
-        data={results}
+          data={activePurchaseItinerary ? [] : results}
         keyExtractor={(item, index) => `${item.salida}-${item.tramos.map(leg => leg.servicioId).join('-')}-${index}`}
-        renderItem={({ item }) => <ItineraryCard itinerary={item} />}
-        ListHeaderComponent={header}
+        renderItem={({ item }) => <ItineraryCard itinerary={item} onPurchase={() => {
+          if (activePurchaseItinerary) return;
+          setPurchaseRevision(revision => revision + 1);
+          setPurchaseItinerary(item);
+          setPurchaseSessionEpoch(sessionEpoch);
+          setPurchaseVisible(true);
+        }} />}
+        ListHeaderComponent={purchaseHeader}
         contentContainerClassName="gap-4 p-6"
         keyboardShouldPersistTaps="handled"
       />
@@ -213,7 +257,7 @@ function StopChooser({ label, stops, selected, onSelect }: {
   );
 }
 
-function ItineraryCard({ itinerary }: { itinerary: ItinerarioDto }) {
+function ItineraryCard({ itinerary, onPurchase }: { itinerary: ItinerarioDto; onPurchase: () => void }) {
   const legs = [...itinerary.tramos].sort((a, b) => a.orden - b.orden);
   const direct = legs.length === 1;
   return (
@@ -233,6 +277,7 @@ function ItineraryCard({ itinerary }: { itinerary: ItinerarioDto }) {
           <Leg leg={leg} />
         </View>
       ))}
+      <Button label="Comprar este viaje" onPress={onPurchase} />
     </View>
   );
 }

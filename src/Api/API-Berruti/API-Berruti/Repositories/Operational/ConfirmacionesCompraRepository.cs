@@ -165,8 +165,9 @@ public sealed class ConfirmacionesCompraRepository(
             pago.UltimaVerificacionUtc = confirmadoUtc;
             pago.ActualizadoUtc = confirmadoUtc;
             await contexto.SaveChangesAsync(cancellationToken);
+            var compraConfirmada = await CompraActualAsync(intento.Id, cancellationToken);
             await tx.CommitAsync(cancellationToken);
-            return Resultado(pago, snapshotIntento.HoldVenceEn, await CompraActualAsync(intento.Id, cancellationToken), false);
+            return Resultado(pago, snapshotIntento.HoldVenceEn, compraConfirmada, false);
         }
         catch
         {
