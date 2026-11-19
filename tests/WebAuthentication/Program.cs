@@ -384,11 +384,36 @@ Check(System.Text.RegularExpressions.Regex.IsMatch(locationPage, @"@if \(d\.Dato
 Check(!locationPage.Contains("Datos ficticios y aproximados") && !locationPage.Contains("académicos"),
     "passenger location page uses neutral Spanish wording (source check)");
 
+// Roles de la sesión: se exponen tras ingresar y se vacían al salir (solo en memoria; la API autoriza cada operación).
+using (var rolesProvider = Provider(new FakeHandler { Reply = _ => Task.FromResult(Response(200, Success())) }))
+using (var rolesScope = rolesProvider.CreateScope())
+{
+    var roles = rolesScope.ServiceProvider.GetRequiredService<ISesionCliente>();
+    Check(roles.Estado.Roles.Count == 0 && !roles.Estado.EsPasajero && !roles.Estado.EsAdministrador, "anonymous session exposes no roles");
+    await roles.IngresarAsync(Input());
+    Check(roles.Estado.Roles.SequenceEqual([RolIngreso.Pasajero]) && roles.Estado.EsPasajero && !roles.Estado.EsAdministrador, "passenger login exposes only the passenger role");
+    roles.Descartar();
+    Check(roles.Estado.Roles.Count == 0 && !roles.Estado.EsPasajero, "discarding the session clears roles");
+}
+var adminRolesHandler = new FakeHandler { Reply = _ => Task.FromResult(Response(200, Success().Replace("pasajero", "administrador"))) };
+using (var adminRolesProvider = Provider(adminRolesHandler))
+using (var adminRolesScope = adminRolesProvider.CreateScope())
+{
+    var roles = adminRolesScope.ServiceProvider.GetRequiredService<ISesionCliente>();
+    await roles.IngresarAsync(Input());
+    Check(roles.Estado.EsAdministrador && !roles.Estado.EsPasajero, "administrator login exposes only the administrator role");
+    adminRolesHandler.Reply = _ => Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.NoContent));
+    await roles.SalirAsync();
+    Check(!roles.Estado.Autenticada && roles.Estado.Roles.Count == 0 && !roles.Estado.EsAdministrador, "confirmed logout clears roles");
+}
+
 string navSource = ancestor == null ? "" : File.ReadAllText(Path.Combine(ancestor.FullName, "src/Web/Web-App/Web-App/Components/Layout/NavMenu.razor"));
-var guardedLinks = System.Text.RegularExpressions.Regex.Match(navSource, @"@if \(Autenticada\)\s*\{(?<links>[^}]*)\}\s*</ul>");
-Check(guardedLinks.Success && guardedLinks.Groups["links"].Value.Contains("href=\"pasajero/ubicacion\"") && guardedLinks.Groups["links"].Value.Contains("href=\"admin/operativa\"")
-    && System.Text.RegularExpressions.Regex.Matches(navSource, "href=\"(pasajero/ubicacion|admin/operativa)\"").Count == 2,
-    "menu shows session-only links only while signed in (source check)");
+var passengerLinks = System.Text.RegularExpressions.Regex.Match(navSource, @"@if \(EsPasajero\)\s*\{(?<links>[^}]*)\}");
+var adminLinks = System.Text.RegularExpressions.Regex.Match(navSource, @"@if \(EsAdministrador\)\s*\{(?<links>[^}]*)\}");
+Check(passengerLinks.Success && passengerLinks.Groups["links"].Value.Contains("href=\"pasajero/ubicacion\"")
+    && adminLinks.Success && adminLinks.Groups["links"].Value.Contains("href=\"admin/operativa\"") && adminLinks.Groups["links"].Value.Contains("href=\"admin/catalogo\"")
+    && System.Text.RegularExpressions.Regex.Matches(navSource, "href=\"(pasajero/ubicacion|admin/operativa|admin/catalogo)\"").Count == 3,
+    "menu shows the location link only to passengers and the admin links only to administrators (source check)");
 
 string ValidationSource(string relative) => ancestor == null || !File.Exists(Path.Combine(ancestor.FullName, "src/Web/Web-App/Web-App", relative))
     ? "" : File.ReadAllText(Path.Combine(ancestor.FullName, "src/Web/Web-App/Web-App", relative));

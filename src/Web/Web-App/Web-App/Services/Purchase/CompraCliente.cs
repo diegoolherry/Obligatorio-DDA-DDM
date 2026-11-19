@@ -9,7 +9,7 @@ namespace Web_App.Services.Purchase;
 
 public sealed class CompraCliente
 {
-    private const string ErrorSeguro = "La API no pudo completar la compra. Revise la conexión y verifique el estado del mismo intento.";
+    private const string ErrorSeguro = "La API no pudo completar la compra. Revisá la conexión y verificá el estado del mismo intento.";
     private static readonly JsonSerializerOptions Json = CrearJson();
     private readonly ISesionCliente sesion;
 
@@ -28,7 +28,7 @@ public sealed class CompraCliente
         return EsIntentoValido(intento)
             ? resultado
             : new(TipoResultadoCompra.Ambiguo, default, resultado.EstadoHttp,
-                "No se pudo confirmar el resultado. Verifique el estado del mismo intento; no cree otro.");
+                "No se pudo confirmar el resultado. Verificá el estado del mismo intento; no crees otro.");
     }
 
     public async Task<ResultadoCompra<IntentoPendienteResponseDto>> ObtenerIntentoPendienteAsync()
@@ -58,7 +58,7 @@ public sealed class CompraCliente
             var actual = await ObtenerCotizacionAsync(intentoId);
             return actual.Tipo == TipoResultadoCompra.Exito
                 ? new(TipoResultadoCompra.CotizacionModificada, default, respuesta.EstadoHttp,
-                    "El precio cambió. Revise y aceptá nuevamente la cotización vigente.", actual.Datos)
+                    "El precio cambió. Revisá y aceptá nuevamente la cotización vigente.", actual.Datos)
                 : Error<PagoResponseDto>(actual.EstadoHttp, "No se pudo cargar la cotización vigente. No se inició otro pago.");
         }
         var resultado = Convertir<PagoResponseDto>(respuesta, ambigua: true);
@@ -92,21 +92,21 @@ public sealed class CompraCliente
             var estado = ambigua && (!respuesta.EstadoHttp.HasValue || respuesta.EstadoHttp >= 500)
                 ? TipoResultadoCompra.Ambiguo : TipoResultadoCompra.Error;
             return new(estado, default, respuesta.EstadoHttp,
-                estado == TipoResultadoCompra.Ambiguo ? "No se pudo confirmar el resultado. Verifique el estado del mismo intento; no crees otro." :
-                respuesta.EstadoHttp == 401 ? "La sesión venció. Ingrese nuevamente." : ErrorSeguro);
+                estado == TipoResultadoCompra.Ambiguo ? "No se pudo confirmar el resultado. Verificá el estado del mismo intento; no crees otro." :
+                respuesta.EstadoHttp == 401 ? "La sesión venció. Ingresá nuevamente." : ErrorSeguro);
         }
         try
         {
             var datos = string.IsNullOrWhiteSpace(respuesta.Contenido) ? default : JsonSerializer.Deserialize<T>(respuesta.Contenido, Json);
             return datos is null
                 ? new(ambigua ? TipoResultadoCompra.Ambiguo : TipoResultadoCompra.Error, default, respuesta.EstadoHttp,
-                    ambigua ? "No se pudo confirmar el resultado. Verifique el estado del mismo intento; no crees otro." : ErrorSeguro)
+                    ambigua ? "No se pudo confirmar el resultado. Verificá el estado del mismo intento; no crees otro." : ErrorSeguro)
                 : new(TipoResultadoCompra.Exito, datos, respuesta.EstadoHttp, "Operación completada.");
         }
         catch (JsonException)
         {
             return new(ambigua ? TipoResultadoCompra.Ambiguo : TipoResultadoCompra.Error, default, respuesta.EstadoHttp,
-                ambigua ? "No se pudo confirmar el resultado. Verifique el estado del mismo intento; no crees otro." : ErrorSeguro);
+                ambigua ? "No se pudo confirmar el resultado. Verificá el estado del mismo intento; no crees otro." : ErrorSeguro);
         }
     }
 
@@ -156,7 +156,7 @@ public sealed class CompraCliente
 
     private static ResultadoCompra<T> Ambiguo<T>(int? status) =>
         new(TipoResultadoCompra.Ambiguo, default, status,
-            "No se pudo confirmar el resultado. Verifique el estado del mismo intento; no cree otro.");
+            "No se pudo confirmar el resultado. Verificá el estado del mismo intento; no crees otro.");
 
     private static bool EsHuellaValida(string huella) =>
         huella.Length == 64 && huella.All(Uri.IsHexDigit);
