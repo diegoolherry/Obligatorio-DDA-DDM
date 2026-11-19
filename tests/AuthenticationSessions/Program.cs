@@ -17,6 +17,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -40,7 +42,7 @@ void Prueba(string nombre, Func<bool> comprobar)
         if (!comprobar()) throw new InvalidOperationException();
         Console.WriteLine($"PASS: {nombre}");
     }
-    catch { fallos++; Console.Error.WriteLine($"FAIL: {nombre}"); }
+    catch (Exception exception) { fallos++; Console.Error.WriteLine($"FAIL: {nombre} ({exception.GetType().Name}: {exception.Message})"); }
 }
 
 // Clave sintética solo para pruebas: no es un secreto real ni se usa fuera de este proceso.
@@ -75,6 +77,100 @@ Prueba("S3 sin estado: no quedan tipos de sesión de servidor ni handler opaco",
         "API_Berruti.Repositories.Authentication.SesionesRepository", "API_Berruti.Security.Authentication.SesionBearerHandler" }
         .All(nombre => assembly.GetType(nombre) == null) &&
         typeof(IAutenticacionService).GetMethods().Select(m => m.Name).SequenceEqual(new[] { "IngresarAsync" });
+});
+Prueba("SA identifier uses the shared unpadded counter range and rejects exhaustion", () =>
+{
+    var correlativo = new Correlativo();
+    var agotado = false;
+    try { correlativo.Siguiente("SA-", 50000); }
+    catch (InvalidOperationException) { agotado = true; }
+    return correlativo.Siguiente("SA-", 0) == "SA-1" && correlativo.Siguiente("SA-", 8) == "SA-9" &&
+        correlativo.Siguiente("SA-", 9) == "SA-10" && correlativo.Siguiente("SA-", 49999) == "SA-50000" && agotado;
+});
+Prueba("Salida inventory EF metadata maps composite and restrictive optional relationships without opening a connection", () =>
+{
+    var options = new DbContextOptionsBuilder<BerrutiDbContext>()
+        .UseMySQL("Server=127.0.0.1;Database=berrutimodeltests;User ID=model_test;Password=unused-placeholder")
+        .Options;
+    using var context = new BerrutiDbContext(options);
+    var salida = context.Model.FindEntityType("API_Berruti.Models.Operational.Salida");
+    var asiento = context.Model.FindEntityType("API_Berruti.Models.Operational.AsientoSalida");
+    var servicio = context.Model.FindEntityType(typeof(API_Berruti.Models.Operational.Servicio));
+    var serviceForeignKey = servicio?.GetForeignKeys().SingleOrDefault(fk => fk.PrincipalEntityType == salida);
+    var seatForeignKey = asiento?.GetForeignKeys().SingleOrDefault(fk => fk.PrincipalEntityType == salida);
+    var key = asiento?.FindPrimaryKey()?.Properties.Select(p => p.Name).ToArray();
+    return salida?.FindProperty("Fecha")?.GetColumnType() == "date" &&
+        key?.SequenceEqual(new[] { "SalidaId", "NumeroAsiento" }) == true &&
+        serviceForeignKey?.Properties.Single().Name == "SalidaId" &&
+        serviceForeignKey.IsRequired == false && serviceForeignKey.DeleteBehavior == Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict &&
+        seatForeignKey?.Properties.Single().Name == "SalidaId" &&
+        seatForeignKey.DeleteBehavior == Microsoft.EntityFrameworkCore.DeleteBehavior.Restrict &&
+        context.Database.GetDbConnection().State == System.Data.ConnectionState.Closed;
+});
+Prueba("Departure stop and service bounds EF metadata is present without SQL CHECK execution or opening a connection", () =>
+{
+    var options = new DbContextOptionsBuilder<BerrutiDbContext>()
+        .UseMySQL("Server=127.0.0.1;Database=berrutimodeltests;User ID=model_test;Password=unused-placeholder")
+        .Options;
+    using var context = new BerrutiDbContext(options);
+    var designModel = context.GetService<IDesignTimeModel>().Model;
+    var assembly = typeof(BerrutiDbContext).Assembly;
+    var occurrenceType = assembly.GetType("API_Berruti.Models.Operational.ParadaSalida");
+    if (occurrenceType is null) return false;
+    var occurrence = designModel.FindEntityType(occurrenceType);
+    var service = designModel.FindEntityType(typeof(API_Berruti.Models.Operational.Servicio));
+    var stop = designModel.FindEntityType(typeof(API_Berruti.Models.Operational.Parada));
+    var departure = designModel.FindEntityType(typeof(API_Berruti.Models.Operational.Salida));
+    var occurrenceKey = occurrence?.FindPrimaryKey()?.Properties.Select(property => property.Name).ToArray();
+    var occurrenceFks = occurrence?.GetForeignKeys().ToArray() ?? [];
+    var boundProperties = new[] { "OrdenEmbarque", "OrdenDesembarque" };
+    var serviceFks = service?.GetForeignKeys().Where(fk => fk.PrincipalEntityType == occurrence).ToArray() ?? [];
+    var check = service?.GetCheckConstraints().SingleOrDefault(constraint => constraint.Name == "ck_servicio_rango_paradas");
+    var outcome = occurrence is not null && service is not null && occurrence.GetTableName() == "parada_salida" &&
+        occurrenceKey?.SequenceEqual(new[] { "SalidaId", "Orden" }) == true &&
+        occurrence.GetCheckConstraints().Any(constraint => constraint.Sql.Contains("orden >= 1")) &&
+        occurrenceFks.Any(fk => fk.PrincipalEntityType == departure && fk.Properties.Select(property => property.Name).SequenceEqual(new[] { "SalidaId" }) && fk.DeleteBehavior == DeleteBehavior.Restrict) &&
+        occurrenceFks.Any(fk => fk.PrincipalEntityType == stop && fk.Properties.Select(property => property.Name).SequenceEqual(new[] { "ParadaId" }) && fk.DeleteBehavior == DeleteBehavior.Restrict) &&
+        occurrence.FindProperty("ParadaId")?.GetColumnType() == stop?.FindProperty("Id")?.GetColumnType() &&
+        !occurrence.GetIndexes().Any(index => index.IsUnique && index.Properties.Any(property => property.Name == "ParadaId")) &&
+        boundProperties.All(name => service?.FindProperty(name)?.ClrType == typeof(int?) && service.FindProperty(name)?.IsNullable == true) &&
+        service.FindProperty("OrdenEmbarque")?.GetColumnName() == "orden_embarque" &&
+        service.FindProperty("OrdenDesembarque")?.GetColumnName() == "orden_desembarque" &&
+        serviceFks.Length == 2 &&
+        serviceFks.Any(fk => fk.Properties.Select(property => property.Name).SequenceEqual(new[] { "SalidaId", "OrdenEmbarque" }) && fk.DeleteBehavior == DeleteBehavior.Restrict) &&
+        serviceFks.Any(fk => fk.Properties.Select(property => property.Name).SequenceEqual(new[] { "SalidaId", "OrdenDesembarque" }) && fk.DeleteBehavior == DeleteBehavior.Restrict) &&
+        service.GetForeignKeys().Count(fk => fk.Properties.Any(property => property.Name is "OrdenEmbarque" or "OrdenDesembarque")) == 2 &&
+        check is not null && check.Sql.Contains("IS NOT NULL") && check.Sql.Contains("orden_embarque < orden_desembarque") &&
+        context.Database.GetDbConnection().State == System.Data.ConnectionState.Closed;
+    return outcome;
+});
+Prueba("EF tracking allows repeated stop occurrences and separate departures, then rejects a duplicate tracked key", () =>
+{
+    var options = new DbContextOptionsBuilder<BerrutiDbContext>()
+        .UseMySQL("Server=127.0.0.1;Database=berrutimodeltests;User ID=model_test;Password=unused-placeholder")
+        .Options;
+    using var context = new BerrutiDbContext(options);
+    var repeatedStop = new API_Berruti.Models.Operational.ParadaSalida { SalidaId = "SA-1", Orden = 1, ParadaId = "PA-1" };
+    var repeatedStopLater = new API_Berruti.Models.Operational.ParadaSalida { SalidaId = "SA-1", Orden = 2, ParadaId = "PA-1" };
+    var separateDeparture = new API_Berruti.Models.Operational.ParadaSalida { SalidaId = "SA-2", Orden = 1, ParadaId = "PA-2" };
+    context.AddRange(repeatedStop, repeatedStopLater, separateDeparture);
+    var tracked = context.ChangeTracker.Entries<API_Berruti.Models.Operational.ParadaSalida>()
+        .Select(entry => entry.Entity).ToArray();
+    var allowedOccurrencesTracked = tracked.Length == 3 && tracked.Select(item => (item.SalidaId, item.Orden)).Distinct().Count() == 3 &&
+        tracked.Count(item => item.ParadaId == "PA-1") == 2;
+
+    using var duplicateContext = new BerrutiDbContext(options);
+    duplicateContext.Add(new API_Berruti.Models.Operational.ParadaSalida { SalidaId = "SA-1", Orden = 1, ParadaId = "PA-1" });
+    var duplicateTrackedKeyRejected = false;
+    try
+    {
+        duplicateContext.Add(new API_Berruti.Models.Operational.ParadaSalida { SalidaId = "SA-1", Orden = 1, ParadaId = "PA-2" });
+    }
+    catch (InvalidOperationException) { duplicateTrackedKeyRejected = true; }
+
+    return allowedOccurrencesTracked && duplicateTrackedKeyRejected &&
+        context.Database.GetDbConnection().State == System.Data.ConnectionState.Closed &&
+        duplicateContext.Database.GetDbConnection().State == System.Data.ConnectionState.Closed;
 });
 Prueba("identificador público: 32 bytes Base64url canónicos y distintos", () =>
 {

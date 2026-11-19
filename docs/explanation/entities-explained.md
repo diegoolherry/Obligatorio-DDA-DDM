@@ -37,6 +37,8 @@ El formato acordado de IDs `string` con abreviaturas de dos letras y guion, los 
 - **Relaciones:** cubre un tramo; integra itinerarios y compras; cada ticket refiere un servicio; las validaciones ocurren en su contexto. Recibe posiciones publicadas por dispositivos asociados; la configuración de ubicación aporta parámetros académicos, sin relación obligatoria por servicio definida.
 - **Por qué:** *rationale:* permite distinguir dos salidas del mismo tramo y controlar el viaje concreto. **Regla de demo:** Ombúes–Radial no asigna asiento y Radial–Colonia lo asigna automáticamente (RN-06); la política de cupos y unicidad de asiento sigue abierta.
 
+**Corte preparado de MVP-004:** la tabla física `parada_salida` representa ocurrencias ordenadas de paradas en una misma `Salida`, con PK (`salida_id`, `orden`); la misma parada física puede aparecer en varios órdenes. `Servicio` conserva `salida_id` opcional y agrega límites de embarque/desembarque nullable, ambos ausentes para filas legadas o ambos presentes con embarque menor que desembarque. Las FK compuestas restringen ambos límites a ocurrencias de la misma salida, pero no prueban que coincidan con `Tramo.OrigenId` y `Tramo.DestinoId`: cualquier futuro intento de reserva debe revalidar esa correspondencia antes de crear un hold. La migración se prepara offline y no se aplica a una base; este corte no implementa holds, reservas ni pagos.
+
 ### Tarifa
 - **Propósito:** representar precio y vigencia para cotizar el viaje.
 - **Relaciones:** el ER propone una FK al tramo, pero su aplicabilidad a tramo o servicio y el solapamiento de vigencias están pendientes; `compra_servicio` congelaría el precio aplicado al comprar.
@@ -70,7 +72,7 @@ El formato acordado de IDs `string` con abreviaturas de dos letras y guion, los 
 
 | Situación | Regla acordada |
 | --- | --- |
-| Creación del hold | Dura **5 minutos configurables desde su creación en la API**; recargar o reintentar no reinicia el plazo. |
+| Creación del hold | La duración vigente es **15 minutos configurables desde su creación en la API**, por actualización explícita del usuario; reemplaza la duración previa de cinco minutos de la base conceptual conjunta. Recargar o reintentar no reinicia el plazo. |
 | Rechazo definitivo con hold vigente | Admite otro pago en el mismo intento durable durante el tiempo restante, conservando el anterior y el vencimiento original. |
 | Pago pendiente o desconocido, incluida falla de red | Bloquea otro pago hasta resolución autoritativa de la API, incluso con hold vencido; perder la respuesta no demuestra rechazo. |
 | Aprobación verificada, disponibilidad confirmada y hold vigente | Genera una sola compra y todos sus tickets de forma atómica e idempotente. |

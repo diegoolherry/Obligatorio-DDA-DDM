@@ -39,7 +39,8 @@ public static class ReinicioLocal
 
         if (!sembrar) return 0;
 
-        contexto.Contadores.AddRange(new ContadorEntidad { Prefijo = "US-" }, new ContadorEntidad { Prefijo = "RO-" });
+        contexto.Contadores.AddRange(new ContadorEntidad { Prefijo = "US-" }, new ContadorEntidad { Prefijo = "RO-" },
+            new ContadorEntidad { Prefijo = "SA-", Ultimo = 1 });
         await contexto.SaveChangesAsync();
         contexto.ChangeTracker.Clear();
 
@@ -58,13 +59,16 @@ public static class ReinicioLocal
         var escenario = EscenarioOperativoDemo.Construir(fecha);
         contexto.Paradas.AddRange(escenario.Paradas);
         contexto.Tramos.AddRange(escenario.Tramos);
+        contexto.Salidas.AddRange(escenario.Salidas);
+        contexto.ParadasSalida.AddRange(escenario.ParadasSalida);
+        contexto.AsientosSalida.AddRange(escenario.AsientosSalida);
         contexto.Servicios.AddRange(escenario.Servicios);
         contexto.Tarifas.AddRange(escenario.Tarifas);
         // MVP-009: el cobrador demo viaja en ambos servicios y publica su ubicación desde el celular.
         contexto.AsignacionesCobrador.AddRange(cobradores.SelectMany(usuarioId =>
             escenario.Servicios.Select(s => new AsignacionCobrador { UsuarioId = usuarioId, ServicioId = s.Id })));
         await contexto.SaveChangesAsync();
-        Console.WriteLine($"Reinicio local: escenario operativo {fecha:yyyy-MM-dd} ({escenario.Paradas.Count} paradas, {escenario.Tramos.Count} tramos, {escenario.Servicios.Count} servicios, {escenario.Tarifas.Count} tarifas, {cobradores.Count * escenario.Servicios.Count} asignaciones de cobrador).");
+        Console.WriteLine($"Reinicio local: escenario operativo {fecha:yyyy-MM-dd} ({escenario.Paradas.Count} paradas, {escenario.Tramos.Count} tramos, {escenario.Salidas.Count} salidas, {escenario.AsientosSalida.Count} asientos de salida, {escenario.Servicios.Count} servicios, {escenario.Tarifas.Count} tarifas, {cobradores.Count * escenario.Servicios.Count} asignaciones de cobrador).");
         // FIN-001: catálogo transcripto del horario publicado. Reutiliza las paradas del escenario por nombre.
         var catalogo = HorariosPublicados.Construir(HorariosPublicados.LeerRecurso(), escenario.Paradas);
         contexto.Paradas.AddRange(catalogo.ParadasNuevas);
