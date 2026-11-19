@@ -58,3 +58,9 @@ Ambas opciones son URLs públicas, no secretos ni tokens. Los servicios las vali
 Las decisiones y límites de arquitectura están en el [MVP](../explanation/mvp.md); la evidencia de ejecución y los pendientes están en el [informe](../project-report.md#7-calidad-pruebas-y-gestión-de-configuración).
 
 Nota: la búsqueda pública de Mobile consulta `GET /api/paradas` y `GET /api/itinerarios` con la misma `EXPO_PUBLIC_API_URL`, de forma anónima (sin token). Sigue sin verificarse contra una API real ni en dispositivo.
+
+## Credencial privada de Mercado Pago TEST
+
+La API incorpora un cliente interno de Checkout Pro Orders en modo TEST. Todavía no hay endpoint de pago, persistencia ni flujo conectado desde Web o Mobile. Al resolver el cliente se exige una credencial privada que empiece con `TEST-`; no se configura ni valida durante el arranque de la API. En desarrollo puede suministrarse como variable de entorno `MercadoPago__AccessToken` o mediante un gestor de secretos local. Usá únicamente una credencial ficticia de prueba: nunca la pongas en `EXPO_PUBLIC_*`, código, `appsettings.json` versionado, URLs, logs ni mensajes.
+
+El cliente crea órdenes con importe y referencia del servidor, consulta su estado autoritativo y puede solicitar una devolución completa. Usa únicamente el host oficial fijo, bloquea redirecciones HTTP y devuelve errores sanitizados. La URL de checkout debe ser HTTPS en `www.mercadopago.com.uy`, sin credenciales. Solo `processed/accredited` con el importe pagado completo se considera aprobado; `processed/refunded` y `processed/partially_refunded` nunca se aprueban. La solicitud de devolución no demuestra que el proveedor la haya completado: una consulta posterior debe confirmarlo. Las pruebas son HTTP simuladas; no se verificaron credenciales ni operaciones reales en TEST y no se admite producción.
