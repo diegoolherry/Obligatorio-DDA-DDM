@@ -115,7 +115,7 @@
         "La aplicación no solicita ni almacena números de tarjeta, CVV ni datos financieros equivalentes; no hay cobros reales ni credenciales de producción.",
         "El ticket del primer tramo no tiene asiento y el segundo tiene un asiento asignado automáticamente."
       ],
-      "evidence": "Aclaración de los criterios originales: rechazo definitivo permite reintentar solo con hold vigente y tiempo restante; no verificado o pendiente/desconocido no emite tickets ni habilita otro pago hasta resolución autoritativa. La cardinalidad conceptual es a lo sumo una compra confirmada por intento durable con pagos conservados; no define cardinalidad física. Rige docs/design/data-model.md §2, base conceptual aprobada por Diego y Enzo según lo informado por el usuario. Soporte de devolución TEST no verificado, sin reemplazo simulado; Checkout/verificación del proveedor pendientes. Antes de implementar las pantallas de pago y Cuenta, diseñar mockups en OpenPencil con el sistema de diseño de FIN-010 (design/fin-010, decisión de Diego del 2026-11-16)."
+      "evidence": "(1) PR/commit: integración I2 en `mvp-004-main/02-reservas`, merge local `b963635`; PR pendiente.\n(2) Commands: API build 0 warnings; PurchaseHolds 74/74; PurchaseHoldSchema 12/12 (NU1900 en índice de vulnerabilidades); AuthenticationSessions --unit 68/68. Sin HTTP/MySQL/Mercado Pago; no acredita enforcement ni concurrencia real en proveedor.\n(3) Revisión cruzada de Diego: pendiente. Base conceptual de docs/design/data-model.md §2 informada como aprobada por Diego y Enzo; mockups de pago/Cuenta en OpenPencil con FIN-010 antes de UI; devolución TEST no verificada."
     },
     {
       "id": "MVP-005",
