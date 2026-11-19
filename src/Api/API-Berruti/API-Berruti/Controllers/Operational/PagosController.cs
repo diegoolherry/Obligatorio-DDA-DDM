@@ -9,8 +9,15 @@ using Microsoft.AspNetCore.Mvc;
 namespace API_Berruti.Controllers.Operational;
 
 [ApiController, Route("api/intentos-compra/{intentoId}/pagos"), Authorize(Roles = "Pasajero")]
-public sealed class PagosController(IPagosService service) : ControllerBase
+public sealed class PagosController : ControllerBase
 {
+    private readonly IPagosService _service;
+
+    public PagosController(IPagosService service)
+    {
+        _service = service;
+    }
+
     [HttpPost]
     public async Task<ActionResult<PagoResponseDto>> Iniciar(
         string intentoId,
@@ -23,7 +30,7 @@ public sealed class PagosController(IPagosService service) : ControllerBase
 
         try
         {
-            var pago = await service.IniciarAsync(identificadorPublico, intentoId, solicitud, cancellationToken);
+            var pago = await _service.IniciarAsync(identificadorPublico, intentoId, solicitud, cancellationToken);
             return pago.Estado == EstadoPago.Desconocido
                 ? StatusCode(StatusCodes.Status202Accepted, pago)
                 : Ok(pago);
@@ -64,7 +71,7 @@ public sealed class PagosController(IPagosService service) : ControllerBase
 
         try
         {
-            var pago = await service.ConsultarActualAsync(identificadorPublico, intentoId, cancellationToken);
+            var pago = await _service.ConsultarActualAsync(identificadorPublico, intentoId, cancellationToken);
             return pago is null ? NotFound() : Ok(pago);
         }
         catch (ArgumentException exception)

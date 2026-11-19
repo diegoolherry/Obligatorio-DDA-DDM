@@ -7,10 +7,16 @@ using Web_App.Services.Authentication;
 
 namespace Web_App.Services.Purchase;
 
-public sealed class CompraCliente(ISesionCliente sesion)
+public sealed class CompraCliente
 {
     private const string ErrorSeguro = "La API no pudo completar la compra. Revise la conexión y verifique el estado del mismo intento.";
     private static readonly JsonSerializerOptions Json = CrearJson();
+    private readonly ISesionCliente sesion;
+
+    public CompraCliente(ISesionCliente sesion)
+    {
+        this.sesion = sesion;
+    }
 
     public async Task<ResultadoCompra<IniciarIntentoCompraResponseDto>> CrearIntentoAsync(
         IReadOnlyList<SeleccionTramoCompraDto> tramos)
