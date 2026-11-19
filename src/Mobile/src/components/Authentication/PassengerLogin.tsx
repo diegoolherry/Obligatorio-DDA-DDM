@@ -31,9 +31,15 @@ function kindFor(outcome: AuthenticationOutcome): BannerKind {
 const rejectedTitle = 'No pudimos iniciar tu sesión';
 const rejectedMessage = 'Correo o contraseña incorrectos. Revisalos e intentá de nuevo.';
 const passwordError = 'Escribí tu contraseña de nuevo.';
-const discardMessage = 'Memoria local borrada. No se confirmó el cierre de sesión en la API; la sesión queda cerrada en este dispositivo.';
+const discardMessage = 'Token descartado en este dispositivo. La API no revoca JWT; cualquier copia seguirá válida hasta que expire.';
+const logoutSuccessMessage = 'Token descartado en este dispositivo. La API no mantiene sesiones ni revoca JWT; cualquier copia seguirá válida hasta que expire.';
+const logoutUnauthenticatedMessage = 'La API rechazó el token y se descartó la copia de este dispositivo.';
+const logoutPendingMessage = 'No llegó una confirmación de la API. El token permanece en memoria y no hay una sesión de servidor que revocar. Reintentá o descartá el token local.';
+const logoutRetryMessage = 'No se recibió confirmación de la API. El token sigue en memoria y puede usarse en este dispositivo; reintentá o descartalo localmente.';
 
-export function PassengerLogin({ service }: { service: IAuthenticationService }) {
+export function PassengerLogin({ service, onSessionChanged }: {
+  service: IAuthenticationService; onSessionChanged: () => void;
+}) {
   const [correo, setCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [session, setSession] = useState(() => service.getState());
@@ -70,10 +76,22 @@ export function PassengerLogin({ service }: { service: IAuthenticationService })
     Keyboard.dismiss();
     try {
       const result = await action();
+      if ((source === 'login' && result.outcome === 'success')
+        || (source === 'logout' && (result.outcome === 'success' || result.outcome === 'unauthenticated'))) {
+        onSessionChanged();
+      }
       if (mounted.current) {
         setSession(service.getState());
         if (source === 'login' && result.outcome === 'success') setFeedback(null);
-        else setFeedback({ source, outcome: result.outcome, kind: kindFor(result.outcome), message: result.message });
+        else setFeedback({
+          source,
+          outcome: result.outcome,
+          kind: kindFor(result.outcome),
+          message: source === 'logout' && result.outcome === 'success' ? logoutSuccessMessage
+            : source === 'logout' && result.outcome === 'unauthenticated' ? logoutUnauthenticatedMessage
+              : source === 'logout' ? logoutRetryMessage
+              : result.message,
+        });
         if (source === 'login' && result.outcome === 'rejected') focusPassword.current = true;
       }
     } finally {
@@ -154,12 +172,12 @@ export function PassengerLogin({ service }: { service: IAuthenticationService })
           <View className="gap-4">
             <View className="gap-2 rounded-lg border border-border-200 bg-surface-0 p-4">
               {session.logoutPending
-                ? <StatusBadge kind="warning" label="Cierre remoto no confirmado" />
+                ? <StatusBadge kind="warning" label="Salida de API no confirmada" />
                 : <StatusBadge kind="success" label="Sesión iniciada" />}
               <Text className="text-base text-ink-700">
                 {session.logoutPending
-                  ? 'No pudimos confirmar el cierre en el servidor. Reintentá el cierre o descartá solo la sesión de este dispositivo.'
-                  : 'Podés verificar tus permisos o cerrar la sesión cuando termines.'}
+                  ? logoutPendingMessage
+                  : 'Podés verificar tus permisos o descartar el token de este dispositivo cuando termines.'}
               </Text>
             </View>
             {renderFeedback()}
@@ -173,12 +191,13 @@ export function PassengerLogin({ service }: { service: IAuthenticationService })
             )}
             <View className="gap-1">
               <Button
-                label={busy ? 'Procesando…' : session.logoutPending ? 'Reintentar cierre de sesión' : 'Cerrar sesión'}
+                label={busy ? 'Procesando…' : session.logoutPending ? 'Reintentar salida de API' : 'Solicitar salida a la API'}
                 variant="destructive" loading={busy} onPress={() => { void run('logout', () => service.logout(), 'Cerrando sesión…'); }}
               />
               {session.logoutPending && (
-                <Button label="Descartar solo la sesión local" variant="secondary" disabled={busy} onPress={() => {
+                <Button label="Descartar token local" variant="secondary" disabled={busy} onPress={() => {
                   service.discard();
+                  onSessionChanged();
                   setSession(service.getState());
                   setFeedback({ source: 'discard', outcome: 'denied', kind: 'warning', message: discardMessage });
                 }} />

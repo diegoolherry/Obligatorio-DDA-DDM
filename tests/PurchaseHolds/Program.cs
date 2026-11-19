@@ -78,6 +78,65 @@ Check("equal interval conflicts", Overlap(2, 5, 2, 5));
 Check("adjacent intervals can reuse a seat", !Overlap(1, 3, 3, 5));
 Check("separated intervals can reuse a seat", !Overlap(1, 2, 4, 6));
 
+var bookedSelection = SeatSelection("IC-booked", "service-booked", "SA-confirmed", 7,
+    departure, departure.AddHours(2), 1, 4);
+bool HasSeatConflict(TramoIntentoCompra candidate, params TramoIntentoCompra[] existing) =>
+    existing.AsQueryable().Any(OcupacionAsientosCompra.Superpuestos(candidate));
+Check("confirmed-occupancy predicate conflicts for same departure, same seat, and overlapping interval",
+    HasSeatConflict(SeatSelection("IC-new", "service-new", "SA-confirmed", 7,
+        departure.AddMinutes(30), departure.AddHours(1), 3, 5), bookedSelection));
+Check("confirmed-occupancy predicate permits adjacent intervals on the same seat",
+    !HasSeatConflict(SeatSelection("IC-adjacent", "service-adjacent", "SA-confirmed", 7,
+        departure.AddHours(2), departure.AddHours(3), 4, 5), bookedSelection));
+Check("confirmed-occupancy overlap follows stop order even when departure times do not overlap",
+    HasSeatConflict(SeatSelection("IC-order-overlap", "service-order-overlap", "SA-confirmed", 7,
+        departure.AddHours(3), departure.AddHours(4), 3, 5), bookedSelection));
+Check("confirmed-occupancy adjacency follows stop order even when timestamps are identical",
+    !HasSeatConflict(SeatSelection("IC-order-adjacent", "service-order-adjacent", "SA-confirmed", 7,
+        departure, departure.AddHours(2), 4, 5), bookedSelection));
+Check("confirmed-occupancy predicate permits an overlapping interval on a different departure",
+    !HasSeatConflict(SeatSelection("IC-other-departure", "service-other", "SA-other", 7,
+        departure.AddMinutes(30), departure.AddHours(1), 3, 5), bookedSelection));
+Check("confirmed-occupancy predicate permits an overlapping interval on a different seat",
+    !HasSeatConflict(SeatSelection("IC-other-seat", "service-other-seat", "SA-confirmed", 8,
+        departure.AddMinutes(30), departure.AddHours(1), 3, 5), bookedSelection));
+
+var confirmedAttemptId = "IC-sold";
+var originalHoldExpiry = departure.AddMinutes(-1);
+var originalAttempt = new IntentoCompra
+{
+    Id = confirmedAttemptId,
+    UsuarioId = "owner",
+    CreadoUtc = departure.AddMinutes(-16),
+    HoldVenceUtc = originalHoldExpiry
+};
+var originalExpiredHold = new HoldAsiento
+{
+    IntentoId = confirmedAttemptId,
+    Orden = 1,
+    SalidaId = "SA-confirmed",
+    NumeroAsiento = 7,
+    OrdenEmbarque = 1,
+    OrdenDesembarque = 4
+};
+var confirmedSelection = SeatSelection(confirmedAttemptId, "service-sold", "SA-confirmed", 7,
+    departure, departure.AddHours(2), 1, 4);
+var ticketedSelectionQuery = OcupacionAsientosCompra.TicketsConfirmados(
+    new[] { new Ticket { Id = "TI-sold", CompraServicioId = "CS-sold", QrOpaco = "opaque" } }.AsQueryable(),
+    new[] { new CompraServicio { Id = "CS-sold", CompraId = "CO-sold", IntentoId = confirmedAttemptId, PagoId = "PG-sold", Orden = 1, Importe = 100m } }.AsQueryable(),
+    new[] { confirmedSelection }.AsQueryable());
+var overlappingPurchase = SeatSelection("IC-current", "service-current", "SA-confirmed", 7,
+    departure.AddMinutes(30), departure.AddHours(1), 3, 5);
+Check("ticket-to-purchase-leg-to-attempt query returns a sold interval after its original hold expired",
+    originalAttempt.HoldVenceUtc < departure && originalExpiredHold.IntentoId == confirmedAttemptId
+    && ticketedSelectionQuery.Any(OcupacionAsientosCompra.Superpuestos(overlappingPurchase)));
+Check("ticket-confirmed seat is reusable in an adjacent stop-order interval",
+    !ticketedSelectionQuery.Any(OcupacionAsientosCompra.Superpuestos(SeatSelection("IC-next", "service-next",
+        "SA-confirmed", 7, departure.AddHours(2), departure.AddHours(3), 4, 5))));
+Check("ticket-confirmed seat on another departure does not block this departure",
+    !ticketedSelectionQuery.Any(OcupacionAsientosCompra.Superpuestos(SeatSelection("IC-other", "service-other",
+        "SA-another", 7, departure.AddMinutes(30), departure.AddHours(1), 3, 5))));
+
 var fixedNow = new DateTime(2026, 11, 16, 12, 0, 0, DateTimeKind.Utc).AddTicks(7);
 var truncate = typeof(IntentosCompraRepository).GetMethod("TruncarMicrosegundos", BindingFlags.Static | BindingFlags.NonPublic)!;
 var storedNow = (DateTime)truncate.Invoke(null, [fixedNow])!;
@@ -95,7 +154,10 @@ Check("attempt has stable IC identity, owner and immutable UTC deadlines", attem
 Check("selection uses natural attempt-and-order key and stores quote fields", selectionEntity?.FindPrimaryKey()?.Properties.Select(property => property.Name).SequenceEqual([nameof(TramoIntentoCompra.IntentoId), nameof(TramoIntentoCompra.Orden)]) == true && selectionEntity.FindProperty(nameof(TramoIntentoCompra.Importe))?.GetColumnType() == "decimal(18,2)");
 Check("seat hold uses selection identity rather than a generated hold identifier", holdEntity?.FindPrimaryKey()?.Properties.Select(property => property.Name).SequenceEqual([nameof(HoldAsiento.IntentoId), nameof(HoldAsiento.Orden)]) == true);
 Check("hold references existing inventory and ordered stop occurrences", holdEntity?.GetForeignKeys().Count(foreignKey => foreignKey.PrincipalEntityType.ClrType == typeof(AsientoSalida)) == 1 && holdEntity.GetForeignKeys().Count(foreignKey => foreignKey.PrincipalEntityType.ClrType == typeof(ParadaSalida)) == 2);
-Check("counter constraint accepts the approved IC prefix", File.ReadAllText("src/Api/API-Berruti/API-Berruti/Data/BerrutiDbContext.cs").Contains("prefijo IN ('US-', 'RO-', 'SA-', 'IC-')"));
+var counterConstraint = File.ReadAllLines("src/Api/API-Berruti/API-Berruti/Data/BerrutiDbContext.cs")
+    .SingleOrDefault(line => line.Contains("ck_contador_prefijo", StringComparison.Ordinal));
+Check("counter constraint accepts the approved IC prefix",
+    counterConstraint is not null && counterConstraint.Contains("'IC-'", StringComparison.Ordinal));
 
 var repositorySource = File.ReadAllText("src/Api/API-Berruti/API-Berruti/Repositories/Operational/IntentosCompraRepository.cs");
 Check("production repository uses explicit read-committed transaction and locks the departure date with a parameterized row query", repositorySource.Contains("IsolationLevel.ReadCommitted") && repositorySource.Contains("SELECT fecha FROM salida WHERE salida_id = @salidaId FOR UPDATE") && repositorySource.Contains("OrderBy(id => id, StringComparer.Ordinal)"));
@@ -358,3 +420,24 @@ foreach (var check in checks)
     Console.WriteLine($"{(check.Passed ? "PASS" : "FAIL")}: {check.Name}");
 Console.WriteLine($"{checks.Count - failed.Count}/{checks.Count} assertions passed.");
 return failed.Count == 0 ? 0 : 1;
+
+static TramoIntentoCompra SeatSelection(string attemptId, string serviceId, string departureId,
+    int seatNumber, DateTime departureUtc, DateTime arrivalUtc, int boardingOrder = 1, int alightingOrder = 2) => new()
+{
+    IntentoId = attemptId,
+    Orden = 1,
+    ServicioId = serviceId,
+    TramoId = $"segment-{serviceId}",
+    OrigenId = "stop-origin",
+    OrigenNombre = "Origin",
+    DestinoId = "stop-destination",
+    DestinoNombre = "Destination",
+    Salida = departureUtc,
+    Llegada = arrivalUtc,
+    Importe = 100m,
+    PoliticaAsiento = PoliticaAsiento.AsignacionAutomatica,
+    NumeroAsiento = seatNumber,
+    SalidaId = departureId,
+    OrdenEmbarque = boardingOrder,
+    OrdenDesembarque = alightingOrder
+};

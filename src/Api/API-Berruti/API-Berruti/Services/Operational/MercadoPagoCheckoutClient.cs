@@ -10,15 +10,20 @@ namespace API_Berruti.Services.Operational;
 public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
 {
     private static readonly Uri OrdersEndpoint = new("https://api.mercadopago.com/v1/orders");
+    private static readonly Uri UserProfileEndpoint = new("https://api.mercadolibre.com/users/me");
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(20);
     private readonly HttpClient _httpClient;
     private readonly string _accessToken;
+    private readonly long _expectedSellerId;
+    private readonly string _expectedSiteId;
 
     public MercadoPagoCheckoutClient(HttpClient httpClient, ParametrosMercadoPago parametros)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         ArgumentNullException.ThrowIfNull(parametros);
         _accessToken = parametros.AccessToken;
+        _expectedSellerId = parametros.ExpectedSellerId;
+        _expectedSiteId = parametros.ExpectedSiteId;
         _httpClient.Timeout = RequestTimeout;
     }
 
@@ -30,6 +35,7 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
     {
         ValidarClaveIdempotencia(claveIdempotencia);
         ValidarDatosEsperados(referenciaExterna, importe);
+        await VerificarIdentidadTestAsync(cancellationToken);
 
         var body = new CrearOrdenRequest
         {
@@ -59,11 +65,71 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
     {
         ValidarIdOrden(ordenId);
         ValidarDatosEsperados(referenciaExternaEsperada, importeEsperado);
+        await VerificarIdentidadTestAsync(cancellationToken);
 
         var endpoint = new Uri($"{OrdersEndpoint.AbsoluteUri}/{Uri.EscapeDataString(ordenId)}");
         using var request = CrearRequest(HttpMethod.Get, endpoint);
         using var document = await EnviarAsync(request, cancellationToken);
-        return LeerOrden(document.RootElement, ordenId, referenciaExternaEsperada, importeEsperado);
+        var orden = LeerOrden(document.RootElement, ordenId, referenciaExternaEsperada, importeEsperado);
+        var checkoutUrl = LeerStringOpcional(document.RootElement, "checkout_url");
+        if (checkoutUrl is not null && !EsCheckoutUrlSeguro(checkoutUrl))
+            throw ErrorProveedor();
+
+        return orden with { CheckoutUrl = checkoutUrl };
+    }
+
+    public async Task<OrdenCheckoutMercadoPago?> BuscarOrdenAsync(
+        string referenciaExternaEsperada,
+        DateTime desdeUtc,
+        DateTime hastaUtc,
+        decimal importeEsperado,
+        CancellationToken cancellationToken = default)
+    {
+        ValidarDatosEsperados(referenciaExternaEsperada, importeEsperado);
+        if (desdeUtc.Kind != DateTimeKind.Utc || hastaUtc.Kind != DateTimeKind.Utc || hastaUtc <= desdeUtc)
+            throw new ArgumentException("La ventana de recuperación debe ser UTC y creciente.");
+
+        await VerificarIdentidadTestAsync(cancellationToken);
+
+        static string Formatear(DateTime valorUtc) =>
+            new DateTimeOffset(valorUtc).ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture);
+
+        var query = string.Join("&", new[]
+        {
+            $"begin_date={Uri.EscapeDataString(Formatear(desdeUtc))}",
+            $"end_date={Uri.EscapeDataString(Formatear(hastaUtc))}",
+            $"external_reference={Uri.EscapeDataString(referenciaExternaEsperada)}",
+            "limit=2",
+            "offset=0"
+        });
+        using var request = CrearRequest(HttpMethod.Get, new Uri($"{OrdersEndpoint.AbsoluteUri}?{query}"));
+        using var document = await EnviarAsync(request, cancellationToken);
+
+        var root = document.RootElement;
+        if (root.ValueKind != JsonValueKind.Object
+            || !root.TryGetProperty("data", out var data)
+            || data.ValueKind != JsonValueKind.Array
+            || !root.TryGetProperty("paging", out var paging)
+            || paging.ValueKind != JsonValueKind.Object
+            || !TryReadInt(paging, "total", out var total)
+            || !TryReadInt(paging, "total_pages", out var totalPages)
+            || !TryReadInt(paging, "offset", out var offset)
+            || !TryReadInt(paging, "limit", out var limit)
+            || total < 0 || totalPages < 0 || offset != 0 || limit <= 0 || total > limit
+            || total != data.GetArrayLength())
+            throw ErrorProveedor();
+
+        if (total == 0)
+        {
+            if (totalPages > 1) throw ErrorProveedor();
+            return null;
+        }
+        if (total != 1 || totalPages != 1)
+            throw ErrorProveedor();
+
+        var orden = LeerOrden(data[0], expectedId: null, referenciaExternaEsperada, importeEsperado);
+        ValidarIdOrden(orden.Id);
+        return await ConsultarOrdenAsync(orden.Id, referenciaExternaEsperada, importeEsperado, cancellationToken);
     }
 
     public async Task SolicitarDevolucionCompletaAsync(
@@ -73,6 +139,7 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
     {
         ValidarIdOrden(ordenId);
         ValidarClaveIdempotencia(claveIdempotencia);
+        await VerificarIdentidadTestAsync(cancellationToken);
 
         var endpoint = new Uri($"{OrdersEndpoint.AbsoluteUri}/{Uri.EscapeDataString(ordenId)}/refund");
         using var request = CrearRequest(HttpMethod.Post, endpoint);
@@ -88,6 +155,40 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         return request;
+    }
+
+    private async Task VerificarIdentidadTestAsync(CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, UserProfileEndpoint);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            throw ErrorProveedor();
+
+        try
+        {
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object
+                || !root.TryGetProperty("id", out var id)
+                || id.ValueKind != JsonValueKind.Number
+                || !id.TryGetInt64(out var sellerId)
+                || sellerId != _expectedSellerId
+                || !root.TryGetProperty("site_id", out var siteId)
+                || siteId.ValueKind != JsonValueKind.String
+                || !string.Equals(siteId.GetString(), _expectedSiteId, StringComparison.Ordinal)
+                || !root.TryGetProperty("tags", out var tags)
+                || tags.ValueKind != JsonValueKind.Array
+                || !tags.EnumerateArray().Any(tag =>
+                    tag.ValueKind == JsonValueKind.String
+                    && string.Equals(tag.GetString(), "test_user", StringComparison.Ordinal)))
+                throw ErrorProveedor();
+        }
+        catch (JsonException)
+        {
+            throw ErrorProveedor();
+        }
     }
 
     private async Task<JsonDocument> EnviarAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -116,9 +217,13 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         var id = LeerStringRequerido(root, "id");
         var reference = LeerStringRequerido(root, "external_reference");
         var amount = LeerDecimalRequerido(root, "total_amount");
-        var paidAmount = LeerDecimalRequerido(root, "total_paid_amount");
         var currency = LeerStringRequerido(root, "currency");
         var status = LeerStringRequerido(root, "status");
+        var paidAmount = root.TryGetProperty("total_paid_amount", out _)
+            ? LeerDecimalRequerido(root, "total_paid_amount")
+            : string.Equals(status, "created", StringComparison.Ordinal)
+                ? 0m
+                : throw ErrorProveedor();
         var statusDetail = LeerStringOpcional(root, "status_detail");
 
         if (id.Length > 256
@@ -175,6 +280,19 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
             || string.IsNullOrWhiteSpace(value.GetString()))
             throw ErrorProveedor();
         return value.GetString()!;
+    }
+
+    private static bool TryReadInt(JsonElement root, string name, out int value)
+    {
+        value = 0;
+        if (!root.TryGetProperty(name, out var element))
+            return false;
+
+        if (element.ValueKind == JsonValueKind.Number)
+            return element.TryGetInt32(out value);
+
+        return element.ValueKind == JsonValueKind.String
+            && int.TryParse(element.GetString(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out value);
     }
 
     private static string? LeerStringOpcional(JsonElement root, string name)

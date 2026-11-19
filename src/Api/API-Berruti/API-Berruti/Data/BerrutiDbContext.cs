@@ -3,6 +3,7 @@ using API_Berruti.Models.Catalogo;
 using API_Berruti.Models.Location;
 using API_Berruti.Models.Operational;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MySql.EntityFrameworkCore.Extensions;
 
 namespace API_Berruti.Data;
@@ -83,7 +84,7 @@ public class BerrutiDbContext : DbContext
         contador.ToTable("contador_entidad", t =>
         {
             t.HasCheckConstraint("ck_contador_rango", "ultimo BETWEEN 0 AND 50000");
-            t.HasCheckConstraint("ck_contador_prefijo", "prefijo IN ('US-', 'RO-', 'SA-', 'IC-')");
+            t.HasCheckConstraint("ck_contador_prefijo", "prefijo IN ('US-', 'RO-', 'SA-', 'IC-', 'PG-', 'CO-', 'CS-', 'TI-')");
         });
         contador.HasKey(c => c.Prefijo);
         contador.Property(c => c.Prefijo).HasColumnName("prefijo").HasMaxLength(3).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).ValueGeneratedNever();
@@ -361,5 +362,118 @@ public class BerrutiDbContext : DbContext
         hold.HasOne<ParadaSalida>().WithMany().HasForeignKey(h => new { h.SalidaId, h.OrdenDesembarque }).OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("fk_hold_asiento_desembarque");
         hold.HasIndex(h => new { h.SalidaId, h.NumeroAsiento }).HasDatabaseName("ix_hold_asiento_inventario");
+
+        ConfigurarPersistenciaPago(modelo);
     }
+
+    private static void ConfigurarPersistenciaPago(ModelBuilder modelo)
+    {
+        var pago = modelo.Entity<Pago>();
+        pago.ToTable("pago", t =>
+        {
+            t.HasCheckConstraint("ck_pago_id", $"pago_id REGEXP '{RangoId("PG-")}'");
+            t.HasCheckConstraint("ck_pago_estado", "estado IN ('Pendiente', 'Desconocido', 'Aprobado', 'Rechazado', 'DevolucionPendiente', 'Devuelto')");
+            t.HasCheckConstraint("ck_pago_importes", "importe_esperado > 0 AND importe_pagado >= 0 AND importe_pagado <= importe_esperado");
+            t.HasCheckConstraint("ck_pago_moneda", "moneda = 'UYU'");
+        });
+        pago.HasKey(p => p.Id);
+        pago.Property(p => p.Id).HasColumnName("pago_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).ValueGeneratedNever();
+        pago.Property(p => p.IntentoId).HasColumnName("intento_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).IsRequired();
+        pago.Property(p => p.ImporteEsperado).HasColumnName("importe_esperado").HasPrecision(10, 2).IsRequired();
+        pago.Property(p => p.ImportePagado).HasColumnName("importe_pagado").HasPrecision(10, 2).IsRequired();
+        pago.Property(p => p.Moneda).HasColumnName("moneda").HasMaxLength(3).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).IsRequired();
+        pago.Property(p => p.Estado).HasColumnName("estado").HasConversion<string>().HasMaxLength(24).IsRequired();
+        pago.Property(p => p.ClaveCreacion).HasColumnName("clave_creacion").HasColumnType("char(36)").ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).IsRequired();
+        pago.Property(p => p.ClaveDevolucion).HasColumnName("clave_devolucion").HasColumnType("char(36)").ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii);
+        pago.Property(p => p.OrdenProveedorId).HasColumnName("orden_proveedor_id").HasMaxLength(256);
+        pago.Property(p => p.CheckoutUrl).HasColumnName("checkout_url").HasMaxLength(2048);
+        ConfigurarUtc(pago.Property(p => p.CreadoUtc).HasColumnName("creado_utc").HasColumnType("datetime(6)").IsRequired());
+        ConfigurarUtc(pago.Property(p => p.ActualizadoUtc).HasColumnName("actualizado_utc").HasColumnType("datetime(6)").IsRequired());
+        ConfigurarUtcNullable(pago.Property(p => p.UltimaVerificacionUtc).HasColumnName("ultima_verificacion_utc").HasColumnType("datetime(6)"));
+        ConfigurarUtcNullable(pago.Property(p => p.DevolucionSolicitadaUtc).HasColumnName("devolucion_solicitada_utc").HasColumnType("datetime(6)"));
+        ConfigurarUtcNullable(pago.Property(p => p.DevolucionConfirmadaUtc).HasColumnName("devolucion_confirmada_utc").HasColumnType("datetime(6)"));
+        pago.HasOne<IntentoCompra>().WithMany().HasForeignKey(p => p.IntentoId).OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("fk_pago_intento");
+        pago.HasAlternateKey(p => new { p.Id, p.IntentoId }).HasName("ak_pago_intento");
+        pago.HasIndex(p => p.ClaveCreacion).IsUnique().HasDatabaseName("uq_pago_clave_creacion");
+        pago.HasIndex(p => p.ClaveDevolucion).IsUnique().HasDatabaseName("uq_pago_clave_devolucion");
+        pago.HasIndex(p => p.OrdenProveedorId).IsUnique().HasDatabaseName("uq_pago_orden_proveedor");
+        pago.HasIndex(p => new { p.IntentoId, p.CreadoUtc }).HasDatabaseName("ix_pago_intento_creado");
+
+        var tramoPago = modelo.Entity<TramoPago>();
+        tramoPago.ToTable("tramo_pago", t =>
+        {
+            t.HasCheckConstraint("ck_tramo_pago_orden", "orden >= 1");
+            t.HasCheckConstraint("ck_tramo_pago_importe", "importe >= 0");
+        });
+        tramoPago.HasKey(p => new { p.PagoId, p.Orden });
+        tramoPago.Property(p => p.PagoId).HasColumnName("pago_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii);
+        tramoPago.Property(p => p.IntentoId).HasColumnName("intento_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).IsRequired();
+        tramoPago.Property(p => p.Orden).HasColumnName("orden").IsRequired();
+        tramoPago.Property(p => p.Importe).HasColumnName("importe").HasPrecision(10, 2).IsRequired();
+        tramoPago.HasOne<Pago>().WithMany().HasForeignKey(p => new { p.PagoId, p.IntentoId }).HasPrincipalKey(p => new { p.Id, p.IntentoId })
+            .OnDelete(DeleteBehavior.Restrict).HasConstraintName("fk_tramo_pago_pago_intento");
+        tramoPago.HasOne<TramoIntentoCompra>().WithMany().HasForeignKey(p => new { p.IntentoId, p.Orden })
+            .OnDelete(DeleteBehavior.Restrict).HasConstraintName("fk_tramo_pago_seleccion");
+
+        var compra = modelo.Entity<Compra>();
+        compra.ToTable("compra", t =>
+        {
+            t.HasCheckConstraint("ck_compra_id", $"compra_id REGEXP '{RangoId("CO-")}'");
+            t.HasCheckConstraint("ck_compra_importe", "importe_total > 0");
+        });
+        compra.HasKey(c => c.Id);
+        compra.Property(c => c.Id).HasColumnName("compra_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).ValueGeneratedNever();
+        compra.Property(c => c.IntentoId).HasColumnName("intento_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).IsRequired();
+        compra.Property(c => c.PagoId).HasColumnName("pago_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).IsRequired();
+        compra.Property(c => c.ImporteTotal).HasColumnName("importe_total").HasPrecision(10, 2).IsRequired();
+        ConfigurarUtc(compra.Property(c => c.ConfirmadoUtc).HasColumnName("confirmado_utc").HasColumnType("datetime(6)").IsRequired());
+        compra.HasOne<IntentoCompra>().WithMany().HasForeignKey(c => c.IntentoId).OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("fk_compra_intento");
+        compra.HasOne<Pago>().WithMany().HasForeignKey(c => new { c.PagoId, c.IntentoId }).HasPrincipalKey(p => new { p.Id, p.IntentoId })
+            .OnDelete(DeleteBehavior.Restrict).HasConstraintName("fk_compra_pago_intento");
+        compra.HasAlternateKey(c => new { c.Id, c.IntentoId, c.PagoId }).HasName("ak_compra_intento_pago");
+        compra.HasIndex(c => c.IntentoId).IsUnique().HasDatabaseName("uq_compra_intento");
+        compra.HasIndex(c => c.PagoId).IsUnique().HasDatabaseName("uq_compra_pago");
+
+        var compraServicio = modelo.Entity<CompraServicio>();
+        compraServicio.ToTable("compra_servicio", t =>
+        {
+            t.HasCheckConstraint("ck_compra_servicio_id", $"compra_servicio_id REGEXP '{RangoId("CS-")}'");
+            t.HasCheckConstraint("ck_compra_servicio_orden", "orden >= 1");
+            t.HasCheckConstraint("ck_compra_servicio_importe", "importe >= 0");
+        });
+        compraServicio.HasKey(c => c.Id);
+        compraServicio.Property(c => c.Id).HasColumnName("compra_servicio_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).ValueGeneratedNever();
+        compraServicio.Property(c => c.CompraId).HasColumnName("compra_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).IsRequired();
+        compraServicio.Property(c => c.IntentoId).HasColumnName("intento_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).IsRequired();
+        compraServicio.Property(c => c.PagoId).HasColumnName("pago_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).IsRequired();
+        compraServicio.Property(c => c.Orden).HasColumnName("orden").IsRequired();
+        compraServicio.Property(c => c.Importe).HasColumnName("importe").HasPrecision(10, 2).IsRequired();
+        compraServicio.HasOne<Compra>().WithMany().HasForeignKey(c => new { c.CompraId, c.IntentoId, c.PagoId }).HasPrincipalKey(c => new { c.Id, c.IntentoId, c.PagoId })
+            .OnDelete(DeleteBehavior.Restrict).HasConstraintName("fk_compra_servicio_compra_intento_pago");
+        compraServicio.HasOne<TramoPago>().WithMany().HasForeignKey(c => new { c.PagoId, c.Orden })
+            .OnDelete(DeleteBehavior.Restrict).HasConstraintName("fk_compra_servicio_tramo_pago");
+        compraServicio.HasIndex(c => new { c.CompraId, c.Orden }).IsUnique().HasDatabaseName("uq_compra_servicio_orden");
+
+        var ticket = modelo.Entity<Ticket>();
+        ticket.ToTable("ticket", t => t.HasCheckConstraint("ck_ticket_id", $"ticket_id REGEXP '{RangoId("TI-")}'"));
+        ticket.HasKey(t => t.Id);
+        ticket.Property(t => t.Id).HasColumnName("ticket_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).ValueGeneratedNever();
+        ticket.Property(t => t.CompraServicioId).HasColumnName("compra_servicio_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).IsRequired();
+        ticket.Property(t => t.QrOpaco).HasColumnName("qr_opaco").HasMaxLength(128).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).IsRequired();
+        ConfigurarUtc(ticket.Property(t => t.EmitidoUtc).HasColumnName("emitido_utc").HasColumnType("datetime(6)").IsRequired());
+        ticket.HasOne<CompraServicio>().WithMany().HasForeignKey(t => t.CompraServicioId).OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("fk_ticket_compra_servicio");
+        ticket.HasIndex(t => t.CompraServicioId).IsUnique().HasDatabaseName("uq_ticket_compra_servicio");
+        ticket.HasIndex(t => t.QrOpaco).IsUnique().HasDatabaseName("uq_ticket_qr_opaco");
+    }
+
+    private static void ConfigurarUtc(Microsoft.EntityFrameworkCore.Metadata.Builders.PropertyBuilder<DateTime> property) =>
+        property.HasConversion(value => value, value => DateTime.SpecifyKind(value, DateTimeKind.Utc));
+
+    private static void ConfigurarUtcNullable(Microsoft.EntityFrameworkCore.Metadata.Builders.PropertyBuilder<DateTime?> property) =>
+        property.HasConversion(new ValueConverter<DateTime?, DateTime?>(
+            value => value,
+            value => value.HasValue ? DateTime.SpecifyKind(value.Value, DateTimeKind.Utc) : null));
 }

@@ -36,6 +36,8 @@ public static class PoliticaConfirmacionCompra
     private static void ExigirUtc(DateTimeOffset fecha, string nombre)
     {
         if (fecha.Offset != TimeSpan.Zero)
+        {
             throw new ArgumentException("La fecha debe estar expresada en UTC.", nombre);
+        }
     }
 }
