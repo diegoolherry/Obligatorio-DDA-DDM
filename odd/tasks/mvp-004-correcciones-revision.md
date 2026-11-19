@@ -22,11 +22,11 @@ Correcciones de la revisión de Diego sobre el stack #121–#128, en una PR nuev
 
 | ID | Specs | Route | Commit |
 |---|---|---|---|
-| T1 | S3a, S3c, S3d, S3e, S3g | worker API | — |
-| T2 | S3f (API: endpoint de intento pendiente) | worker API (después de T1) | — |
-| T3 | S3b, S3f (Web) | worker Web (después de T2) | — |
-| T4 | S3f (Mobile) | worker Mobile (después de T2) | — |
-| T5 | S2, S3h | inline | — |
+| T1 | S3a, S3c, S3d, S3e, S3g | worker API | `fcaff8e` |
+| T2 | S3f (API: endpoint de intento pendiente) | worker API (después de T1) | `fcaff8e` |
+| T3 | S3b, S3f (Web) | worker Web (después de T2) | `87480c2` |
+| T4 | S3f (Mobile) | worker Mobile (después de T2) | `53ab5e8` |
+| T5 | S2, S3h | inline | `fd4710b` |
 | T6 | S1: verificación final (build + suites en la punta), PR #129 | inline | — |
 
 ## Log
@@ -34,3 +34,4 @@ Correcciones de la revisión de Diego sobre el stack #121–#128, en una PR nuev
 - L1 (Diego, 2026-11-19): "lo tenemos q corregior nosotros, como procedemos a hacerlo?" — respuestas: Estrategia "PR nueva arriba de #128 (recomendado)"; Hold "15 minutos (como está ahora)"; Alcance "Bloqueantes + bugs (recomendado)".
 - L2: punto de partida `refs/pr/128` = `origin/mvp-004-main/08-verificacion-final`. Hallazgos de revisión en `.local/mvp004-review/borrador-comentarios.md` (no versionado).
 - L3 (worker API, T1+T2, sin commit): S3a `tests/MySqlPurchase` compila (hasher `PasswordHasher<Usuario>`); S3c `ConciliacionesPagoController` ya no devuelve `exception.Message` (500 saneado) con prueba; S3d mojibake corregido en 3 líneas de `src/`; S3e `external_reference` = `Pago.ReferenciaExterna` (`ClaveCreacion` en formato `D`), `begin_date` = creación − `MargenDesfaseReloj` (5 min), con pruebas; S3g (a) ya se cumplía y estaba cubierto, (b) cubierto en PaymentContracts y en MySqlPurchase `--run` (solo compilado); S3f API: `GET /api/intentos-compra/pendiente` (200/204/401/500), documentado en `docs/reference/api.md`. Checks: build API OK; PaymentContracts 298/298; PurchaseHolds 83/83; AuthenticationSessions `--unit` 68/68; MySqlPurchase compila y `--plan` OK; `git diff --check` limpio. MySQL `--run` no ejecutado.
+- L4 (T6, verificación en la punta): API/Web build PASS; PurchaseHoldSchema 22/22; PurchaseHolds PASS; PaymentContracts 298/0; WebPurchase 213/213; AuthenticationSessions --unit 68/68; MySqlPurchase --plan PASS; MobilePurchase PASS; tsc PASS; git diff --check limpio. OperationalAdministration falló al compilar (su glob `Repositories/Operational/I*.cs` incluía `IntentosPendientesRepository.cs`); corregido con `Compile Remove`, luego 150 structural checks PASS. No ejecutado: MySQL --run, API runtime, Checkout Pro TEST real, UI.
