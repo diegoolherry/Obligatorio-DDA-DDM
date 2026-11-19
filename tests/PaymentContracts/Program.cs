@@ -818,6 +818,69 @@ var getHandler = new MockHttpMessageHandler((request, _) =>
 var readOrder = await CreateCheckoutClient(getHandler).ConsultarOrdenAsync("provider/id", checkoutReference, checkoutAmount);
 Check(readOrder.Id == "provider/id" && readOrder.Estado == EstadoPago.Aprobado, "GET validates requested order identity");
 
+var searchStartUtc = new DateTime(2026, 11, 16, 14, 0, 0, DateTimeKind.Utc);
+var searchEndUtc = searchStartUtc.AddMinutes(10);
+var searchedOrderJson = """
+    {"id":"order-1","external_reference":"payment-123","total_amount":"125.50","total_paid_amount":"125.50","currency":"UYU","status":"processed","status_detail":"accredited"}
+    """;
+var searchHandler = new MockHttpMessageHandler((request, _) =>
+{
+    Check(request.Method == HttpMethod.Get && request.RequestUri!.GetLeftPart(UriPartial.Path) == "https://api.mercadopago.com/v1/orders",
+        "lost-order recovery uses the fixed public Orders search endpoint");
+    Check(request.Headers.Authorization?.Scheme == "Bearer" && request.Headers.Authorization.Parameter == checkoutToken,
+        "lost-order recovery uses the configured TEST bearer credential");
+    var query = Uri.UnescapeDataString(request.RequestUri!.Query);
+    Check(query.Contains("begin_date=2026-11-16T14:00:00", StringComparison.Ordinal)
+        && query.Contains("end_date=2026-11-16T14:10:00", StringComparison.Ordinal)
+        && query.Contains("external_reference=payment-123", StringComparison.Ordinal)
+        && query.Contains("limit=2", StringComparison.Ordinal) && query.Contains("offset=0", StringComparison.Ordinal),
+        "lost-order search bounds its UTC window and requests a two-row ambiguity check for one payment reference");
+    return JsonResponse(HttpStatusCode.OK,
+        $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}");
+});
+var searchedOrder = await CreateCheckoutClient(searchHandler).BuscarOrdenAsync(
+    checkoutReference, searchStartUtc, searchEndUtc, checkoutAmount);
+Check(searchedOrder is { Id: "order-1", Estado: EstadoPago.Aprobado, CheckoutUrl: null },
+    "one complete matching result recovers validated order facts without inventing a checkout URL");
+
+var emptySearch = await CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK,
+    "{\"data\":[],\"paging\":{\"total\":0,\"total_pages\":0,\"offset\":0,\"limit\":2}}")))
+    .BuscarOrdenAsync(checkoutReference, searchStartUtc, searchEndUtc, checkoutAmount);
+Check(emptySearch is null, "empty authoritative order search preserves the unknown-payment outcome");
+foreach (var ambiguousSearch in new[]
+{
+    $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":2,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}",
+    $"{{\"data\":[{searchedOrderJson},{searchedOrderJson.Replace("order-1", "order-2", StringComparison.Ordinal)}],\"paging\":{{\"total\":2,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}",
+    $"{{\"data\":[{searchedOrderJson.Replace("payment-123", "other-payment", StringComparison.Ordinal)}],\"paging\":{{\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}",
+    $"{{\"data\":[{searchedOrderJson.Replace("125.50", "125.51", StringComparison.Ordinal)}],\"paging\":{{\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}",
+    $"{{\"data\":[{searchedOrderJson.Replace("UYU", "USD", StringComparison.Ordinal)}],\"paging\":{{\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}",
+    "{\"data\":[],\"paging\":{\"total\":0,\"total_pages\":0,\"offset\":1,\"limit\":2}}"
+})
+{
+    await CheckThrowsAsync<InvalidOperationException>(
+        () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, ambiguousSearch)))
+            .BuscarOrdenAsync(checkoutReference, searchStartUtc, searchEndUtc, checkoutAmount),
+        "ambiguous, truncated, mismatched, or malformed pagination never binds a recovered order");
+}
+var invalidWindowHandler = new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, "{}"));
+await CheckThrowsAsync<ArgumentException>(
+    () => CreateCheckoutClient(invalidWindowHandler).BuscarOrdenAsync(
+        checkoutReference, searchEndUtc, searchStartUtc, checkoutAmount),
+    "reversed recovery time windows are rejected before HTTP");
+Check(invalidWindowHandler.RequestCount == 0, "invalid recovery window issues no provider request");
+await CheckThrowsAsync<InvalidOperationException>(
+    () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.InternalServerError, "offline")))
+        .BuscarOrdenAsync(checkoutReference, searchStartUtc, searchEndUtc, checkoutAmount),
+    "order search network failures remain an unknown reconciliation result");
+using (var canceledSearch = new CancellationTokenSource())
+{
+    canceledSearch.Cancel();
+    await CheckThrowsAsync<OperationCanceledException>(
+        () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => throw new OperationCanceledException()))
+            .BuscarOrdenAsync(checkoutReference, searchStartUtc, searchEndUtc, checkoutAmount, canceledSearch.Token),
+        "caller cancellation propagates through order recovery search");
+}
+
 foreach (var (status, statusDetail, paid, expected) in new (string Status, string? Detail, string Paid, EstadoPago Expected)[]
 {
     ("processed", "accredited", "125.50", EstadoPago.Aprobado),
@@ -941,6 +1004,341 @@ using (var canceled = new CancellationTokenSource())
             .ConsultarOrdenAsync("order-1", checkoutReference, checkoutAmount, canceled.Token), "cancellation propagates unchanged");
 }
 
+var synchronizationResponseType = typeof(SincronizarPagoResponseDto);
+Check(synchronizationResponseType.GetProperty("Pago")?.PropertyType == typeof(PagoResponseDto)
+    && synchronizationResponseType.GetProperty("Compra")?.PropertyType == typeof(CompraConfirmadaResponseDto),
+    "payment synchronization separates payment status from optional atomic purchase confirmation");
+var confirmedPurchaseType = typeof(CompraConfirmadaResponseDto);
+Check(new[] { "CompraId", "IntentoId", "PagoId", "ConfirmadoUtc", "ImporteTotal", "Tickets" }
+    .All(name => confirmedPurchaseType.GetProperty(name) is not null),
+    "purchase confirmation exposes stable purchase/payment identity, UTC confirmation, amount, and tickets");
+var issuedTicketType = typeof(TicketEmitidoDto);
+Check(new[] { "TicketId", "Orden", "ServicioId", "TramoId", "OrigenNombre", "DestinoNombre", "Salida", "Llegada", "Importe", "PoliticaAsiento", "NumeroAsiento", "QrOpaco" }
+    .All(name => issuedTicketType.GetProperty(name) is not null),
+    "ticket contract exposes frozen leg details, optional assigned seat, and opaque QR payload");
+Check(typeof(TicketEmitidoDto).GetProperty("QrOpaco")?.PropertyType == typeof(string)
+    && typeof(TicketEmitidoDto).GetProperty("NumeroAsiento")?.PropertyType == typeof(int?),
+    "ticket QR is an opaque string and no-seat tickets can omit an assigned seat number");
+var reconciliationType = typeof(ResultadoConciliacionPago);
+Check(new[] { "Registro", "Compra", "RequiereDevolucion" }.All(name => reconciliationType.GetProperty(name) is not null),
+    "repository reconciliation result carries durable payment, optional purchase, and refund follow-up state");
+var synchronizationServiceMethod = typeof(IConciliacionesPagoService).GetMethod("SincronizarAsync");
+Check(synchronizationServiceMethod?.ReturnType == typeof(Task<SincronizarPagoResponseDto>)
+    && synchronizationServiceMethod.GetParameters().Select(parameter => parameter.ParameterType)
+        .SequenceEqual([typeof(string), typeof(string), typeof(CancellationToken)]),
+    "payment synchronization service is owner-scoped, attempt-scoped, asynchronous, and cancelable");
+var confirmationRepositoryType = typeof(IConfirmacionesCompraRepository);
+Check(confirmationRepositoryType.GetMethod("ConsultarAsync") is not null
+    && confirmationRepositoryType.GetMethod("ConciliarAsync") is not null,
+    "purchase confirmation repository separates owned snapshot reads from transactional reconciliation");
+
+var confirmationCreatedUtc = new DateTime(2026, 11, 16, 14, 59, 0, DateTimeKind.Utc);
+var confirmationHoldExpiryUtc = confirmationCreatedUtc.AddMinutes(1);
+var frozenSelection = new[]
+{
+    ConfirmationSelection(1, "service-first", "segment-first", "stop-a", "Origin A", "stop-b", "Transfer", 100m, PoliticaAsiento.SinAsiento, null, confirmationCreatedUtc.AddHours(1), confirmationCreatedUtc.AddHours(2)),
+    ConfirmationSelection(2, "service-second", "segment-second", "stop-b", "Transfer", "stop-c", "Destination C", 75m, PoliticaAsiento.AsignacionAutomatica, 12, confirmationCreatedUtc.AddHours(2.5), confirmationCreatedUtc.AddHours(3.5))
+};
+var frozenPaymentPrices = new[]
+{
+    new TramoPago { PagoId = "PG-confirm", IntentoId = "IC-confirm", Orden = 1, Importe = 210m },
+    new TramoPago { PagoId = "PG-confirm", IntentoId = "IC-confirm", Orden = 2, Importe = 140m }
+};
+var approvedConfirmation = ConfirmationRecord(EstadoPago.Aprobado, 350m, confirmationHoldExpiryUtc);
+var emitted = EmisionCompra.Preparar(
+    approvedConfirmation,
+    frozenPaymentPrices,
+    frozenSelection,
+    "CO-confirm",
+    ["CS-first", "CS-second"],
+    ["TK-first", "TK-second"],
+    confirmationCreatedUtc);
+var emittedQrValues = emitted.Tickets.Select(ticket => ticket.QrOpaco).ToArray();
+Check(emitted.Compra.Id == "CO-confirm" && emitted.Compra.PagoId == "PG-confirm"
+    && emitted.Compra.IntentoId == "IC-confirm" && emitted.Compra.ImporteTotal == 350m
+    && emitted.Compra.ConfirmadoUtc == confirmationCreatedUtc,
+    "approved full payment produces one purchase using the expected amount and supplied UTC confirmation time");
+Check(emitted.Servicios.Select(service => (service.Id, service.Orden, service.Importe))
+        .SequenceEqual([("CS-first", 1, 210m), ("CS-second", 2, 140m)])
+    && emitted.Tickets.Select(ticket => ticket.CompraServicioId).SequenceEqual(["CS-first", "CS-second"]),
+    "materialization emits one ordered purchase leg and ticket per frozen payment leg");
+Check(emittedQrValues.Length == 2 && emittedQrValues.Distinct(StringComparer.Ordinal).Count() == 2
+    && emittedQrValues.All(value => value.Length == 64 && value.All(Uri.IsHexDigit))
+    && emittedQrValues.All(value => !value.Contains("IC-confirm", StringComparison.Ordinal)
+        && !value.Contains("PG-confirm", StringComparison.Ordinal)
+        && !value.Contains("service-first", StringComparison.Ordinal)),
+    "ticket QR values are unique opaque 32-byte hex payloads without purchase or passenger identifiers");
+Check(emitted.Servicios.Sum(service => service.Importe) == approvedConfirmation.Pago.ImportePagado
+    && emitted.Servicios[0].Importe != frozenSelection[0].Importe
+    && emitted.Servicios[1].Importe != frozenSelection[1].Importe,
+    "issued prices come from the frozen payment snapshot rather than the original itinerary quote");
+
+foreach (var (name, invalidRecord, invalidPrices, invalidSelection, compraId, csIds, ticketIds, confirmedUtc) in new[]
+{
+    ("partial payment", ConfirmationRecord(EstadoPago.Aprobado, 349m, confirmationHoldExpiryUtc), frozenPaymentPrices, frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
+    ("expired hold", ConfirmationRecord(EstadoPago.Aprobado, 350m, confirmationCreatedUtc), frozenPaymentPrices, frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
+    ("missing frozen price", approvedConfirmation, frozenPaymentPrices[..1], frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
+    ("wrong total", approvedConfirmation, [.. frozenPaymentPrices, new TramoPago { PagoId = "PG-confirm", IntentoId = "IC-confirm", Orden = 3, Importe = 1m }], frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
+    ("wrong generated identity count", approvedConfirmation, frozenPaymentPrices, frozenSelection, "CO-x", new[] { "CS-1" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
+    ("non-UTC confirmation time", approvedConfirmation, frozenPaymentPrices, frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, DateTime.SpecifyKind(confirmationCreatedUtc, DateTimeKind.Unspecified))
+})
+{
+    PlanEmisionCompra? partialPlan = null;
+    CheckThrows<Exception>(() => partialPlan = EmisionCompra.Preparar(
+        invalidRecord, invalidPrices, invalidSelection, compraId, csIds, ticketIds, confirmedUtc),
+        $"materializer rejects {name} before returning a partial plan");
+    Check(partialPlan is null, $"invalid {name} leaves no materialized plan available for persistence");
+}
+
+var validDecision = PoliticaConfirmacionCompra.Decidir(
+    EstadoPago.Aprobado,
+    new DateTimeOffset(confirmationHoldExpiryUtc, TimeSpan.Zero),
+    new DateTimeOffset(confirmationCreatedUtc, TimeSpan.Zero),
+    disponibilidadConfirmada: true);
+var expiresAtDeadlineDecision = PoliticaConfirmacionCompra.Decidir(
+    EstadoPago.Aprobado,
+    new DateTimeOffset(confirmationHoldExpiryUtc, TimeSpan.Zero),
+    new DateTimeOffset(confirmationHoldExpiryUtc, TimeSpan.Zero),
+    disponibilidadConfirmada: true);
+Check(validDecision == DecisionConfirmacion.Confirmar
+    && expiresAtDeadlineDecision == DecisionConfirmacion.SeguimientoDevolucion,
+    "purchase decision uses API confirmation time and exact original-hold deadline, not provider approval time");
+
+var concurrentPurchaseStore = new FakeAtomicPurchaseStore();
+var concurrentMaterializations = await Task.WhenAll(Enumerable.Range(0, 8)
+    .Select(_ => concurrentPurchaseStore.ConfirmAsync(approvedConfirmation, frozenPaymentPrices, frozenSelection, confirmationCreatedUtc)));
+Check(concurrentPurchaseStore.PublishedPurchaseCount == 1
+    && concurrentPurchaseStore.PublishedTicketCount == 2
+    && concurrentMaterializations.Select(result => result.CompraId).Distinct(StringComparer.Ordinal).Count() == 1
+    && concurrentMaterializations.SelectMany(result => result.QrValues).Distinct(StringComparer.Ordinal).Count() == 2
+    && concurrentMaterializations.SelectMany(result => result.QrValues).Distinct(StringComparer.Ordinal).Count() == concurrentMaterializations[0].QrValues.Count,
+    "same-payment fake concurrency elects one materialization and all callers retain the same purchase and QR identities");
+var failingPurchaseStore = new FakeAtomicPurchaseStore { FailBeforePublish = true };
+await CheckThrowsAsync<InvalidOperationException>(
+    () => failingPurchaseStore.ConfirmAsync(approvedConfirmation, frozenPaymentPrices, frozenSelection, confirmationCreatedUtc),
+    "materialization failure before fake atomic publish is surfaced");
+Check(failingPurchaseStore.PublishedPurchaseCount == 0 && failingPurchaseStore.PublishedTicketCount == 0,
+    "failed fake atomic publish leaves no visible purchase or partial tickets; this does not prove database rollback");
+
+var noOrderSnapshot = ConfirmationResult(EstadoPago.Desconocido, 0m, "", 350m, confirmationHoldExpiryUtc, null, false);
+var recoveryClock = new FakeTimeProvider(new DateTimeOffset(confirmationCreatedUtc.AddSeconds(20), TimeSpan.Zero));
+var noOrderRepository = new FakeConfirmationRepository(noOrderSnapshot);
+var noOrderGateway = new FakeMercadoPagoCheckoutClient();
+var noOrderService = new ConciliacionesPagoService(noOrderRepository, noOrderGateway, recoveryClock);
+var noOrderResponse = await noOrderService.SincronizarAsync("passenger", "IC-confirm");
+Check(noOrderResponse.Pago.Estado == EstadoPago.Desconocido && noOrderResponse.Compra is null
+    && noOrderGateway.QueryCalls == 0 && noOrderGateway.SearchCalls == 1 && noOrderGateway.RefundCalls == 0
+    && noOrderGateway.CreateCalls == 0 && noOrderRepository.ConciliateCalls == 0,
+    "missing stored provider order searches once, preserves unknown on no match, and never creates or issues tickets");
+Check(noOrderGateway.LastSearchReference == "PG-confirm"
+    && noOrderGateway.LastSearchStartUtc == noOrderSnapshot.Registro.Pago.CreadoUtc
+    && noOrderGateway.LastSearchEndUtc == recoveryClock.GetUtcNow().UtcDateTime,
+    "recovery search uses the durable PG reference and its persisted-creation-to-current-API time window");
+
+var searchFailureRepository = new FakeConfirmationRepository(noOrderSnapshot);
+var searchFailureGateway = new FakeMercadoPagoCheckoutClient { SearchException = new HttpRequestException("offline") };
+var searchFailureResponse = await new ConciliacionesPagoService(searchFailureRepository, searchFailureGateway, recoveryClock)
+    .SincronizarAsync("passenger", "IC-confirm");
+Check(searchFailureResponse.Pago.Estado == EstadoPago.Desconocido && searchFailureResponse.Compra is null
+    && searchFailureGateway.SearchCalls == 1 && searchFailureGateway.CreateCalls == 0
+    && searchFailureRepository.ConciliateCalls == 0,
+    "recovery search outage preserves durable unknown without rejection, second create, or ticket fulfillment");
+
+var pendingRecoveredOrder = ConfirmationOrder(EstadoPago.Pendiente, 0m, "order-pending") with { CheckoutUrl = null };
+var pendingRecoveredResult = ConfirmationResult(EstadoPago.Pendiente, 0m, "order-pending", 350m,
+    confirmationHoldExpiryUtc, null, false);
+var pendingRecoveryRepository = new FakeConfirmationRepository(noOrderSnapshot)
+{
+    OnConciliate = (_, _) => pendingRecoveredResult
+};
+var pendingRecoveryGateway = new FakeMercadoPagoCheckoutClient { SearchResponse = pendingRecoveredOrder };
+var pendingRecoveredResponse = await new ConciliacionesPagoService(pendingRecoveryRepository, pendingRecoveryGateway, recoveryClock)
+    .SincronizarAsync("passenger", "IC-confirm");
+Check(pendingRecoveredResponse.Pago.Estado == EstadoPago.Pendiente && pendingRecoveredResponse.Pago.CheckoutUrl is null
+    && pendingRecoveredResponse.Compra is null && pendingRecoveryGateway.CreateCalls == 0,
+    "recovered pending order remains synchronizable without an invented checkout URL or second order creation");
+
+var queryFailureRepository = new FakeConfirmationRepository(noOrderSnapshot with
+{
+    Registro = ConfirmationRecord(EstadoPago.Desconocido, 0m, confirmationHoldExpiryUtc, "order-stored")
+});
+var queryFailureGateway = new FakeMercadoPagoCheckoutClient { QueryException = new HttpRequestException("offline") };
+var queryFailureService = new ConciliacionesPagoService(queryFailureRepository, queryFailureGateway, paymentNow);
+var queryFailureResponse = await queryFailureService.SincronizarAsync("passenger", "IC-confirm");
+Check(queryFailureResponse.Pago.Estado == EstadoPago.Desconocido && queryFailureResponse.Compra is null
+    && queryFailureRepository.ConciliateCalls == 0 && queryFailureGateway.CreateCalls == 0,
+    "provider query failure preserves the last payment snapshot without fake rejection or fulfillment");
+Check(queryFailureGateway.LastQueryOrderId == "order-stored"
+    && queryFailureGateway.LastQueryReference == "PG-confirm"
+    && queryFailureGateway.LastQueryAmount == 350m,
+    "payment sync queries the stored provider order with the durable payment reference and expected amount");
+
+var foreignSnapshotRepository = new FakeConfirmationRepository(null);
+var foreignSnapshotGateway = new FakeMercadoPagoCheckoutClient();
+await CheckThrowsAsync<KeyNotFoundException>(
+    () => new ConciliacionesPagoService(foreignSnapshotRepository, foreignSnapshotGateway, paymentNow)
+        .SincronizarAsync("foreign-passenger", "IC-confirm"),
+    "foreign or missing owner snapshot fails as not found before provider access");
+Check(foreignSnapshotGateway.QueryCalls == 0 && foreignSnapshotGateway.RefundCalls == 0,
+    "unowned payment never triggers provider reconciliation or refund");
+
+var confirmedPurchaseDto = new CompraConfirmadaResponseDto
+{
+    CompraId = "CO-confirm", IntentoId = "IC-confirm", PagoId = "PG-confirm",
+    ConfirmadoUtc = confirmationCreatedUtc, ImporteTotal = 350m, Tickets = []
+};
+var approvedOrder = ConfirmationOrder(EstadoPago.Aprobado, 350m, "order-stored");
+var approvedResult = ConfirmationResult(EstadoPago.Aprobado, 350m, "order-stored", 350m,
+    confirmationHoldExpiryUtc, confirmedPurchaseDto, false);
+var approvedRepo = new FakeConfirmationRepository(ConfirmationResult(EstadoPago.Pendiente, 0m,
+    "order-stored", 350m, confirmationHoldExpiryUtc, null, false))
+{
+    OnConciliate = (_, _) => approvedResult
+};
+var approvedGateway = new FakeMercadoPagoCheckoutClient { QueryResponses = [approvedOrder] };
+var approvedSync = await new ConciliacionesPagoService(approvedRepo, approvedGateway, paymentNow)
+    .SincronizarAsync("passenger", "IC-confirm");
+Check(approvedSync.Pago.Estado == EstadoPago.Aprobado && approvedSync.Compra?.CompraId == "CO-confirm"
+    && approvedRepo.Events.SequenceEqual(["snapshot", "reconcile"])
+    && approvedGateway.Events.SequenceEqual(["get"]),
+    "verified provider approval is reconciled after the owned DB snapshot and returns only repository-confirmed purchase");
+Check(approvedRepo.LastOwnerId == "passenger" && approvedRepo.LastAttemptId == "IC-confirm"
+    && approvedGateway.LastQueryOrderId == "order-stored"
+    && approvedGateway.LastQueryReference == "PG-confirm"
+    && approvedGateway.LastQueryAmount == 350m,
+    "synchronization is scoped to passenger and attempt while validating stored order, payment, and amount");
+Check(approvedGateway.SearchCalls == 0,
+    "a known persisted provider order uses direct GET and never invokes recovery search");
+
+var recoveredApproved = ConfirmationResult(EstadoPago.Aprobado, 350m, "order-1", 350m,
+    confirmationHoldExpiryUtc, confirmedPurchaseDto, false);
+var recoveryRepository = new FakeConfirmationRepository(noOrderSnapshot)
+{
+    OnConciliate = (_, _) => recoveredApproved
+};
+var recoveryGateway = new FakeMercadoPagoCheckoutClient
+{
+    SearchResponse = ConfirmationOrder(EstadoPago.Aprobado, 350m, "order-1") with { CheckoutUrl = null }
+};
+var recoveredResponse = await new ConciliacionesPagoService(recoveryRepository, recoveryGateway, recoveryClock)
+    .SincronizarAsync("passenger", "IC-confirm");
+Check(recoveredResponse.Pago.Estado == EstadoPago.Aprobado && recoveredResponse.Compra?.PagoId == "PG-confirm"
+    && recoveryRepository.ConciliateCalls == 1 && recoveryGateway.Events.SequenceEqual(["search"])
+    && recoveryGateway.CreateCalls == 0,
+    "one verified search match binds to the existing payment through ordinary locked reconciliation without recreating checkout");
+Check(recoveryGateway.LastSearchReference == "PG-confirm" && recoveryGateway.LastSearchAmount == 350m
+    && recoveryGateway.LastSearchStartUtc == noOrderSnapshot.Registro.Pago.CreadoUtc
+    && recoveryGateway.LastSearchEndUtc == recoveryClock.GetUtcNow().UtcDateTime,
+    "recovery passes the exact durable reference, expected amount, and uncapped persisted-to-now window");
+
+var lateRefundPending = ConfirmationResult(EstadoPago.DevolucionPendiente, 350m, "order-stored", 350m,
+    confirmationCreatedUtc, null, true);
+var lateApprovedRepository = new FakeConfirmationRepository(ConfirmationResult(EstadoPago.Pendiente, 0m,
+    "order-stored", 350m, confirmationCreatedUtc, null, false))
+{
+    OnConciliate = (order, call) => call == 1
+        ? lateRefundPending
+        : ConfirmationResult(order.Estado, order.ImportePagado, "order-stored", 350m,
+            confirmationCreatedUtc, null, order.Estado == EstadoPago.DevolucionPendiente)
+};
+var lateGateway = new FakeMercadoPagoCheckoutClient
+{
+    QueryResponses = [approvedOrder, ConfirmationOrder(EstadoPago.Devuelto, 0m, "order-stored")]
+};
+var lateClock = new FakeTimeProvider(new DateTimeOffset(confirmationHoldExpiryUtc, TimeSpan.Zero));
+var lateSync = await new ConciliacionesPagoService(lateApprovedRepository, lateGateway, lateClock)
+    .SincronizarAsync("passenger", "IC-confirm");
+Check(lateSync.Pago.Estado == EstadoPago.Devuelto && lateSync.Compra is null
+    && lateApprovedRepository.Events.SequenceEqual(["snapshot", "reconcile", "reconcile"])
+    && lateGateway.Events.SequenceEqual(["get", "refund", "get"])
+    && lateGateway.LastRefundOrderId == "order-stored"
+    && lateGateway.LastRefundKey == lateRefundPending.Registro.Pago.ClaveDevolucion,
+    "late provider approval without live hold requests keyed full refund, then GET-verifies Devuelto before completion");
+
+var refundStillPending = ConfirmationResult(EstadoPago.DevolucionPendiente, 350m, "order-stored", 350m,
+    confirmationCreatedUtc, null, true);
+var pendingRefundRepository = new FakeConfirmationRepository(ConfirmationResult(EstadoPago.Pendiente, 0m,
+    "order-stored", 350m, confirmationCreatedUtc, null, false))
+{
+    OnConciliate = (_, _) => refundStillPending
+};
+var pendingRefundGateway = new FakeMercadoPagoCheckoutClient { QueryResponses = [approvedOrder, approvedOrder] };
+var pendingRefundResponse = await new ConciliacionesPagoService(pendingRefundRepository, pendingRefundGateway, lateClock)
+    .SincronizarAsync("passenger", "IC-confirm");
+Check(pendingRefundResponse.Pago.Estado == EstadoPago.DevolucionPendiente
+    && pendingRefundResponse.Compra is null && pendingRefundGateway.Events.SequenceEqual(["get", "refund", "get"]),
+    "successful refund request does not mark payment refunded while authoritative GET still reports approval");
+
+var refundFailureRepository = new FakeConfirmationRepository(ConfirmationResult(EstadoPago.Pendiente, 0m,
+    "order-stored", 350m, confirmationCreatedUtc, null, false))
+{
+    OnConciliate = (_, _) => refundStillPending
+};
+var refundFailureGateway = new FakeMercadoPagoCheckoutClient
+{
+    QueryResponses = [approvedOrder], RefundException = new HttpRequestException("refund unavailable")
+};
+var refundFailureResponse = await new ConciliacionesPagoService(refundFailureRepository, refundFailureGateway, lateClock)
+    .SincronizarAsync("passenger", "IC-confirm");
+Check(refundFailureResponse.Pago.Estado == EstadoPago.DevolucionPendiente
+    && refundFailureResponse.Compra is null && refundFailureGateway.Events.SequenceEqual(["get", "refund"])
+    && refundFailureGateway.LastRefundKey == refundStillPending.Registro.Pago.ClaveDevolucion,
+    "refund request failure keeps durable pending refund and the same idempotency key without ticket issuance");
+
+using (var canceledSync = new CancellationTokenSource())
+{
+    canceledSync.Cancel();
+    var canceledSyncRepository = new FakeConfirmationRepository(noOrderSnapshot);
+    var canceledSyncGateway = new FakeMercadoPagoCheckoutClient();
+    await CheckThrowsAsync<OperationCanceledException>(
+        () => new ConciliacionesPagoService(canceledSyncRepository, canceledSyncGateway, paymentNow)
+            .SincronizarAsync("passenger", "IC-confirm", canceledSync.Token),
+        "caller cancellation propagates through synchronization");
+    Check(canceledSyncRepository.Events.Count == 0 && canceledSyncGateway.Events.Count == 0,
+        "canceled synchronization performs no provider side effect or destructive local transition");
+}
+
+
+
+var syncEndpoint = typeof(ConciliacionesPagoController).GetMethod(nameof(ConciliacionesPagoController.Sincronizar));
+var syncRoute = typeof(ConciliacionesPagoController).GetCustomAttributes(typeof(RouteAttribute), true)
+    .Cast<RouteAttribute>().SingleOrDefault()?.Template;
+Check(syncRoute == "api/intentos-compra/{intentoId}/pagos"
+    && syncEndpoint?.GetCustomAttributes(typeof(HttpPostAttribute), true).Cast<HttpPostAttribute>()
+        .SingleOrDefault()?.Template == "sincronizar"
+    && syncEndpoint.GetParameters().Length == 2,
+    "sync endpoint is a bodyless authenticated POST, so clients cannot assert payment approval");
+var unknownControllerService = new FakeConciliacionesPagoService
+{
+    Response = new SincronizarPagoResponseDto { Pago = new PagoResponseDto { Estado = EstadoPago.Desconocido } }
+};
+var unknownController = CreateSyncController(unknownControllerService, "passenger-public-id");
+var unknownHttpResult = await unknownController.Sincronizar("IC-opaque");
+Check(unknownHttpResult.Result is ObjectResult { StatusCode: 202 }
+    && unknownControllerService.Owner == "passenger-public-id"
+    && unknownControllerService.Attempt == "IC-opaque",
+    "unknown local payment maps to 202 and the controller supplies only the authenticated passenger identity");
+var knownControllerService = new FakeConciliacionesPagoService
+{
+    Response = new SincronizarPagoResponseDto { Pago = new PagoResponseDto { Estado = EstadoPago.Aprobado } }
+};
+var knownHttpResult = await CreateSyncController(knownControllerService, "passenger-public-id").Sincronizar("IC-opaque");
+Check(knownHttpResult.Result is OkObjectResult,
+    "known synchronized payment maps to 200 without requiring client-provided payment state");
+var noIdentitySyncResult = await CreateSyncController(new FakeConciliacionesPagoService(), null).Sincronizar("IC-opaque");
+Check(noIdentitySyncResult.Result is UnauthorizedResult,
+    "missing authenticated identity is rejected before payment synchronization");
+var foreignControllerService = new FakeConciliacionesPagoService { Exception = new KeyNotFoundException() };
+var foreignHttpResult = await CreateSyncController(foreignControllerService, "passenger-public-id").Sincronizar("IC-foreign");
+Check(foreignHttpResult.Result is NotFoundResult,
+    "missing or foreign attempt maps to 404 without exposing ownership details");
+var canceledControllerService = new FakeConciliacionesPagoService { Exception = new OperationCanceledException() };
+using var canceledControllerToken = new CancellationTokenSource();
+canceledControllerToken.Cancel();
+await CheckThrowsAsync<OperationCanceledException>(
+    () => CreateSyncController(canceledControllerService, "passenger-public-id").Sincronizar("IC-opaque", canceledControllerToken.Token),
+    "synchronization controller propagates caller cancellation");
+
 Console.WriteLine($"Checks: {checks}; failures: {failures}");
 return failures == 0 ? 0 : 1;
 
@@ -984,6 +1382,23 @@ static PagosController CreatePaymentController(IPagosService service, string? pa
         ? Array.Empty<Claim>()
         : [new Claim(ClaimTypes.NameIdentifier, passengerId)];
     return new PagosController(service)
+    {
+        ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(claims, "test"))
+            }
+        }
+    };
+}
+
+static ConciliacionesPagoController CreateSyncController(IConciliacionesPagoService service, string? passengerId)
+{
+    var claims = passengerId is null
+        ? Array.Empty<Claim>()
+        : [new Claim(ClaimTypes.NameIdentifier, passengerId)];
+    return new ConciliacionesPagoController(service)
     {
         ControllerContext = new ControllerContext
         {
@@ -1091,6 +1506,75 @@ void CheckThrows<TException>(Action action, string name) where TException : Exce
         Check(true, name);
     }
 }
+
+static TramoIntentoCompra ConfirmationSelection(int order, string serviceId, string segmentId,
+    string originId, string originName, string destinationId, string destinationName, decimal originalAmount,
+    PoliticaAsiento seatPolicy, int? seatNumber, DateTime departure, DateTime arrival) => new()
+{
+    IntentoId = "IC-confirm",
+    Orden = order,
+    ServicioId = serviceId,
+    TramoId = segmentId,
+    OrigenId = originId,
+    OrigenNombre = originName,
+    DestinoId = destinationId,
+    DestinoNombre = destinationName,
+    Salida = departure,
+    Llegada = arrival,
+    Importe = originalAmount,
+    PoliticaAsiento = seatPolicy,
+    NumeroAsiento = seatNumber,
+    SalidaId = "SA-confirm",
+    OrdenEmbarque = order,
+    OrdenDesembarque = order + 1
+};
+
+static RegistroPago ConfirmationRecord(EstadoPago state, decimal paid, DateTime holdExpiry, string? providerOrderId = "order-stored") =>
+    new(new Pago
+    {
+        Id = "PG-confirm",
+        IntentoId = "IC-confirm",
+        ImporteEsperado = 350m,
+        ImportePagado = paid,
+        Moneda = "UYU",
+        Estado = state,
+        ClaveCreacion = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+        ClaveDevolucion = Guid.Parse("33333333-3333-3333-3333-333333333333"),
+        OrdenProveedorId = providerOrderId,
+        CreadoUtc = new DateTime(2026, 11, 16, 14, 0, 0, DateTimeKind.Utc),
+        ActualizadoUtc = new DateTime(2026, 11, 16, 14, 0, 0, DateTimeKind.Utc)
+    }, holdExpiry, false);
+
+static ResultadoConciliacionPago ConfirmationResult(EstadoPago state, decimal paid, string? providerOrderId,
+    decimal expected, DateTime holdExpiry, CompraConfirmadaResponseDto? purchase, bool refundRequired) =>
+    new(ConfirmationRecord(state, paid, holdExpiry, providerOrderId) with
+    {
+        Pago = new Pago
+        {
+            Id = "PG-confirm",
+            IntentoId = "IC-confirm",
+            ImporteEsperado = expected,
+            ImportePagado = paid,
+            Moneda = "UYU",
+            Estado = state,
+            ClaveCreacion = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            ClaveDevolucion = Guid.Parse("33333333-3333-3333-3333-333333333333"),
+            OrdenProveedorId = providerOrderId,
+            CreadoUtc = new DateTime(2026, 11, 16, 14, 0, 0, DateTimeKind.Utc),
+            ActualizadoUtc = new DateTime(2026, 11, 16, 14, 0, 0, DateTimeKind.Utc)
+        }
+    }, purchase, refundRequired);
+
+static OrdenCheckoutMercadoPago ConfirmationOrder(EstadoPago state, decimal paid, string orderId) => new()
+{
+    Id = orderId,
+    ReferenciaExterna = "PG-confirm",
+    Importe = 350m,
+    ImportePagado = paid,
+    Moneda = "UYU",
+    Estado = state,
+    CheckoutUrl = "https://www.mercadopago.com.uy/checkout/confirmed"
+};
 
 static MercadoPagoCheckoutClient CreateCheckoutClient(MockHttpMessageHandler handler, string token = "TEST-contract-token")
 {
@@ -1259,6 +1743,8 @@ sealed class FakePagosRepository : IPagosRepository
 sealed class FakeMercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
 {
     private int _createCalls;
+    private int _queryCalls;
+    private int _refundCalls;
 
     public OrdenCheckoutMercadoPago CreateResponse { get; set; } = new()
     {
@@ -1273,9 +1759,27 @@ sealed class FakeMercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
     public Exception? CreateException { get; set; }
     public Action? BeforeCreate { get; set; }
     public int CreateCalls => Volatile.Read(ref _createCalls);
+    public int QueryCalls => Volatile.Read(ref _queryCalls);
+    public int RefundCalls => Volatile.Read(ref _refundCalls);
     public decimal? LastAmount { get; private set; }
     public string? LastReference { get; private set; }
     public Guid? LastIdempotencyKey { get; private set; }
+    public IReadOnlyList<OrdenCheckoutMercadoPago> QueryResponses { get; set; } = [];
+    public Exception? QueryException { get; set; }
+    public OrdenCheckoutMercadoPago? SearchResponse { get; set; }
+    public Exception? SearchException { get; set; }
+    public Exception? RefundException { get; set; }
+    public List<string> Events { get; } = [];
+    public int SearchCalls { get; private set; }
+    public string? LastSearchReference { get; private set; }
+    public DateTime? LastSearchStartUtc { get; private set; }
+    public DateTime? LastSearchEndUtc { get; private set; }
+    public decimal? LastSearchAmount { get; private set; }
+    public string? LastQueryOrderId { get; private set; }
+    public string? LastQueryReference { get; private set; }
+    public decimal? LastQueryAmount { get; private set; }
+    public string? LastRefundOrderId { get; private set; }
+    public Guid? LastRefundKey { get; private set; }
 
     public Task<OrdenCheckoutMercadoPago> CrearOrdenAsync(
         Guid claveIdempotencia,
@@ -1298,14 +1802,142 @@ sealed class FakeMercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         string ordenId,
         string referenciaExternaEsperada,
         decimal importeEsperado,
-        CancellationToken cancellationToken = default) =>
-        Task.FromException<OrdenCheckoutMercadoPago>(new NotSupportedException());
+        CancellationToken cancellationToken = default)
+    {
+        var call = Interlocked.Increment(ref _queryCalls);
+        Events.Add("get");
+        LastQueryOrderId = ordenId;
+        LastQueryReference = referenciaExternaEsperada;
+        LastQueryAmount = importeEsperado;
+        cancellationToken.ThrowIfCancellationRequested();
+        if (QueryException is not null)
+            return Task.FromException<OrdenCheckoutMercadoPago>(QueryException);
+        if (QueryResponses.Count == 0)
+            return Task.FromException<OrdenCheckoutMercadoPago>(new NotSupportedException("No provider response was configured."));
+        return Task.FromResult(QueryResponses[Math.Min(call - 1, QueryResponses.Count - 1)]);
+    }
+
+    public Task<OrdenCheckoutMercadoPago?> BuscarOrdenAsync(
+        string referenciaExternaEsperada,
+        DateTime desdeUtc,
+        DateTime hastaUtc,
+        decimal importeEsperado,
+        CancellationToken cancellationToken = default)
+    {
+        SearchCalls++;
+        Events.Add("search");
+        LastSearchReference = referenciaExternaEsperada;
+        LastSearchStartUtc = desdeUtc;
+        LastSearchEndUtc = hastaUtc;
+        LastSearchAmount = importeEsperado;
+        cancellationToken.ThrowIfCancellationRequested();
+        return SearchException is not null
+            ? Task.FromException<OrdenCheckoutMercadoPago?>(SearchException)
+            : Task.FromResult(SearchResponse);
+    }
 
     public Task SolicitarDevolucionCompletaAsync(
         string ordenId,
         Guid claveIdempotencia,
-        CancellationToken cancellationToken = default) =>
-        Task.FromException(new NotSupportedException());
+        CancellationToken cancellationToken = default)
+    {
+        Interlocked.Increment(ref _refundCalls);
+        Events.Add("refund");
+        LastRefundOrderId = ordenId;
+        LastRefundKey = claveIdempotencia;
+        cancellationToken.ThrowIfCancellationRequested();
+        return RefundException is null ? Task.CompletedTask : Task.FromException(RefundException);
+    }
+}
+
+sealed class FakeConfirmationRepository(ResultadoConciliacionPago? snapshot) : IConfirmacionesCompraRepository
+{
+    public ResultadoConciliacionPago? Snapshot { get; set; } = snapshot;
+    public Func<OrdenCheckoutMercadoPago, int, ResultadoConciliacionPago>? OnConciliate { get; set; }
+    public List<string> Events { get; } = [];
+    public int ConciliateCalls { get; private set; }
+    public string? LastOwnerId { get; private set; }
+    public string? LastAttemptId { get; private set; }
+    public string? LastPaymentId { get; private set; }
+
+    public Task<ResultadoConciliacionPago?> ConsultarAsync(string identificadorPublico, string intentoId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Events.Add("snapshot");
+        LastOwnerId = identificadorPublico;
+        LastAttemptId = intentoId;
+        return Task.FromResult(Snapshot);
+    }
+
+    public Task<ResultadoConciliacionPago> ConciliarAsync(string identificadorPublico, string pagoId,
+        OrdenCheckoutMercadoPago orden, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Events.Add("reconcile");
+        LastOwnerId = identificadorPublico;
+        LastPaymentId = pagoId;
+        ConciliateCalls++;
+        Snapshot = OnConciliate?.Invoke(orden, ConciliateCalls) ?? Snapshot
+            ?? throw new InvalidOperationException("A reconciliation result must be configured.");
+        return Task.FromResult(Snapshot);
+    }
+}
+
+sealed class FakeConciliacionesPagoService : IConciliacionesPagoService
+{
+    public SincronizarPagoResponseDto Response { get; set; } = new();
+    public Exception? Exception { get; set; }
+    public string? Owner { get; private set; }
+    public string? Attempt { get; private set; }
+
+    public Task<SincronizarPagoResponseDto> SincronizarAsync(string identificadorPublico, string intentoId,
+        CancellationToken cancellationToken = default)
+    {
+        Owner = identificadorPublico;
+        Attempt = intentoId;
+        cancellationToken.ThrowIfCancellationRequested();
+        return Exception is null ? Task.FromResult(Response) : Task.FromException<SincronizarPagoResponseDto>(Exception);
+    }
+}
+
+sealed class FakeAtomicPurchaseStore
+{
+    private readonly SemaphoreSlim _attemptLock = new(1, 1);
+    private PlanEmisionCompra? _published;
+
+    public bool FailBeforePublish { get; init; }
+    public int PublishedPurchaseCount => _published is null ? 0 : 1;
+    public int PublishedTicketCount => _published?.Tickets.Count ?? 0;
+
+    public async Task<(string CompraId, IReadOnlyList<string> QrValues)> ConfirmAsync(
+        RegistroPago payment, IReadOnlyList<TramoPago> prices, IReadOnlyList<TramoIntentoCompra> selections,
+        DateTime confirmedUtc)
+    {
+        await _attemptLock.WaitAsync();
+        try
+        {
+            if (_published is null)
+            {
+                var decision = PoliticaConfirmacionCompra.Decidir(payment.Pago.Estado,
+                    new DateTimeOffset(payment.HoldVenceEn, TimeSpan.Zero),
+                    new DateTimeOffset(confirmedUtc, TimeSpan.Zero), disponibilidadConfirmada: true);
+                if (decision != DecisionConfirmacion.Confirmar)
+                    throw new InvalidOperationException("The payment is not eligible for purchase confirmation.");
+                var plan = EmisionCompra.Preparar(payment, prices, selections, "CO-concurrent",
+                    ["CS-concurrent-1", "CS-concurrent-2"], ["TK-concurrent-1", "TK-concurrent-2"], confirmedUtc);
+                if (FailBeforePublish)
+                    throw new InvalidOperationException("Injected pre-publish failure.");
+                _published = plan;
+            }
+
+            return (_published.Compra.Id, _published.Tickets.Select(ticket => ticket.QrOpaco).ToArray());
+        }
+        finally
+        {
+            _attemptLock.Release();
+        }
+    }
 }
 
 sealed class FakeIntentosCompraService : IIntentosCompraService

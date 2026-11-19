@@ -66,6 +66,58 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         return LeerOrden(document.RootElement, ordenId, referenciaExternaEsperada, importeEsperado);
     }
 
+    public async Task<OrdenCheckoutMercadoPago?> BuscarOrdenAsync(
+        string referenciaExternaEsperada,
+        DateTime desdeUtc,
+        DateTime hastaUtc,
+        decimal importeEsperado,
+        CancellationToken cancellationToken = default)
+    {
+        ValidarDatosEsperados(referenciaExternaEsperada, importeEsperado);
+        if (desdeUtc.Kind != DateTimeKind.Utc || hastaUtc.Kind != DateTimeKind.Utc || hastaUtc <= desdeUtc)
+            throw new ArgumentException("La ventana de recuperaciÃ³n debe ser UTC y creciente.");
+
+        static string Formatear(DateTime valorUtc) =>
+            new DateTimeOffset(valorUtc).ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture);
+
+        var query = string.Join("&", new[]
+        {
+            $"begin_date={Uri.EscapeDataString(Formatear(desdeUtc))}",
+            $"end_date={Uri.EscapeDataString(Formatear(hastaUtc))}",
+            $"external_reference={Uri.EscapeDataString(referenciaExternaEsperada)}",
+            "limit=2",
+            "offset=0"
+        });
+        using var request = CrearRequest(HttpMethod.Get, new Uri($"{OrdersEndpoint.AbsoluteUri}?{query}"));
+        using var document = await EnviarAsync(request, cancellationToken);
+
+        var root = document.RootElement;
+        if (root.ValueKind != JsonValueKind.Object
+            || !root.TryGetProperty("data", out var data)
+            || data.ValueKind != JsonValueKind.Array
+            || !root.TryGetProperty("paging", out var paging)
+            || paging.ValueKind != JsonValueKind.Object
+            || !TryReadInt(paging, "total", out var total)
+            || !TryReadInt(paging, "total_pages", out var totalPages)
+            || !TryReadInt(paging, "offset", out var offset)
+            || !TryReadInt(paging, "limit", out var limit)
+            || total < 0 || totalPages < 0 || offset != 0 || limit != 2
+            || total != data.GetArrayLength())
+            throw ErrorProveedor();
+
+        if (total == 0)
+        {
+            if (totalPages > 1) throw ErrorProveedor();
+            return null;
+        }
+        if (total != 1 || totalPages != 1)
+            throw ErrorProveedor();
+
+        var orden = LeerOrden(data[0], expectedId: null, referenciaExternaEsperada, importeEsperado);
+        ValidarIdOrden(orden.Id);
+        return orden;
+    }
+
     public async Task SolicitarDevolucionCompletaAsync(
         string ordenId,
         Guid claveIdempotencia,
@@ -175,6 +227,19 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
             || string.IsNullOrWhiteSpace(value.GetString()))
             throw ErrorProveedor();
         return value.GetString()!;
+    }
+
+    private static bool TryReadInt(JsonElement root, string name, out int value) =>
+        root.TryGetProperty(name, out var element)
+        && element.ValueKind == JsonValueKind.Number
+        && element.TryGetInt32(out value)
+        ? true
+        : SetDefault(out value);
+
+    private static bool SetDefault(out int value)
+    {
+        value = 0;
+        return false;
     }
 
     private static string? LeerStringOpcional(JsonElement root, string name)
