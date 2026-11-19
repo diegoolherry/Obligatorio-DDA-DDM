@@ -177,3 +177,62 @@ test('purchase-flow identity follows itinerary selection', async () => {
   assert.match(selectionHandler[1], /setPurchaseRevision\(revision => revision \+ 1\)/);
   assert.equal((itinerarySearchSource.match(/setPurchaseRevision\(/g) ?? []).length, 1);
 });
+
+const pendingPayment = { ...approved.pago, estado: 'pendiente', checkoutUrl: 'https://www.mercadopago.com.uy/checkout/123' };
+
+test('pending attempt lookup validates the 200 body and uses the session-bound GET without a body', async () => {
+  const { client, calls } = fixture([response(200, { intento: attempt, pago: pendingPayment }), response(200, { intento: attempt, pago: null })]);
+  const withPayment = await client.getPendingAttempt();
+  assert.equal(withPayment.ok, true);
+  assert.equal(withPayment.data.pago.estado, 'pendiente');
+  assert.equal(withPayment.data.intento.intentoId, 'IC-01');
+  const withoutPayment = await client.getPendingAttempt();
+  assert.equal(withoutPayment.ok, true);
+  assert.equal(withoutPayment.data.pago, null);
+  assert.deepEqual(calls[0], { method: 'GET', path: '/api/intentos-compra/pendiente' });
+});
+
+test('pending attempt whose payment belongs to another attempt is rejected', async () => {
+  const { client } = fixture([response(200, { intento: attempt, pago: { ...pendingPayment, intentoId: 'IC-99' } })]);
+  const result = await client.getPendingAttempt();
+  assert.equal(result.ok, false);
+});
+
+test('malformed pending attempt bodies are rejected', async () => {
+  const { client } = fixture([response(200, { pago: null }), response(200, { intento: { intentoId: 'IC-01' }, pago: null }), response(200, 'x')]);
+  assert.equal((await client.getPendingAttempt()).ok, false);
+  assert.equal((await client.getPendingAttempt()).ok, false);
+  assert.equal((await client.getPendingAttempt()).ok, false);
+});
+
+test('pending attempt 204 means nothing pending', async () => {
+  const { client } = fixture([response(204)]);
+  const result = await client.getPendingAttempt();
+  assert.equal(result.ok, true);
+  assert.equal(result.data, null);
+  assert.equal(result.status, 204);
+});
+
+test('pending attempt lookup surfaces network failure, 401 and 500 as typed errors without leaking details', async () => {
+  const { client } = fixture([{ outcome: 'network' }, response(401), response(500, { detail: 'secret stack' }), { outcome: 'unauthenticated' }]);
+  const network = await client.getPendingAttempt();
+  assert.equal(network.ok, false);
+  assert.equal(network.kind, 'unknown');
+  const unauthorized = await client.getPendingAttempt();
+  assert.equal(unauthorized.ok, false);
+  assert.equal(unauthorized.kind, 'error');
+  const server = await client.getPendingAttempt();
+  assert.equal(server.ok, false);
+  assert.equal(JSON.stringify(server).includes('secret'), false);
+  const noSession = await client.getPendingAttempt();
+  assert.equal(noSession.ok, false);
+  assert.match(noSession.message, /pasajero/);
+});
+
+test('itinerary screen looks up the pending attempt per session and offers a way out of dead ends', () => {
+  assert.match(itinerarySearchSource, /purchase\.getPendingAttempt\(\)/);
+  assert.match(itinerarySearchSource, /authentication\.getState\(\)\.authenticated/);
+  assert.match(itinerarySearchSource, /lookup !== pendingLookup\.current/);
+  assert.match(itinerarySearchSource, /pendingPurchase\?\.epoch === sessionEpoch/);
+  assert.match(itinerarySearchSource, /onDiscard=\{\(\) => \{/);
+});

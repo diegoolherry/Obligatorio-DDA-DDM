@@ -11,14 +11,28 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace API_Berruti.Repositories.Operational;
 
-public sealed class PagosRepository(
-    BerrutiDbContext contexto,
-    IIntentosCompraRepository intentos,
-    IContadoresRepository contadores,
-    ICorrelativo correlativo,
-    TimeProvider timeProvider) : IPagosRepository
+public sealed class PagosRepository : IPagosRepository
 {
     private const string PrefijoPago = "PG-";
+    private readonly BerrutiDbContext contexto;
+    private readonly IIntentosCompraRepository intentos;
+    private readonly IContadoresRepository contadores;
+    private readonly ICorrelativo correlativo;
+    private readonly TimeProvider timeProvider;
+
+    public PagosRepository(
+        BerrutiDbContext contexto,
+        IIntentosCompraRepository intentos,
+        IContadoresRepository contadores,
+        ICorrelativo correlativo,
+        TimeProvider timeProvider)
+    {
+        this.contexto = contexto;
+        this.intentos = intentos;
+        this.contadores = contadores;
+        this.correlativo = correlativo;
+        this.timeProvider = timeProvider;
+    }
 
     public async Task<RegistroPago?> ConsultarActualAsync(
         string identificadorPublico,
@@ -199,7 +213,7 @@ public sealed class PagosRepository(
     private static void ValidarOrden(Pago pago, OrdenCheckoutMercadoPago orden)
     {
         if (string.IsNullOrWhiteSpace(orden.Id) || orden.Id.Length > 256 ||
-            !string.Equals(orden.ReferenciaExterna, pago.Id, StringComparison.Ordinal) ||
+            !string.Equals(orden.ReferenciaExterna, pago.ReferenciaExterna, StringComparison.Ordinal) ||
             orden.Importe != pago.ImporteEsperado ||
             !string.Equals(orden.Moneda, pago.Moneda, StringComparison.Ordinal) ||
             orden.ImportePagado < 0 || orden.ImportePagado > pago.ImporteEsperado ||

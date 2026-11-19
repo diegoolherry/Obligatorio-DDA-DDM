@@ -1,10 +1,10 @@
 ﻿import { Linking, Text, View } from 'react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { IAuthenticationService } from '../../services/Authentication/IAuthenticationService';
 import { canFinishPurchase } from '../../services/Purchase/PurchaseService';
 import type { PurchaseFinalization, PurchaseService } from '../../services/Purchase/PurchaseService';
 import type {
-  CompraConfirmadaResponseDto, CotizarCompraResponseDto, IniciarIntentoCompraResponseDto, PagoResponseDto,
+  CompraConfirmadaResponseDto, CotizarCompraResponseDto, IniciarIntentoCompraResponseDto, IntentoPendienteResponseDto, PagoResponseDto,
 } from '../../contracts/purchase';
 import type { ItinerarioDto } from '../../contracts/itinerary';
 import { Banner } from '../ui/Banner';
@@ -29,14 +29,18 @@ const deadline = (value: string) => {
     : 'no disponible';
 };
 
-export function PurchaseFlow({ itinerary, authentication, service, onClose, onFinalize }: {
+export function PurchaseFlow({ itinerary, authentication, service, onClose, onFinalize, pending, onDiscard }: {
   itinerary: ItinerarioDto; authentication: IAuthenticationService; service: PurchaseService; onClose: () => void;
   onFinalize: (reason: PurchaseFinalization) => void;
+  // Attempt recovered from the API for the current session: the flow resumes it instead of creating another one.
+  pending?: IntentoPendienteResponseDto;
+  // Leaves a dead end (uncertain create or error without attempt) and goes back to the results list.
+  onDiscard?: () => void;
 }) {
   const [state, setState] = useState<FlowState>('idle');
-  const [attempt, setAttempt] = useState<IniciarIntentoCompraResponseDto>();
+  const [attempt, setAttempt] = useState<IniciarIntentoCompraResponseDto | undefined>(pending?.intento);
   const [quote, setQuote] = useState<CotizarCompraResponseDto>();
-  const [payment, setPayment] = useState<PagoResponseDto>();
+  const [payment, setPayment] = useState<PagoResponseDto | undefined>(pending?.pago ?? undefined);
   const [purchase, setPurchase] = useState<CompraConfirmadaResponseDto>();
   const [message, setMessage] = useState('');
   const busy = state === 'creatingAttempt' || state === 'loadingQuote' || state === 'startingPayment' || state === 'syncing';
@@ -44,6 +48,17 @@ export function PurchaseFlow({ itinerary, authentication, service, onClose, onFi
   const expired = holdUntil !== undefined && new Date(holdUntil).getTime() <= Date.now();
   const link = safeCheckoutUrl(payment?.checkoutUrl);
   const canFinalize = canFinishPurchase(state, holdUntil, payment?.estado, Date.now());
+
+  useEffect(() => {
+    if (!pending) return;
+    // Resume the recovered attempt: verify non-terminal payments, show refund follow-up, or ask the price again.
+    const paid = pending.pago;
+    if (!paid) { void loadQuote(pending.intento.intentoId); return; }
+    if (paid.estado === 'rechazado') { setState('rejected'); return; }
+    if (paid.estado === 'devuelto') { setState('refunded'); return; }
+    void syncPayment();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function createAttempt() {
     if (busy || attempt || state === 'uncertainCreate') return;
@@ -130,7 +145,7 @@ export function PurchaseFlow({ itinerary, authentication, service, onClose, onFi
       <Text className="text-lg font-bold text-ink-900">Compra TEST</Text>
       <Text className="text-sm text-ink-700">Pago de prueba. No ingreses datos de tarjeta en esta aplicación.</Text>
       {attempt && <Text className="text-sm text-ink-700">Intento {attempt.intentoId}. Hold original hasta {deadline(attempt.holdVenceEn)}; consultar no lo extiende.</Text>}
-      {(state === 'idle' || (state === 'error' && !attempt)) && <Button label="Iniciar compra" disabled={busy} onPress={() => void createAttempt()} />}
+      {((state === 'idle' && !pending) || (state === 'error' && !attempt)) && <Button label="Iniciar compra" disabled={busy} onPress={() => void createAttempt()} />}
       {state === 'creatingAttempt' && <Button label="Creando intento…" loading onPress={() => {}} />}
       {state === 'loadingQuote' && <Text accessibilityLiveRegion="polite" className="text-base text-ink-900">Consultando el precio vigente…</Text>}
       {currentQuote && (state === 'consent' || state === 'rejected' || state === 'expired') && (
@@ -174,6 +189,9 @@ export function PurchaseFlow({ itinerary, authentication, service, onClose, onFi
       {state === 'uncertainCreate' && <Banner kind="warning">No vuelva a crear otro intento automáticamente.</Banner>}
       {message && state !== 'error' && state !== 'uncertainCreate' && <Text accessibilityLiveRegion="polite" className="text-sm text-error-700">{message}</Text>}
       {state === 'error' && attempt && <Button label="Reintentar consulta de precio" disabled={busy} onPress={() => void loadQuote()} />}
+      {(state === 'uncertainCreate' || (state === 'error' && !attempt)) && onDiscard && (
+        <Button label="Volver a los resultados" variant="secondary" onPress={onDiscard} />
+      )}
       {canFinalize ? (
         <Button label={state === 'confirmed' ? 'Finalizar compra y buscar otro viaje' : state === 'refunded' ? 'Cerrar devolución y buscar otro viaje' : 'Cerrar intento y elegir otro viaje'} variant="secondary" disabled={busy} onPress={() => {
           if (!canFinishPurchase(state, holdUntil, payment?.estado, Date.now())) return;
