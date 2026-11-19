@@ -8,8 +8,15 @@ using Microsoft.AspNetCore.Mvc;
 namespace API_Berruti.Controllers.Operational;
 
 [ApiController, Route("api/intentos-compra"), Authorize(Roles = "Pasajero")]
-public class IntentosCompraController(IIntentosCompraService service) : ControllerBase
+public class IntentosCompraController : ControllerBase
 {
+    private readonly IIntentosCompraService _service;
+
+    public IntentosCompraController(IIntentosCompraService service)
+    {
+        _service = service;
+    }
+
     [HttpPost]
     public async Task<ActionResult<IniciarIntentoCompraResponseDto>> Crear(
         [FromBody] IniciarIntentoCompraRequestDto solicitud,
@@ -21,7 +28,7 @@ public class IntentosCompraController(IIntentosCompraService service) : Controll
 
         try
         {
-            var intento = await service.CrearAsync(identificadorPublico, solicitud, cancellationToken);
+            var intento = await _service.CrearAsync(identificadorPublico, solicitud, cancellationToken);
             return CreatedAtAction(nameof(Consultar), new { intentoId = intento.IntentoId }, intento);
         }
         catch (ArgumentException exception)
@@ -56,7 +63,7 @@ public class IntentosCompraController(IIntentosCompraService service) : Controll
 
         try
         {
-            return Ok(await service.ConsultarAsync(identificadorPublico, intentoId, cancellationToken));
+            return Ok(await _service.ConsultarAsync(identificadorPublico, intentoId, cancellationToken));
         }
         catch (ArgumentException exception)
         {

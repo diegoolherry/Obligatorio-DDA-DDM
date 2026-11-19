@@ -13,8 +13,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-var checks = 0;
-var failures = 0;
+try
+{
+    if (args.Length == 1 && args[0] == "--verify-failure-exit")
+        throw new InvalidOperationException("CONTROLLED-TEST-HARNESS-FAILURE");
+
+    var checks = 0;
+    var failures = 0;
 
 void Check(bool condition, string name)
 {
@@ -28,6 +33,234 @@ void Check(bool condition, string name)
         failures++;
         Console.Error.WriteLine($"FAIL: {name}");
     }
+}
+
+if (args.Length == 1 && args[0] == "--mercado-pago-test-identity")
+{
+    await RunMercadoPagoIdentityChecksAsync();
+    Console.WriteLine($"{checks - failures}/{checks} focused provider identity and search checks passed.");
+    return failures == 0 ? 0 : 1;
+}
+
+async Task RunMercadoPagoIdentityChecksAsync()
+{
+    const string opaqueTestToken = "mock-token-not-a-credential";
+    const string sellerId = "987654321";
+    const string siteId = "SITE_TEST_FIXTURE";
+    const string validIdentity = "{\"id\":987654321,\"site_id\":\"SITE_TEST_FIXTURE\",\"tags\":[\"normal\",\"test_user\"]}";
+    const string validOrder = "{\"id\":\"order-1\",\"external_reference\":\"attempt-reference\",\"total_amount\":\"125.50\",\"total_paid_amount\":\"125.50\",\"currency\":\"UYU\",\"status\":\"processed\",\"status_detail\":\"accredited\",\"checkout_url\":\"https://www.mercadopago.com.uy/checkout/v1/redirect?order_id=order-1\"}";
+    const string validSearch = "{\"data\":[],\"paging\":{\"total\":0,\"total_pages\":0,\"offset\":0,\"limit\":2}}";
+
+    ParametrosMercadoPago CreateParameters(string token = opaqueTestToken, bool confirmed = true,
+        string configuredSeller = sellerId, string configuredSite = siteId)
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["MercadoPago:AccessToken"] = token,
+            ["MercadoPago:TestCredentialOriginConfirmed"] = confirmed.ToString(),
+            ["MercadoPago:ExpectedSellerId"] = configuredSeller,
+            ["MercadoPago:ExpectedSiteId"] = configuredSite
+        }).Build();
+        return ParametrosMercadoPago.Desde(configuration);
+    }
+
+    var opaqueTokenAccepted = false;
+    try
+    {
+        opaqueTokenAccepted = CreateParameters().AccessToken == opaqueTestToken;
+    }
+    catch (InvalidOperationException)
+    {
+        // The focused assertion below reports the unsupported credential format as RED.
+    }
+    Check(opaqueTokenAccepted, "explicitly confirmed opaque test credential is not classified by token prefix");
+
+    foreach (var invalidConfiguration in new (string Name, string Token, bool Confirmed, string Seller, string Site)[]
+    {
+        ("missing token", "", true, sellerId, siteId),
+        ("missing test-origin confirmation", opaqueTestToken, false, sellerId, siteId),
+        ("missing expected seller", opaqueTestToken, true, "", siteId),
+        ("invalid expected seller", opaqueTestToken, true, "not-numeric", siteId),
+        ("missing expected site", opaqueTestToken, true, sellerId, "")
+    })
+    {
+        var rejected = false;
+        try
+        {
+            _ = CreateParameters(invalidConfiguration.Token, invalidConfiguration.Confirmed,
+                invalidConfiguration.Seller, invalidConfiguration.Site);
+        }
+        catch (InvalidOperationException)
+        {
+            rejected = true;
+        }
+        Check(rejected, $"configuration fails closed for {invalidConfiguration.Name}");
+    }
+
+    var operations = new (string Name, Func<MercadoPagoCheckoutClient, Task> Invoke)[]
+    {
+        ("create", client => client.CrearOrdenAsync(Guid.NewGuid(), "attempt-reference", 125.50m)),
+        ("get", client => client.ConsultarOrdenAsync("order-1", "attempt-reference", 125.50m)),
+        ("search", client => client.BuscarOrdenAsync("attempt-reference",
+            new DateTime(2026, 11, 17, 12, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 11, 17, 12, 1, 0, DateTimeKind.Utc), 125.50m)),
+        ("refund", client => client.SolicitarDevolucionCompletaAsync("order-1", Guid.NewGuid()))
+    };
+
+    foreach (var operation in operations)
+    {
+        var validRequests = new List<Uri>();
+        var identityAuthorizationValid = false;
+        var validHandler = new MockHttpMessageHandler((request, _) =>
+        {
+            validRequests.Add(request.RequestUri!);
+            if (request.RequestUri!.Host == "api.mercadopago.com")
+            {
+                var body = request.RequestUri.Query.Contains("external_reference", StringComparison.Ordinal)
+                    ? validSearch : validOrder;
+                return JsonResponse(HttpStatusCode.OK, body);
+            }
+            return JsonResponse(HttpStatusCode.InternalServerError, "unexpected endpoint");
+        })
+        {
+            IdentityResponseFactory = (request, _) =>
+            {
+                identityAuthorizationValid = request.Method == HttpMethod.Get
+                    && request.RequestUri == new Uri("https://api.mercadolibre.com/users/me")
+                    && request.Headers.Authorization?.Scheme == "Bearer"
+                    && request.Headers.Authorization.Parameter == "TEST-contract-token";
+                return JsonResponse(HttpStatusCode.OK, validIdentity);
+            }
+        };
+        var validClient = new MercadoPagoCheckoutClient(new HttpClient(validHandler), CreateParameters("TEST-contract-token"));
+        await operation.Invoke(validClient);
+        Check(validHandler.IdentityRequestCount == 1 && validRequests.Count == 1
+            && validRequests[0].Host == "api.mercadopago.com",
+            $"{operation.Name} verifies identity before its provider request");
+        Check(identityAuthorizationValid, $"{operation.Name} sends the private token only to the fixed identity endpoint");
+
+        var invalidIdentities = new (string Name, HttpStatusCode Status, string Body)[]
+        {
+            ("missing test_user tag", HttpStatusCode.OK, "{\"id\":987654321,\"site_id\":\"SITE_TEST_FIXTURE\",\"tags\":[\"normal\"]}"),
+            ("wrong seller", HttpStatusCode.OK, "{\"id\":987654322,\"site_id\":\"SITE_TEST_FIXTURE\",\"tags\":[\"test_user\"]}"),
+            ("wrong site", HttpStatusCode.OK, "{\"id\":987654321,\"site_id\":\"OTHER_SITE\",\"tags\":[\"test_user\"]}"),
+            ("missing seller ID", HttpStatusCode.OK, "{\"site_id\":\"SITE_TEST_FIXTURE\",\"tags\":[\"test_user\"]}"),
+            ("non-numeric seller ID", HttpStatusCode.OK, "{\"id\":\"987654321\",\"site_id\":\"SITE_TEST_FIXTURE\",\"tags\":[\"test_user\"]}"),
+            ("missing site", HttpStatusCode.OK, "{\"id\":987654321,\"tags\":[\"test_user\"]}"),
+            ("null tags", HttpStatusCode.OK, "{\"id\":987654321,\"site_id\":\"SITE_TEST_FIXTURE\",\"tags\":null}"),
+            ("null profile", HttpStatusCode.OK, "null"),
+            ("malformed identity", HttpStatusCode.OK, "not-json"),
+            ("provider error", HttpStatusCode.Unauthorized, "{}"),
+            ("redirect", HttpStatusCode.Redirect, "{}")
+        };
+
+        foreach (var invalidIdentity in invalidIdentities)
+        {
+            var providerRequests = 0;
+            var invalidHandler = new MockHttpMessageHandler((request, _) =>
+            {
+                providerRequests++;
+                if (request.RequestUri!.Query.Contains("external_reference", StringComparison.Ordinal))
+                    return JsonResponse(HttpStatusCode.OK, validSearch);
+                return request.Method == HttpMethod.Post && request.RequestUri.AbsolutePath.EndsWith("/refund", StringComparison.Ordinal)
+                    ? new HttpResponseMessage(HttpStatusCode.NoContent)
+                    : JsonResponse(HttpStatusCode.OK, validOrder);
+            })
+            {
+                IdentityResponseFactory = (_, _) => JsonResponse(invalidIdentity.Status, invalidIdentity.Body)
+            };
+            var invalidClient = new MercadoPagoCheckoutClient(new HttpClient(invalidHandler), CreateParameters("TEST-contract-token"));
+            var rejected = false;
+            try
+            {
+                await operation.Invoke(invalidClient);
+            }
+            catch (InvalidOperationException)
+            {
+                rejected = true;
+            }
+            Check(rejected && invalidHandler.IdentityRequestCount == 1 && providerRequests == 0,
+                $"{operation.Name} fails closed before provider call for {invalidIdentity.Name}");
+        }
+    }
+
+    const string searchOrder = "{\"id\":\"order-1\",\"external_reference\":\"attempt-reference\",\"total_amount\":\"125.50\",\"total_paid_amount\":\"125.50\",\"currency\":\"UYU\",\"status\":\"processed\",\"status_detail\":\"accredited\"}";
+    static string SearchPage(string data, string paging) => $"{{\"data\":[{data}],\"paging\":{{{paging}}}}}";
+
+    var zeroSearchRejected = false;
+    try
+    {
+        var zeroSearch = await SearchWithResponseAsync(SearchPage("", "\"total\":0,\"total_pages\":0,\"offset\":0,\"limit\":\"20\""));
+        Check(zeroSearch is null, "empty search page accepts provider effective limit as an integer string");
+    }
+    catch (InvalidOperationException)
+    {
+        zeroSearchRejected = true;
+    }
+    Check(!zeroSearchRejected, "empty search page is not rejected because the provider used a larger effective limit");
+
+    var oneSearchRejected = false;
+    try
+    {
+        var oneSearch = await SearchWithResponseAsync(SearchPage(searchOrder, "\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":\"20\""));
+        Check(oneSearch?.Id == "order-1", "one exact search match accepts a larger effective page limit");
+    }
+    catch (InvalidOperationException)
+    {
+        oneSearchRejected = true;
+    }
+    Check(!oneSearchRejected, "unique exact search result survives the provider's larger effective limit");
+
+    var overLimitData = string.Join(',', Enumerable.Repeat(searchOrder, 21));
+    var invalidSearchPages = new (string Name, string Body)[]
+    {
+        ("response count exceeds effective limit", SearchPage(overLimitData, "\"total\":21,\"total_pages\":2,\"offset\":0,\"limit\":\"20\"")),
+        ("inconsistent total pages", SearchPage(searchOrder, "\"total\":1,\"total_pages\":2,\"offset\":0,\"limit\":\"20\"")),
+        ("nonzero search offset", SearchPage(searchOrder, "\"total\":1,\"total_pages\":1,\"offset\":1,\"limit\":\"20\"")),
+        ("missing effective page limit", SearchPage(searchOrder, "\"total\":1,\"total_pages\":1,\"offset\":0"))
+    };
+    foreach (var invalidPage in invalidSearchPages)
+        await CheckThrowsAsync<InvalidOperationException>(
+            () => SearchWithResponseAsync(invalidPage.Body),
+            $"search rejects {invalidPage.Name}");
+
+    async Task<OrdenCheckoutMercadoPago?> SearchWithResponseAsync(string body)
+    {
+        var requestedLimit = false;
+        var handler = new MockHttpMessageHandler((request, _) =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/orders/order-1", StringComparison.Ordinal))
+                return JsonResponse(HttpStatusCode.OK, validOrder);
+            requestedLimit = request.RequestUri.Query.Contains("limit=2", StringComparison.Ordinal);
+            return JsonResponse(HttpStatusCode.OK, body);
+        })
+        {
+            IdentityResponseFactory = (_, _) => JsonResponse(HttpStatusCode.OK, validIdentity)
+        };
+        var client = new MercadoPagoCheckoutClient(new HttpClient(handler), CreateParameters("TEST-contract-token"));
+        var result = await client.BuscarOrdenAsync("attempt-reference",
+            new DateTime(2026, 11, 17, 12, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 11, 17, 12, 1, 0, DateTimeKind.Utc), 125.50m);
+        Check(requestedLimit, "search request asks for a page size without assuming the response limit is identical");
+        return result;
+    }
+
+    var canceledHandler = new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, validOrder))
+    {
+        IdentityResponseFactory = (_, _) => throw new OperationCanceledException()
+    };
+    var canceledClient = new MercadoPagoCheckoutClient(new HttpClient(canceledHandler), CreateParameters("TEST-contract-token"));
+    var cancellationPropagated = false;
+    try
+    {
+        await canceledClient.CrearOrdenAsync(Guid.NewGuid(), "attempt-reference", 125.50m);
+    }
+    catch (OperationCanceledException)
+    {
+        cancellationPropagated = true;
+    }
+    Check(cancellationPropagated && canceledHandler.RequestCount == 0,
+        "identity preflight cancellation propagates without a provider operation");
 }
 
 List<ValidationResult> Validate<TRequest>(TRequest request) where TRequest : class
@@ -320,9 +553,14 @@ Check(successfulPaymentRepository.ReserveCalls == 1 && successfulGateway.CreateC
     && successfulPaymentRepository.Current?.Pago.Estado == EstadoPago.Pendiente,
     "fresh accepted quote reserves one payment and records the provider order");
 Check(successfulGateway.LastAmount == unchangedQuote.CotizacionActual.PrecioTotal
-    && successfulGateway.LastReference == successfulPaymentRepository.Current!.Pago.Id
+    && successfulGateway.LastReference == successfulPaymentRepository.Current!.Pago.ReferenciaExterna
     && successfulGateway.LastIdempotencyKey == successfulPaymentRepository.Current.Pago.ClaveCreacion,
-    "checkout uses the server quote amount and the durable payment ID and idempotency key");
+    "checkout uses the server quote amount, the durable creation GUID as external reference and the idempotency key");
+Check(successfulGateway.LastReference == successfulPaymentRepository.Current!.Pago.ClaveCreacion.ToString("D")
+    && successfulGateway.LastReference != successfulPaymentRepository.Current.Pago.Id
+    && !successfulGateway.LastReference!.StartsWith("PG-", StringComparison.Ordinal)
+    && Guid.TryParse(successfulGateway.LastReference, out _),
+    "external_reference sent to the provider is the globally unique creation GUID, not the local PG-n counter");
 Check(startedPayment.PagoId == successfulPaymentRepository.Current!.Pago.Id
     && startedPayment.IntentoId == "IC-123" && startedPayment.Importe == 350m
     && startedPayment.Moneda == "UYU" && startedPayment.Estado == EstadoPago.Pendiente
@@ -485,6 +723,26 @@ Check(invalidProviderResponse.Estado == EstadoPago.Desconocido
     && invalidProviderResponse.PagoId == invalidResponseRepository.Current!.Pago.Id
     && invalidResponseRepository.LastOrder is null,
     "mismatched checkout response leaves the durable payment unknown");
+
+var wrongReferenceRepository = new FakePagosRepository();
+var wrongReferenceGateway = new FakeMercadoPagoCheckoutClient { ReferenceOverride = "PG-1" };
+var wrongReferenceResponse = await CreatePaymentService(wrongReferenceRepository, paymentQuoteService,
+    wrongReferenceGateway, paymentNow).IniciarAsync("passenger", "IC-123", paymentRequest);
+Check(wrongReferenceResponse.Estado == EstadoPago.Desconocido && wrongReferenceRepository.LastOrder is null,
+    "provider order echoing the local PG id instead of the creation GUID is not recorded as the payment order");
+
+// S3g (b): after the original hold expired, a definitively rejected payment cannot be retried.
+var rejectedExpiredRepository = new FakePagosRepository(CreatePaymentRecord("P-rejected", EstadoPago.Rechazado,
+    paymentNow.GetUtcNow().UtcDateTime.AddMinutes(-1), null));
+var rejectedExpiredGateway = new FakeMercadoPagoCheckoutClient();
+await CheckThrowsAsync<CotizacionNoDisponibleException>(
+    () => CreatePaymentService(rejectedExpiredRepository,
+            new FakeCotizacionesCompraService { Response = expiredAcceptedQuote }, rejectedExpiredGateway, paymentNow)
+        .IniciarAsync("passenger", "IC-123", paymentRequest),
+    "retry after definitive rejection is refused once the original hold expired");
+Check(rejectedExpiredRepository.ReserveCalls == 0 && rejectedExpiredGateway.CreateCalls == 0
+    && rejectedExpiredRepository.Current!.Pago.Id == "P-rejected",
+    "expired-hold retry creates no new payment reservation or provider order");
 
 var canceledRepository = new FakePagosRepository();
 using (var afterReserveCancellation = new CancellationTokenSource())
@@ -817,6 +1075,13 @@ var getHandler = new MockHttpMessageHandler((request, _) =>
 });
 var readOrder = await CreateCheckoutClient(getHandler).ConsultarOrdenAsync("provider/id", checkoutReference, checkoutAmount);
 Check(readOrder.Id == "provider/id" && readOrder.Estado == EstadoPago.Aprobado, "GET validates requested order identity");
+Check(readOrder.CheckoutUrl == "https://www.mercadopago.com.uy/checkout/v1/redirect?order_id=provider/id",
+    "GET propagates the provider-hosted checkout URL after validating the order");
+await CheckThrowsAsync<InvalidOperationException>(
+    () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK,
+        checkoutResponse.Replace("https://www.mercadopago.com.uy/checkout/v1/redirect?order_id=order-1", "https://attacker.example/checkout", StringComparison.Ordinal))))
+        .ConsultarOrdenAsync("order-1", checkoutReference, checkoutAmount),
+    "GET refuses a checkout URL outside the trusted Mercado Pago host");
 
 var searchStartUtc = new DateTime(2026, 11, 16, 14, 0, 0, DateTimeKind.Utc);
 var searchEndUtc = searchStartUtc.AddMinutes(10);
@@ -825,6 +1090,9 @@ var searchedOrderJson = """
     """;
 var searchHandler = new MockHttpMessageHandler((request, _) =>
 {
+    if (!request.RequestUri!.Query.Contains("external_reference", StringComparison.Ordinal))
+        return JsonResponse(HttpStatusCode.OK, searchedOrderJson);
+
     Check(request.Method == HttpMethod.Get && request.RequestUri!.GetLeftPart(UriPartial.Path) == "https://api.mercadopago.com/v1/orders",
         "lost-order recovery uses the fixed public Orders search endpoint");
     Check(request.Headers.Authorization?.Scheme == "Bearer" && request.Headers.Authorization.Parameter == checkoutToken,
@@ -843,6 +1111,49 @@ var searchedOrder = await CreateCheckoutClient(searchHandler).BuscarOrdenAsync(
 Check(searchedOrder is { Id: "order-1", Estado: EstadoPago.Aprobado, CheckoutUrl: null },
     "one complete matching result recovers validated order facts without inventing a checkout URL");
 
+var recoveredUrlHandler = new MockHttpMessageHandler((request, _) =>
+{
+    if (request.RequestUri!.Query.Contains("external_reference", StringComparison.Ordinal))
+        return JsonResponse(HttpStatusCode.OK,
+            $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}");
+
+    Check(request.Method == HttpMethod.Get
+        && request.RequestUri == new Uri("https://api.mercadopago.com/v1/orders/order-1"),
+        "unique search result is followed by a detail GET using its validated provider order ID");
+    return JsonResponse(HttpStatusCode.OK, checkoutResponse);
+});
+var recoveredOrder = await CreateCheckoutClient(recoveredUrlHandler).BuscarOrdenAsync(
+    checkoutReference, searchStartUtc, searchEndUtc, checkoutAmount);
+Check(recoveredOrder is { Id: "order-1", Estado: EstadoPago.Aprobado,
+    CheckoutUrl: "https://www.mercadopago.com.uy/checkout/v1/redirect?order_id=order-1" },
+    "unique exact search result recovers only its validated detail checkout URL");
+
+var stringPaginationOrder = await CreateCheckoutClient(new MockHttpMessageHandler((request, _) => JsonResponse(
+    HttpStatusCode.OK,
+    request.RequestUri!.Query.Contains("external_reference", StringComparison.Ordinal)
+        ? $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":\"1\",\"total_pages\":\"1\",\"offset\":\"0\",\"limit\":\"2\"}}}}"
+        : searchedOrderJson)))
+    .BuscarOrdenAsync(checkoutReference, searchStartUtc, searchEndUtc, checkoutAmount);
+Check(stringPaginationOrder is { Id: "order-1", Estado: EstadoPago.Aprobado },
+    "numeric-string pagination recovers the same validated order as numeric JSON fields");
+
+var createdOrderWithoutPaidAmountJson = """
+    {"id":"order-created","external_reference":"payment-123","total_amount":"125.50","currency":"UYU","status":"created","status_detail":"created"}
+    """;
+var createdOrderWithoutPaidAmount = await CreateCheckoutClient(new MockHttpMessageHandler((request, _) => JsonResponse(
+    HttpStatusCode.OK,
+    request.RequestUri!.Query.Contains("external_reference", StringComparison.Ordinal)
+        ? $"{{\"data\":[{createdOrderWithoutPaidAmountJson}],\"paging\":{{\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}"
+        : createdOrderWithoutPaidAmountJson)))
+    .BuscarOrdenAsync(checkoutReference, searchStartUtc, searchEndUtc, checkoutAmount);
+Check(createdOrderWithoutPaidAmount is { Id: "order-created", Estado: EstadoPago.Pendiente, ImportePagado: 0m, CheckoutUrl: null },
+    "created order without paid amount safely reconciles as unpaid without inventing a checkout URL");
+await CheckThrowsAsync<InvalidOperationException>(
+    () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK,
+        checkoutResponse.Replace(",\"total_paid_amount\":\"125.50\"", "", StringComparison.Ordinal))))
+        .ConsultarOrdenAsync("order-1", checkoutReference, checkoutAmount),
+    "approved order without paid amount fails closed");
+
 var emptySearch = await CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK,
     "{\"data\":[],\"paging\":{\"total\":0,\"total_pages\":0,\"offset\":0,\"limit\":2}}")))
     .BuscarOrdenAsync(checkoutReference, searchStartUtc, searchEndUtc, checkoutAmount);
@@ -854,7 +1165,16 @@ foreach (var ambiguousSearch in new[]
     $"{{\"data\":[{searchedOrderJson.Replace("payment-123", "other-payment", StringComparison.Ordinal)}],\"paging\":{{\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}",
     $"{{\"data\":[{searchedOrderJson.Replace("125.50", "125.51", StringComparison.Ordinal)}],\"paging\":{{\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}",
     $"{{\"data\":[{searchedOrderJson.Replace("UYU", "USD", StringComparison.Ordinal)}],\"paging\":{{\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}",
-    "{\"data\":[],\"paging\":{\"total\":0,\"total_pages\":0,\"offset\":1,\"limit\":2}}"
+    "{\"data\":[],\"paging\":{\"total\":0,\"total_pages\":0,\"offset\":1,\"limit\":2}}",
+    $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":\"1.0\",\"total_pages\":\"1\",\"offset\":\"0\",\"limit\":\"2\"}}}}",
+    $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":\"one\",\"total_pages\":\"1\",\"offset\":\"0\",\"limit\":\"2\"}}}}",
+    $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":\"2147483648\",\"total_pages\":\"1\",\"offset\":\"0\",\"limit\":\"2\"}}}}",
+    $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":2147483648,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}",
+    $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":\"-1\",\"total_pages\":\"1\",\"offset\":\"0\",\"limit\":\"2\"}}}}",
+    $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":-1,\"total_pages\":1,\"offset\":0,\"limit\":2}}}}",
+    $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":\"1\",\"total_pages\":\"0\",\"offset\":\"0\",\"limit\":\"2\"}}}}",
+    $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":\"1\",\"total_pages\":\"1\",\"offset\":\"1\",\"limit\":\"2\"}}}}",
+    $"{{\"data\":[{searchedOrderJson}],\"paging\":{{\"total\":\"1\",\"total_pages\":\"1\",\"offset\":\"0\",\"limit\":\"3\"}}}}"
 })
 {
     await CheckThrowsAsync<InvalidOperationException>(
@@ -983,12 +1303,20 @@ await CreateCheckoutClient(refundHandler).SolicitarDevolucionCompletaAsync(
     "order-1", Guid.Parse("22222222-2222-2222-2222-222222222222"));
 Check(refundHandler.RequestCount == 1, "refund operation only submits a request and does not claim domain completion");
 
+var opaqueTokenHandler = new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, checkoutResponse));
+await CreateCheckoutClient(opaqueTokenHandler, "opaque-token-fixture")
+    .CrearOrdenAsync(Guid.NewGuid(), checkoutReference, checkoutAmount);
+Check(opaqueTokenHandler.IdentityRequestCount == 1 && opaqueTokenHandler.RequestCount == 1,
+    "opaque credential format proceeds only after the mocked test identity matches");
+var missingTokenConfiguration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+{
+    ["MercadoPago:TestCredentialOriginConfirmed"] = "true",
+    ["MercadoPago:ExpectedSellerId"] = "987654321",
+    ["MercadoPago:ExpectedSiteId"] = "SITE_TEST_FIXTURE"
+}).Build();
 CheckThrows<InvalidOperationException>(
-    () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, checkoutResponse)), "PROD-secret"),
-    "production credential is rejected when client resolves");
-CheckThrows<InvalidOperationException>(
-    () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK, checkoutResponse)), ""),
-    "missing TEST credential is rejected when client resolves");
+    () => ParametrosMercadoPago.Desde(missingTokenConfiguration),
+    "missing private credential is rejected when client resolves");
 
 await CheckThrowsAsync<InvalidOperationException>(
     () => CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.InternalServerError, "secret response")))
@@ -1078,7 +1406,7 @@ foreach (var (name, invalidRecord, invalidPrices, invalidSelection, compraId, cs
     ("partial payment", ConfirmationRecord(EstadoPago.Aprobado, 349m, confirmationHoldExpiryUtc), frozenPaymentPrices, frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
     ("expired hold", ConfirmationRecord(EstadoPago.Aprobado, 350m, confirmationCreatedUtc), frozenPaymentPrices, frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
     ("missing frozen price", approvedConfirmation, frozenPaymentPrices[..1], frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
-    ("wrong total", approvedConfirmation, [.. frozenPaymentPrices, new TramoPago { PagoId = "PG-confirm", IntentoId = "IC-confirm", Orden = 3, Importe = 1m }], frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
+    ("wrong total", approvedConfirmation, [new TramoPago { PagoId = "PG-confirm", IntentoId = "IC-confirm", Orden = 1, Importe = 211m }, new TramoPago { PagoId = "PG-confirm", IntentoId = "IC-confirm", Orden = 2, Importe = 140m }], frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
     ("wrong generated identity count", approvedConfirmation, frozenPaymentPrices, frozenSelection, "CO-x", new[] { "CS-1" }, new[] { "TK-1", "TK-2" }, confirmationCreatedUtc),
     ("non-UTC confirmation time", approvedConfirmation, frozenPaymentPrices, frozenSelection, "CO-x", new[] { "CS-1", "CS-2" }, new[] { "TK-1", "TK-2" }, DateTime.SpecifyKind(confirmationCreatedUtc, DateTimeKind.Unspecified))
 })
@@ -1120,6 +1448,7 @@ await CheckThrowsAsync<InvalidOperationException>(
 Check(failingPurchaseStore.PublishedPurchaseCount == 0 && failingPurchaseStore.PublishedTicketCount == 0,
     "failed fake atomic publish leaves no visible purchase or partial tickets; this does not prove database rollback");
 
+const string confirmationReference = "11111111-1111-1111-1111-111111111111";
 var noOrderSnapshot = ConfirmationResult(EstadoPago.Desconocido, 0m, "", 350m, confirmationHoldExpiryUtc, null, false);
 var recoveryClock = new FakeTimeProvider(new DateTimeOffset(confirmationCreatedUtc.AddSeconds(20), TimeSpan.Zero));
 var noOrderRepository = new FakeConfirmationRepository(noOrderSnapshot);
@@ -1130,10 +1459,11 @@ Check(noOrderResponse.Pago.Estado == EstadoPago.Desconocido && noOrderResponse.C
     && noOrderGateway.QueryCalls == 0 && noOrderGateway.SearchCalls == 1 && noOrderGateway.RefundCalls == 0
     && noOrderGateway.CreateCalls == 0 && noOrderRepository.ConciliateCalls == 0,
     "missing stored provider order searches once, preserves unknown on no match, and never creates or issues tickets");
-Check(noOrderGateway.LastSearchReference == "PG-confirm"
-    && noOrderGateway.LastSearchStartUtc == noOrderSnapshot.Registro.Pago.CreadoUtc
+Check(noOrderGateway.LastSearchReference == confirmationReference
+    && noOrderGateway.LastSearchReference != noOrderSnapshot.Registro.Pago.Id
+    && noOrderGateway.LastSearchStartUtc == noOrderSnapshot.Registro.Pago.CreadoUtc - ConciliacionesPagoService.MargenDesfaseReloj
     && noOrderGateway.LastSearchEndUtc == recoveryClock.GetUtcNow().UtcDateTime,
-    "recovery search uses the durable PG reference and its persisted-creation-to-current-API time window");
+    "recovery search uses the durable creation GUID (not the PG id) and a creation-minus-clock-skew-margin to current-API time window");
 
 var searchFailureRepository = new FakeConfirmationRepository(noOrderSnapshot);
 var searchFailureGateway = new FakeMercadoPagoCheckoutClient { SearchException = new HttpRequestException("offline") };
@@ -1169,7 +1499,7 @@ Check(queryFailureResponse.Pago.Estado == EstadoPago.Desconocido && queryFailure
     && queryFailureRepository.ConciliateCalls == 0 && queryFailureGateway.CreateCalls == 0,
     "provider query failure preserves the last payment snapshot without fake rejection or fulfillment");
 Check(queryFailureGateway.LastQueryOrderId == "order-stored"
-    && queryFailureGateway.LastQueryReference == "PG-confirm"
+    && queryFailureGateway.LastQueryReference == confirmationReference
     && queryFailureGateway.LastQueryAmount == 350m,
     "payment sync queries the stored provider order with the durable payment reference and expected amount");
 
@@ -1204,7 +1534,7 @@ Check(approvedSync.Pago.Estado == EstadoPago.Aprobado && approvedSync.Compra?.Co
     "verified provider approval is reconciled after the owned DB snapshot and returns only repository-confirmed purchase");
 Check(approvedRepo.LastOwnerId == "passenger" && approvedRepo.LastAttemptId == "IC-confirm"
     && approvedGateway.LastQueryOrderId == "order-stored"
-    && approvedGateway.LastQueryReference == "PG-confirm"
+    && approvedGateway.LastQueryReference == confirmationReference
     && approvedGateway.LastQueryAmount == 350m,
     "synchronization is scoped to passenger and attempt while validating stored order, payment, and amount");
 Check(approvedGateway.SearchCalls == 0,
@@ -1226,8 +1556,8 @@ Check(recoveredResponse.Pago.Estado == EstadoPago.Aprobado && recoveredResponse.
     && recoveryRepository.ConciliateCalls == 1 && recoveryGateway.Events.SequenceEqual(["search"])
     && recoveryGateway.CreateCalls == 0,
     "one verified search match binds to the existing payment through ordinary locked reconciliation without recreating checkout");
-Check(recoveryGateway.LastSearchReference == "PG-confirm" && recoveryGateway.LastSearchAmount == 350m
-    && recoveryGateway.LastSearchStartUtc == noOrderSnapshot.Registro.Pago.CreadoUtc
+Check(recoveryGateway.LastSearchReference == confirmationReference && recoveryGateway.LastSearchAmount == 350m
+    && recoveryGateway.LastSearchStartUtc == noOrderSnapshot.Registro.Pago.CreadoUtc - ConciliacionesPagoService.MargenDesfaseReloj
     && recoveryGateway.LastSearchEndUtc == recoveryClock.GetUtcNow().UtcDateTime,
     "recovery passes the exact durable reference, expected amount, and uncapped persisted-to-now window");
 
@@ -1298,8 +1628,6 @@ using (var canceledSync = new CancellationTokenSource())
         "canceled synchronization performs no provider side effect or destructive local transition");
 }
 
-
-
 var syncEndpoint = typeof(ConciliacionesPagoController).GetMethod(nameof(ConciliacionesPagoController.Sincronizar));
 var syncRoute = typeof(ConciliacionesPagoController).GetCustomAttributes(typeof(RouteAttribute), true)
     .Cast<RouteAttribute>().SingleOrDefault()?.Template;
@@ -1332,12 +1660,68 @@ var foreignControllerService = new FakeConciliacionesPagoService { Exception = n
 var foreignHttpResult = await CreateSyncController(foreignControllerService, "passenger-public-id").Sincronizar("IC-foreign");
 Check(foreignHttpResult.Result is NotFoundResult,
     "missing or foreign attempt maps to 404 without exposing ownership details");
+var internalSyncService = new FakeConciliacionesPagoService
+{
+    Exception = new InvalidOperationException("sensitive provider detail PG-1 credential")
+};
+var internalSyncResult = await CreateSyncController(internalSyncService, "passenger-public-id").Sincronizar("IC-opaque");
+Check(internalSyncResult.Result is ObjectResult { StatusCode: StatusCodes.Status500InternalServerError } internalSyncFailure
+    && Equals(internalSyncFailure.Value, "Error interno del servidor")
+    && !internalSyncFailure.Value!.ToString()!.Contains("sensitive provider detail", StringComparison.Ordinal),
+    "internal InvalidOperationException during synchronization maps to a sanitized 500, not a 400 with its message");
 var canceledControllerService = new FakeConciliacionesPagoService { Exception = new OperationCanceledException() };
 using var canceledControllerToken = new CancellationTokenSource();
 canceledControllerToken.Cancel();
 await CheckThrowsAsync<OperationCanceledException>(
     () => CreateSyncController(canceledControllerService, "passenger-public-id").Sincronizar("IC-opaque", canceledControllerToken.Token),
     "synchronization controller propagates caller cancellation");
+
+// T2 / S3f: authenticated passenger endpoint for the most recent attempt that still needs attention.
+var pendingAttempts = new FakeIntentosCompraService
+{
+    ReadResponse = new IniciarIntentoCompraResponseDto { IntentoId = "IC-pending", HoldVenceEn = quoteExpiry }
+};
+var pendingPayments = new FakePagosService
+{
+    CurrentResponse = new PagoResponseDto { PagoId = "PG-9", IntentoId = "IC-pending", Estado = EstadoPago.Desconocido }
+};
+var pendingRepository = new FakeIntentosPendientesRepository(new Dictionary<string, string> { ["owner-public-id"] = "IC-pending" });
+var pendingService = new IntentosPendientesService(pendingRepository, pendingAttempts, pendingPayments, paymentNow);
+var ownerPending = await pendingService.ConsultarAsync("owner-public-id");
+Check(ownerPending is not null && ownerPending.Intento.IntentoId == "IC-pending"
+    && ownerPending.Pago?.Estado == EstadoPago.Desconocido
+    && pendingAttempts.ReadPassengerId == "owner-public-id" && pendingAttempts.ReadAttemptId == "IC-pending"
+    && pendingPayments.PassengerId == "owner-public-id" && pendingPayments.AttemptId == "IC-pending"
+    && pendingRepository.LastNowUtc == paymentNow.GetUtcNow().UtcDateTime,
+    "pending-attempt service returns the owner's attempt and current payment using the server clock");
+var otherPendingAttempts = new FakeIntentosCompraService();
+var otherPending = await new IntentosPendientesService(pendingRepository, otherPendingAttempts, pendingPayments, paymentNow)
+    .ConsultarAsync("other-public-id");
+Check(otherPending is null && otherPendingAttempts.ReadPassengerId is null,
+    "another passenger gets no pending attempt and never reads the owner's attempt");
+await CheckThrowsAsync<ArgumentException>(() => pendingService.ConsultarAsync(" "),
+    "pending-attempt service rejects a blank passenger identity");
+
+var pendingController = CreatePendingController(new FakeIntentosPendientesService(ownerPending), "owner-public-id");
+Check((await pendingController.Consultar()).Result is OkObjectResult { Value: IntentoPendienteResponseDto },
+    "pending-attempt endpoint returns 200 with the attempt and payment for the owner");
+Check((await CreatePendingController(new FakeIntentosPendientesService(null), "other-public-id").Consultar()).Result is NoContentResult,
+    "pending-attempt endpoint returns 204 when nothing needs attention");
+Check((await CreatePendingController(new FakeIntentosPendientesService(null), null).Consultar()).Result is UnauthorizedResult,
+    "pending-attempt endpoint rejects a missing authenticated identity");
+var failingPending = await CreatePendingController(
+    new FakeIntentosPendientesService(null) { Exception = new InvalidOperationException("sensitive detail") },
+    "owner-public-id").Consultar();
+Check(failingPending.Result is ObjectResult { StatusCode: StatusCodes.Status500InternalServerError } pendingFailure
+    && Equals(pendingFailure.Value, "Error interno del servidor"),
+    "pending-attempt endpoint sanitizes unexpected failures as 500");
+Check(typeof(IntentosPendientesController).GetCustomAttributes(typeof(RouteAttribute), true).Cast<RouteAttribute>()
+        .Single().Template == "api/intentos-compra/pendiente"
+    && typeof(IntentosPendientesController).GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<AuthorizeAttribute>()
+        .Single().Roles == "Pasajero"
+    && typeof(IntentosPendientesController).GetMethod(nameof(IntentosPendientesController.Consultar))!
+        .GetCustomAttributes(typeof(HttpGetAttribute), true).Length == 1,
+    "pending-attempt endpoint is an authenticated passenger-only GET at the documented route");
 
 Console.WriteLine($"Checks: {checks}; failures: {failures}");
 return failures == 0 ? 0 : 1;
@@ -1382,6 +1766,23 @@ static PagosController CreatePaymentController(IPagosService service, string? pa
         ? Array.Empty<Claim>()
         : [new Claim(ClaimTypes.NameIdentifier, passengerId)];
     return new PagosController(service)
+    {
+        ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(claims, "test"))
+            }
+        }
+    };
+}
+
+static IntentosPendientesController CreatePendingController(IIntentosPendientesService service, string? passengerId)
+{
+    var claims = passengerId is null
+        ? Array.Empty<Claim>()
+        : [new Claim(ClaimTypes.NameIdentifier, passengerId)];
+    return new IntentosPendientesController(service)
     {
         ControllerContext = new ControllerContext
         {
@@ -1507,6 +1908,25 @@ void CheckThrows<TException>(Action action, string name) where TException : Exce
     }
 }
 
+static MercadoPagoCheckoutClient CreateCheckoutClient(MockHttpMessageHandler handler, string token = "TEST-contract-token")
+{
+    var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["MercadoPago:AccessToken"] = token,
+        ["MercadoPago:TestCredentialOriginConfirmed"] = "true",
+        ["MercadoPago:ExpectedSellerId"] = "987654321",
+        ["MercadoPago:ExpectedSiteId"] = "SITE_TEST_FIXTURE"
+    }).Build();
+    handler.IdentityResponseFactory ??= (_, _) => JsonResponse(HttpStatusCode.OK,
+        "{\"id\":987654321,\"site_id\":\"SITE_TEST_FIXTURE\",\"tags\":[\"test_user\"]}");
+    return new MercadoPagoCheckoutClient(new HttpClient(handler), ParametrosMercadoPago.Desde(configuration));
+}
+
+static HttpResponseMessage JsonResponse(HttpStatusCode statusCode, string body) => new(statusCode)
+{
+    Content = new StringContent(body, Encoding.UTF8, "application/json")
+};
+
 static TramoIntentoCompra ConfirmationSelection(int order, string serviceId, string segmentId,
     string originId, string originName, string destinationId, string destinationName, decimal originalAmount,
     PoliticaAsiento seatPolicy, int? seatNumber, DateTime departure, DateTime arrival) => new()
@@ -1568,26 +1988,12 @@ static ResultadoConciliacionPago ConfirmationResult(EstadoPago state, decimal pa
 static OrdenCheckoutMercadoPago ConfirmationOrder(EstadoPago state, decimal paid, string orderId) => new()
 {
     Id = orderId,
-    ReferenciaExterna = "PG-confirm",
+    ReferenciaExterna = confirmationReference,
     Importe = 350m,
     ImportePagado = paid,
     Moneda = "UYU",
     Estado = state,
     CheckoutUrl = "https://www.mercadopago.com.uy/checkout/confirmed"
-};
-
-static MercadoPagoCheckoutClient CreateCheckoutClient(MockHttpMessageHandler handler, string token = "TEST-contract-token")
-{
-    var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
-    {
-        ["MercadoPago:AccessToken"] = token
-    }).Build();
-    return new MercadoPagoCheckoutClient(new HttpClient(handler), ParametrosMercadoPago.Desde(configuration));
-}
-
-static HttpResponseMessage JsonResponse(HttpStatusCode statusCode, string body) => new(statusCode)
-{
-    Content = new StringContent(body, Encoding.UTF8, "application/json")
 };
 
 async Task CheckThrowsAsync<TException>(Func<Task> action, string name) where TException : Exception
@@ -1603,12 +2009,28 @@ async Task CheckThrowsAsync<TException>(Func<Task> action, string name) where TE
     }
 }
 
+}
+catch (Exception exception)
+{
+    Console.Error.WriteLine(exception.ToString());
+    return 1;
+}
+
 sealed class MockHttpMessageHandler(Func<HttpRequestMessage, CancellationToken, HttpResponseMessage> responseFactory) : HttpMessageHandler
 {
     public int RequestCount { get; private set; }
+    public int IdentityRequestCount { get; private set; }
+    public Func<HttpRequestMessage, CancellationToken, HttpResponseMessage>? IdentityResponseFactory { get; set; }
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        if (request.RequestUri?.Host == "api.mercadolibre.com"
+            && request.RequestUri.AbsolutePath == "/users/me"
+            && IdentityResponseFactory is not null)
+        {
+            IdentityRequestCount++;
+            return Task.FromResult(IdentityResponseFactory(request, cancellationToken));
+        }
         RequestCount++;
         return Task.FromResult(responseFactory(request, cancellationToken));
     }
@@ -1757,6 +2179,7 @@ sealed class FakeMercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         CheckoutUrl = "https://www.mercadopago.com.uy/checkout/default"
     };
     public Exception? CreateException { get; set; }
+    public string? ReferenceOverride { get; set; }
     public Action? BeforeCreate { get; set; }
     public int CreateCalls => Volatile.Read(ref _createCalls);
     public int QueryCalls => Volatile.Read(ref _queryCalls);
@@ -1794,7 +2217,7 @@ sealed class FakeMercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         LastReference = referenciaExterna;
         LastAmount = importe;
         return CreateException is null
-            ? Task.FromResult(CreateResponse)
+            ? Task.FromResult(CreateResponse with { ReferenciaExterna = ReferenceOverride ?? referenciaExterna })
             : Task.FromException<OrdenCheckoutMercadoPago>(CreateException);
     }
 
@@ -1882,6 +2305,27 @@ sealed class FakeConfirmationRepository(ResultadoConciliacionPago? snapshot) : I
             ?? throw new InvalidOperationException("A reconciliation result must be configured.");
         return Task.FromResult(Snapshot);
     }
+}
+
+sealed class FakeIntentosPendientesRepository(IReadOnlyDictionary<string, string> attemptsByPassenger) : IIntentosPendientesRepository
+{
+    public DateTime? LastNowUtc { get; private set; }
+
+    public Task<string?> BuscarIdPendienteAsync(string identificadorPublico, DateTime ahoraUtc,
+        CancellationToken cancellationToken = default)
+    {
+        LastNowUtc = ahoraUtc;
+        return Task.FromResult(attemptsByPassenger.TryGetValue(identificadorPublico, out var id) ? id : null);
+    }
+}
+
+sealed class FakeIntentosPendientesService(IntentoPendienteResponseDto? response) : IIntentosPendientesService
+{
+    public Exception? Exception { get; set; }
+
+    public Task<IntentoPendienteResponseDto?> ConsultarAsync(string identificadorPublico,
+        CancellationToken cancellationToken = default) =>
+        Exception is null ? Task.FromResult(response) : Task.FromException<IntentoPendienteResponseDto?>(Exception);
 }
 
 sealed class FakeConciliacionesPagoService : IConciliacionesPagoService

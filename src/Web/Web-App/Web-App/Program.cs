@@ -4,6 +4,7 @@ using Web_App.Security;
 using Web_App.Services.Location;
 using Web_App.Services.Operational;
 using Web_App.Services.Catalogo;
+using Web_App.Services.Purchase;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +15,7 @@ builder.Services.AddScoped<AdministracionOperativaCliente>();
 builder.Services.AddScoped<BusquedaItinerariosCliente>();
 builder.Services.AddScoped<CatalogoCliente>();
 builder.Services.AddScoped<AdministracionCatalogoCliente>();
+builder.Services.AddScoped<CompraCliente>();
 builder.Services.AddScoped<UbicacionPasajeroCliente>();
 builder.Services.AddHttpClient("Autenticacion", client =>
 {

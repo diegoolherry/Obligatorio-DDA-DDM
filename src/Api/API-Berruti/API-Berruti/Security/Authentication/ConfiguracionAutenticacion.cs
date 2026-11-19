@@ -19,7 +19,8 @@ public static class ConfiguracionAutenticacion
         var conexion = new MySqlConnectionStringBuilder(cadena);
         var local = conexion.Server is "localhost" or "127.0.0.1" or "::1";
         var pareja = entorno == "Development" && conexion.Database == "berrutilocal" && conexion.UserID == "berruti_app" ||
-            entorno == "AuthenticationTests" && conexion.Database == "berrutiauthtests" && conexion.UserID == "berruti_test";
+            entorno == "AuthenticationTests" && conexion.Database == "berrutiauthtests" && conexion.UserID == "berruti_test" ||
+            entorno == "PurchaseTests" && conexion.Database == "berruticomprastests" && conexion.UserID == "berruti_purchase_test";
         if (!local || !pareja || conexion.Port != 3306 || string.IsNullOrWhiteSpace(conexion.Password))
             throw new InvalidOperationException();
         conexion.PersistSecurityInfo = false;
