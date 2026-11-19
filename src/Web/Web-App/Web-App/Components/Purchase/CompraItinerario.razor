@@ -70,7 +70,7 @@
         }
         @if (_estado == EstadoCompra.Rechazado)
         {
-            <p role="status">El pago fue rechazado. No se emitieron tickets. Puede revisar el precio y reintentar mientras el hold siga vigente.</p>
+            <p role="status">El pago fue rechazado. No se emitieron tickets. Podés revisar el precio y reintentar mientras el hold siga vigente.</p>
             <button type="button" class="btn btn-outline-primary" disabled="@(Ocupado || Vencio)" @onclick="CargarCotizacionAsync">@(Ocupado ? "Consultando…" : "Revisar cotización para reintentar")</button>
         }
         @if (_estado == EstadoCompra.DevolucionPendiente)
@@ -89,7 +89,7 @@
                 <p>Compra @_compra.CompraId · @_compra.Tickets.Count tickets emitidos · total @Precio(_compra.ImporteTotal).</p>
                 @foreach (var ticket in _compra.Tickets.OrderBy(t => t.Orden))
                 {
-                    <p>Tramo @ticket.Orden: @ticket.OrigenNombre a @ticket.DestinoNombre · ticket @ticket.TicketId · asiento @(ticket.NumeroAsiento?.ToString() ?? "sin asiento")</p>
+                    <p>Tramo @ticket.Orden: @ticket.OrigenNombre a @ticket.DestinoNombre · ticket @ticket.TicketId · @(ticket.NumeroAsiento is int asiento ? $"asiento {asiento}" : "sin asiento")</p>
                 }
             </div>
         }
