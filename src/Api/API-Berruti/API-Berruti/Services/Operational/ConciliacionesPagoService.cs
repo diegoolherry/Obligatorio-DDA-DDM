@@ -4,11 +4,28 @@ using API_Berruti.Repositories.Operational;
 
 namespace API_Berruti.Services.Operational;
 
-public sealed class ConciliacionesPagoService(
-    IConfirmacionesCompraRepository confirmaciones,
-    IMercadoPagoCheckoutClient checkout,
-    TimeProvider timeProvider) : IConciliacionesPagoService
+public sealed class ConciliacionesPagoService : IConciliacionesPagoService
 {
+    private readonly IConfirmacionesCompraRepository _confirmaciones;
+    private readonly IMercadoPagoCheckoutClient _checkout;
+    private readonly TimeProvider _timeProvider;
+
+    /// <summary>
+    /// Tolerancia de desfase entre el reloj local y el de Mercado Pago: la búsqueda de recuperación
+    /// arranca este margen antes de la creación local del pago (begin_date).
+    /// </summary>
+    public static readonly TimeSpan MargenDesfaseReloj = TimeSpan.FromMinutes(5);
+
+    public ConciliacionesPagoService(
+        IConfirmacionesCompraRepository confirmaciones,
+        IMercadoPagoCheckoutClient checkout,
+        TimeProvider timeProvider)
+    {
+        _confirmaciones = confirmaciones;
+        _checkout = checkout;
+        _timeProvider = timeProvider;
+    }
+
     public async Task<SincronizarPagoResponseDto> SincronizarAsync(
         string identificadorPublico,
         string intentoId,
@@ -20,7 +37,7 @@ public sealed class ConciliacionesPagoService(
             throw new ArgumentException("El identificador del intento es obligatorio.", nameof(intentoId));
 
         cancellationToken.ThrowIfCancellationRequested();
-        var snapshot = await confirmaciones.ConsultarAsync(identificadorPublico, intentoId, cancellationToken);
+        var snapshot = await _confirmaciones.ConsultarAsync(identificadorPublico, intentoId, cancellationToken);
         if (snapshot is null)
             throw new KeyNotFoundException("No se encontró un pago para el intento solicitado.");
 
@@ -30,12 +47,12 @@ public sealed class ConciliacionesPagoService(
         {
             if (string.IsNullOrWhiteSpace(pago.OrdenProveedorId))
             {
-                var hastaUtc = timeProvider.GetUtcNow().UtcDateTime;
+                var hastaUtc = _timeProvider.GetUtcNow().UtcDateTime;
                 if (pago.CreadoUtc.Kind != DateTimeKind.Utc || hastaUtc.Kind != DateTimeKind.Utc || hastaUtc <= pago.CreadoUtc)
                     return CrearRespuesta(snapshot);
-                var recuperada = await checkout.BuscarOrdenAsync(
-                    pago.Id,
-                    pago.CreadoUtc,
+                var recuperada = await _checkout.BuscarOrdenAsync(
+                    pago.ReferenciaExterna,
+                    pago.CreadoUtc - MargenDesfaseReloj,
                     hastaUtc,
                     pago.ImporteEsperado,
                     cancellationToken);
@@ -45,9 +62,9 @@ public sealed class ConciliacionesPagoService(
             }
             else
             {
-                orden = await checkout.ConsultarOrdenAsync(
+                orden = await _checkout.ConsultarOrdenAsync(
                     pago.OrdenProveedorId,
-                    pago.Id,
+                    pago.ReferenciaExterna,
                     pago.ImporteEsperado,
                     cancellationToken);
             }
@@ -61,7 +78,7 @@ public sealed class ConciliacionesPagoService(
             return CrearRespuesta(snapshot);
         }
 
-        var resultado = await confirmaciones.ConciliarAsync(
+        var resultado = await _confirmaciones.ConciliarAsync(
             identificadorPublico,
             pago.Id,
             orden,
@@ -76,7 +93,7 @@ public sealed class ConciliacionesPagoService(
 
         try
         {
-            await checkout.SolicitarDevolucionCompletaAsync(ordenId, claveDevolucion.Value, cancellationToken);
+            await _checkout.SolicitarDevolucionCompletaAsync(ordenId, claveDevolucion.Value, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -89,12 +106,12 @@ public sealed class ConciliacionesPagoService(
 
         try
         {
-            var verificacion = await checkout.ConsultarOrdenAsync(
+            var verificacion = await _checkout.ConsultarOrdenAsync(
                 ordenId,
-                resultado.Registro.Pago.Id,
+                resultado.Registro.Pago.ReferenciaExterna,
                 resultado.Registro.Pago.ImporteEsperado,
                 cancellationToken);
-            resultado = await confirmaciones.ConciliarAsync(
+            resultado = await _confirmaciones.ConciliarAsync(
                 identificadorPublico,
                 resultado.Registro.Pago.Id,
                 verificacion,
@@ -116,7 +133,7 @@ public sealed class ConciliacionesPagoService(
     {
         var registro = resultado.Registro;
         var pago = registro.Pago;
-        var ahoraUtc = timeProvider.GetUtcNow().UtcDateTime;
+        var ahoraUtc = _timeProvider.GetUtcNow().UtcDateTime;
         var checkoutVigente = pago.Estado == EstadoPago.Pendiente
             && ReglasInicioPago.HoldVigente(registro.HoldVenceEn, ahoraUtc);
 

@@ -226,7 +226,7 @@ El usuario aprobó una re-cotización autoritativa de la API antes de iniciar ca
 
 ### Acuerdo conceptual de compra, hold y reintentos
 
-**Acuerdo conceptual incluido en la base evolutiva aprobada por Diego y Enzo, según lo informado por el usuario.** Un intento durable de compra agrupa intentos de pago conservados; es distinto del hold temporal y de una compra confirmada. El acuerdo conjunto previo definía cinco minutos; por actualización explícita del usuario, la duración vigente es **15 minutos configurables desde su creación en la API**, sin atribuir este cambio a una nueva aprobación conjunta. El corte backend preparado configura un valor positivo con default 15, fija el deadline al crear y no lo renueva al consultar. Recargar/reintentar, idempotencia de creación y pagos no están implementados ni definidos por este corte.
+**Acuerdo conceptual incluido en la base evolutiva aprobada por Diego y Enzo, según lo informado por el usuario.** Un intento durable de compra agrupa intentos de pago conservados; es distinto del hold temporal y de una compra confirmada. El acuerdo conjunto previo definía cinco minutos; por decisión aprobada por Diego y Enzo (confirmación de Diego en la revisión cruzada del 2026-11-19), la duración vigente es **15 minutos configurables desde su creación en la API**. El corte backend preparado configura un valor positivo con default 15, fija el deadline al crear y no lo renueva al consultar. Recargar/reintentar, idempotencia de creación y pagos no están implementados ni definidos por este corte.
 
 | Situación | Regla acordada |
 | --- | --- |

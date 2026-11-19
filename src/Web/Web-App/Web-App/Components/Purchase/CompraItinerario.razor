@@ -1,4 +1,4 @@
-﻿@using System.Globalization
+@using System.Globalization
 @using Web_App.Models.Operational
 @using Web_App.Models.Purchase
 @using Web_App.Services.Authentication
@@ -20,7 +20,7 @@
         }
         @if (_creacionAmbigua)
         {
-            <p role="alert">No se pudo confirmar si se creó el intento. No lo vuelva a crear automáticamente; vuelva a buscar antes de iniciar otra compra.</p>
+            <p role="alert">No se pudo confirmar si se creó el intento. No lo vuelva a crear automáticamente. Vuelva a itinerarios: si el intento existe, se retomará al volver a esta pantalla.</p>
         }
         @if (_intento is not null)
         {
@@ -71,7 +71,7 @@
         @if (_estado == EstadoCompra.Rechazado)
         {
             <p role="status">El pago fue rechazado. No se emitieron tickets. Puede revisar el precio y reintentar mientras el hold siga vigente.</p>
-            <button type="button" class="btn btn-outline-primary" disabled="@Ocupado || Vencio" @onclick="CargarCotizacionAsync">@(Ocupado ? "Consultando…" : "Revisar cotización para reintentar")</button>
+            <button type="button" class="btn btn-outline-primary" disabled="@(Ocupado || Vencio)" @onclick="CargarCotizacionAsync">@(Ocupado ? "Consultando…" : "Revisar cotización para reintentar")</button>
         }
         @if (_estado == EstadoCompra.DevolucionPendiente)
         {
@@ -107,9 +107,26 @@
 
 @code {
     [Parameter, EditorRequired] public ItinerarioDto Itinerario { get; set; } = new();
+    [Parameter] public IntentoPendienteResponseDto? IntentoPendiente { get; set; }
     [Parameter] public EventCallback OnCerrar { get; set; }
+    [Parameter] public EventCallback OnAbandonarSinIntento { get; set; }
     [Parameter] public EventCallback OnFinalizar { get; set; }
-    private enum EstadoCompra { Inicial, CreandoIntento, CargandoCotizacion, EsperandoAceptacion, IniciandoPago, PagoPendiente, ResultadoDesconocido, CargandoSincronizacion, Rechazado, DevolucionPendiente, Devuelto, Confirmado, Error }
+    private enum EstadoCompra
+    {
+        Inicial,
+        CreandoIntento,
+        CargandoCotizacion,
+        EsperandoAceptacion,
+        IniciandoPago,
+        PagoPendiente,
+        ResultadoDesconocido,
+        CargandoSincronizacion,
+        Rechazado,
+        DevolucionPendiente,
+        Devuelto,
+        Confirmado,
+        Error
+    }
     private EstadoCompra _estado = EstadoCompra.Inicial;
     private IniciarIntentoCompraResponseDto? _intento;
     private CotizarCompraResponseDto? _cotizacion;
@@ -123,13 +140,57 @@
     private static DateTime AUtc(DateTime fecha) => fecha.Kind == DateTimeKind.Utc ? fecha : DateTime.SpecifyKind(fecha, DateTimeKind.Utc);
     private static string MostrarFecha(DateTime fecha) => AUtc(fecha).ToLocalTime().ToString("dd/MM/yyyy HH:mm", CultureInfo.GetCultureInfo("es-UY"));
     private static string Precio(decimal valor) => "$ " + valor.ToString("N2", CultureInfo.GetCultureInfo("es-UY"));
-    private static string Politica(PoliticaAsiento valor) => valor switch { PoliticaAsiento.SinAsiento => "sin asignar", PoliticaAsiento.AsignacionAutomatica => "automático", _ => "no informado" };
+    private static string Politica(PoliticaAsiento valor) => valor switch
+    {
+        PoliticaAsiento.SinAsiento => "sin asignar",
+        PoliticaAsiento.AsignacionAutomatica => "automático",
+        _ => "no informado"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (IntentoPendiente is null)
+        {
+            return;
+        }
+        // Retoma un intento que la API informó como pendiente: no crea otro hold ni otro pago.
+        _intento = IntentoPendiente.Intento;
+        _pago = IntentoPendiente.Pago;
+        if (_pago is null)
+        {
+            await CargarCotizacionAsync();
+            return;
+        }
+        _estado = EstadoDesdePago(_pago.Estado);
+        if (_pago.Estado is EstadoPago.Pendiente or EstadoPago.Desconocido or EstadoPago.Aprobado or EstadoPago.DevolucionPendiente)
+        {
+            await SincronizarAsync();
+        }
+    }
+
+    private static EstadoCompra EstadoDesdePago(EstadoPago estado) => estado switch
+    {
+        EstadoPago.Rechazado => EstadoCompra.Rechazado,
+        EstadoPago.Desconocido => EstadoCompra.ResultadoDesconocido,
+        EstadoPago.Aprobado => EstadoCompra.ResultadoDesconocido,
+        EstadoPago.DevolucionPendiente => EstadoCompra.DevolucionPendiente,
+        EstadoPago.Devuelto => EstadoCompra.Devuelto,
+        _ => EstadoCompra.PagoPendiente
+    };
 
     private async Task CrearIntentoAsync()
     {
-        if (Ocupado || _intento is not null || _creacionAmbigua) return;
-        if (!Sesion.Estado.Autenticada) { _mensaje = "Ingrese con tu cuenta de pasajero."; return; }
-        _mensaje = null; _estado = EstadoCompra.CreandoIntento;
+        if (Ocupado || _intento is not null || _creacionAmbigua)
+        {
+            return;
+        }
+        if (!Sesion.Estado.Autenticada)
+        {
+            _mensaje = "Ingrese con tu cuenta de pasajero.";
+            return;
+        }
+        _mensaje = null;
+        _estado = EstadoCompra.CreandoIntento;
         var seleccion = Itinerario.Tramos.OrderBy(t => t.Orden).Select(t => new SeleccionTramoCompraDto { Orden = t.Orden, ServicioId = t.ServicioId }).ToArray();
         var resultado = await Cliente.CrearIntentoAsync(seleccion);
         if (resultado.Tipo == TipoResultadoCompra.Exito && resultado.Datos is not null)
@@ -140,7 +201,9 @@
         }
         else if (resultado.Tipo == TipoResultadoCompra.Ambiguo)
         {
-            _creacionAmbigua = true; _estado = EstadoCompra.Error; _mensaje = resultado.Mensaje;
+            _creacionAmbigua = true;
+            _estado = EstadoCompra.Error;
+            _mensaje = resultado.Mensaje;
         }
         else
         {
@@ -153,37 +216,49 @@
 
     private async Task CargarCotizacionAsync()
     {
-        if (_intento is null || Ocupado) return;
-        _mensaje = null; _estado = EstadoCompra.CargandoCotizacion;
+        if (_intento is null || Ocupado)
+        {
+            return;
+        }
+        _mensaje = null;
+        _estado = EstadoCompra.CargandoCotizacion;
         var resultado = await Cliente.ObtenerCotizacionAsync(_intento.IntentoId);
         if (resultado.Tipo == TipoResultadoCompra.Exito && resultado.Datos is not null)
         {
             _cotizacion = resultado.Datos;
             _estado = Vencio ? EstadoCompra.Error : EstadoCompra.EsperandoAceptacion;
-            if (Vencio) _mensaje = "El hold original venció; no se puede extender.";
+            if (Vencio)
+            {
+                _mensaje = "El hold original venció; no se puede extender.";
+            }
         }
-        else { _estado = EstadoCompra.Error; _mensaje = resultado.Mensaje; }
+        else
+        {
+            _estado = EstadoCompra.Error;
+            _mensaje = resultado.Mensaje;
+        }
     }
 
     private async Task AceptarAsync()
     {
-        if (_intento is null || _cotizacion is null || Ocupado || Vencio) return;
-        _mensaje = null; _estado = EstadoCompra.IniciandoPago;
+        if (_intento is null || _cotizacion is null || Ocupado || Vencio)
+        {
+            return;
+        }
+        _mensaje = null;
+        _estado = EstadoCompra.IniciandoPago;
         var resultado = await Cliente.IniciarPagoAsync(_intento.IntentoId, _cotizacion.HuellaCotizacion);
         if (resultado.Tipo == TipoResultadoCompra.CotizacionModificada && resultado.Cotizacion is not null)
         {
-            _cotizacion = resultado.Cotizacion; _estado = EstadoCompra.EsperandoAceptacion;
-            _mensaje = "El precio cambió. Aceptalo nuevamente para iniciar el pago."; return;
+            _cotizacion = resultado.Cotizacion;
+            _estado = EstadoCompra.EsperandoAceptacion;
+            _mensaje = "El precio cambió. Aceptalo nuevamente para iniciar el pago.";
+            return;
         }
         if (resultado.Tipo == TipoResultadoCompra.Exito && resultado.Datos is not null)
         {
             _pago = resultado.Datos;
-            _estado = _pago.Estado switch
-            {
-                EstadoPago.Rechazado => EstadoCompra.Rechazado,
-                EstadoPago.Desconocido => EstadoCompra.ResultadoDesconocido,
-                _ => EstadoCompra.PagoPendiente
-            };
+            _estado = EstadoDesdePago(_pago.Estado);
             return;
         }
         _estado = resultado.Tipo == TipoResultadoCompra.Ambiguo ? EstadoCompra.ResultadoDesconocido : EstadoCompra.Error;
@@ -192,13 +267,19 @@
 
     private async Task SincronizarAsync()
     {
-        if (_intento is null || Ocupado) return;
-        _mensaje = null; _estado = EstadoCompra.CargandoSincronizacion;
+        if (_intento is null || Ocupado)
+        {
+            return;
+        }
+        _mensaje = null;
+        var anterior = _estado;
+        _estado = EstadoCompra.CargandoSincronizacion;
         var resultado = await Cliente.SincronizarPagoAsync(_intento.IntentoId);
         if (resultado.Tipo != TipoResultadoCompra.Exito || resultado.Datos is null)
         {
-            _estado = resultado.Tipo == TipoResultadoCompra.Ambiguo ? EstadoCompra.ResultadoDesconocido : EstadoCompra.PagoPendiente;
-            _mensaje = resultado.Mensaje; return;
+            _estado = resultado.Tipo == TipoResultadoCompra.Ambiguo ? EstadoCompra.ResultadoDesconocido : anterior;
+            _mensaje = resultado.Mensaje;
+            return;
         }
         _pago = resultado.Datos.Pago;
         _compra = resultado.Datos.Compra;
@@ -227,7 +308,16 @@
 
     private async Task Cerrar()
     {
-        if (Ocupado) return;
+        if (Ocupado)
+        {
+            return;
+        }
+        if (_intento is null)
+        {
+            // Sin intento conocido no hay nada que retomar: se vuelve a la lista (la página consulta si quedó uno pendiente).
+            await OnAbandonarSinIntento.InvokeAsync();
+            return;
+        }
         var expiradoSinPagoPendiente = Vencio && (_estado == EstadoCompra.Error || _estado == EstadoCompra.EsperandoAceptacion || _estado == EstadoCompra.Rechazado);
         if (_estado == EstadoCompra.Confirmado || _estado == EstadoCompra.Devuelto || expiradoSinPagoPendiente)
             await OnFinalizar.InvokeAsync();
@@ -235,4 +325,3 @@
             await OnCerrar.InvokeAsync();
     }
 }
-

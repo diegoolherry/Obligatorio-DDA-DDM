@@ -8,8 +8,15 @@ using Microsoft.AspNetCore.Mvc;
 namespace API_Berruti.Controllers.Operational;
 
 [ApiController, Route("api/intentos-compra"), Authorize(Roles = "Pasajero")]
-public sealed class CotizacionesCompraController(ICotizacionesCompraService service) : ControllerBase
+public sealed class CotizacionesCompraController : ControllerBase
 {
+    private readonly ICotizacionesCompraService _service;
+
+    public CotizacionesCompraController(ICotizacionesCompraService service)
+    {
+        _service = service;
+    }
+
     [HttpGet("{intentoId}/cotizacion")]
     public async Task<ActionResult<CotizarCompraResponseDto>> Cotizar(
         string intentoId,
@@ -20,7 +27,7 @@ public sealed class CotizacionesCompraController(ICotizacionesCompraService serv
 
         try
         {
-            return Ok(await service.CotizarAsync(identificadorPublico, intentoId, cancellationToken));
+            return Ok(await _service.CotizarAsync(identificadorPublico, intentoId, cancellationToken));
         }
         catch (ArgumentException exception)
         {

@@ -9,8 +9,15 @@ using Microsoft.AspNetCore.Mvc;
 namespace API_Berruti.Controllers.Operational;
 
 [ApiController, Route("api/intentos-compra/{intentoId}/pagos"), Authorize(Roles = "Pasajero")]
-public sealed class ConciliacionesPagoController(IConciliacionesPagoService service) : ControllerBase
+public sealed class ConciliacionesPagoController : ControllerBase
 {
+    private readonly IConciliacionesPagoService _service;
+
+    public ConciliacionesPagoController(IConciliacionesPagoService service)
+    {
+        _service = service;
+    }
+
     [HttpPost("sincronizar")]
     public async Task<ActionResult<SincronizarPagoResponseDto>> Sincronizar(
         string intentoId,
@@ -22,7 +29,7 @@ public sealed class ConciliacionesPagoController(IConciliacionesPagoService serv
 
         try
         {
-            var resultado = await service.SincronizarAsync(identidad, intentoId, cancellationToken);
+            var resultado = await _service.SincronizarAsync(identidad, intentoId, cancellationToken);
             return resultado.Pago.Estado == EstadoPago.Desconocido
                 ? StatusCode(StatusCodes.Status202Accepted, resultado)
                 : Ok(resultado);
@@ -42,10 +49,6 @@ public sealed class ConciliacionesPagoController(IConciliacionesPagoService serv
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
-        }
-        catch (InvalidOperationException exception)
-        {
-            return BadRequest(exception.Message);
         }
         catch (Exception)
         {
