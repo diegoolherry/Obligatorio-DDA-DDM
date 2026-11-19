@@ -34,7 +34,18 @@ builder.Services.AddScoped<IBusquedaItinerariosRepository, BusquedaItinerariosRe
 builder.Services.AddScoped<IItinerariosService, ItinerariosService>();
 builder.Services.AddScoped<IIntentosCompraRepository, IntentosCompraRepository>();
 builder.Services.AddScoped<IIntentosCompraService, IntentosCompraService>();
+builder.Services.AddScoped<ICotizacionesCompraService, CotizacionesCompraService>();
+builder.Services.AddScoped<IPagosRepository, PagosRepository>();
+builder.Services.AddScoped<IPagosService, PagosService>();
+builder.Services.AddScoped<IConfirmacionesCompraRepository, ConfirmacionesCompraRepository>();
+builder.Services.AddScoped<IConciliacionesPagoService, ConciliacionesPagoService>();
+builder.Services.AddScoped<IIntentosPendientesRepository, IntentosPendientesRepository>();
+builder.Services.AddScoped<IIntentosPendientesService, IntentosPendientesService>();
 builder.Services.AddSingleton(ParametrosCompra.Desde(builder.Configuration));
+builder.Services.AddSingleton<ParametrosMercadoPago>(servicios =>
+    ParametrosMercadoPago.Desde(servicios.GetRequiredService<IConfiguration>()));
+builder.Services.AddHttpClient<IMercadoPagoCheckoutClient, MercadoPagoCheckoutClient>()
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddScoped<ICatalogoRepository, CatalogoRepository>();
 builder.Services.AddScoped<ICatalogoService, CatalogoService>();
 builder.Services.AddScoped<IGeneracionServiciosRepository, GeneracionServiciosRepository>();
