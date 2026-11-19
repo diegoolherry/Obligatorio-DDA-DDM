@@ -669,6 +669,128 @@ Check(rejectedOrderRepository.NewReservationCount == 2
     && rejectedOrderRepository.Current!.HoldVenceEn == quoteExpiry,
     "persisted rejection allows a new payment key while retaining original payment and hold expiry");
 
+// MVP-004 E2E: real Mercado Pago TEST response shape (no status_detail, total_paid_amount or live_mode; string amounts).
+var realShapeCheckoutUrl = "https://www.mercadopago.com.uy/checkout/v1/redirect?pref_id=123456789-aaaa-bbbb";
+var realShapePostCalls = 0;
+var realShapeRepository = new FakePagosRepository();
+var realShapeHandler = CreateRealShapeHandler(() => realShapePostCalls++, realShapeCheckoutUrl,
+    () => realShapeRepository.Current!.Pago.ReferenciaExterna);
+var realShapeService = CreatePaymentService(realShapeRepository, paymentQuoteService,
+    CreateCheckoutClient(realShapeHandler), paymentNow);
+var realShapePayment = await realShapeService.IniciarAsync("passenger", "IC-123", paymentRequest);
+Check(realShapePayment.Estado == EstadoPago.Pendiente && realShapePayment.CheckoutUrl == realShapeCheckoutUrl
+    && realShapeRepository.Current!.Pago.Estado == EstadoPago.Pendiente && realShapePostCalls == 1,
+    "real-shape created order (no status_detail) is pending and exposes the checkout URL");
+Check((await CreatePaymentController(new FakePagosService { Response = realShapePayment }, "passenger-public-id")
+        .Iniciar("IC-123", paymentRequest)).Result is OkObjectResult,
+    "real-shape created order is answered with 200, not 202");
+var realShapeReference = realShapeRepository.Current.Pago.ReferenciaExterna;
+var realShapeGet = await CreateCheckoutClient(realShapeHandler).ConsultarOrdenAsync("ORD-REAL-1", realShapeReference, 350m);
+Check(realShapeGet is { Estado: EstadoPago.Pendiente, ImportePagado: 0m, CheckoutUrl: not null },
+    "real-shape get-by-id order is pending, unpaid and keeps its checkout URL");
+var realShapeSearch = await CreateCheckoutClient(realShapeHandler).BuscarOrdenAsync(realShapeReference,
+    paymentNow.GetUtcNow().UtcDateTime.AddMinutes(-5), paymentNow.GetUtcNow().UtcDateTime.AddMinutes(1), 350m);
+Check(realShapeSearch is { Estado: EstadoPago.Pendiente, CheckoutUrl: not null },
+    "real-shape search (no status_detail/checkout_url) resolves through get-by-id to a pending order with URL");
+foreach (var (status, detail) in new (string, string?)[]
+{
+    ("processed", null), ("failed", null), ("canceled", null), ("processing", null),
+    ("action_required", null), ("created", "unexpected_detail")
+})
+{
+    var detailJson = detail is null ? "" : $",\"status_detail\":\"{detail}\"";
+    EstadoPago? mapped = null;
+    try
+    {
+        mapped = (await CreateCheckoutClient(new MockHttpMessageHandler((_, _) => JsonResponse(HttpStatusCode.OK,
+                $"{{\"id\":\"order-1\",\"external_reference\":\"payment-123\",\"total_amount\":\"125.50\",\"currency\":\"UYU\",\"status\":\"{status}\"{detailJson}}}")))
+            .ConsultarOrdenAsync("order-1", "payment-123", 125.50m)).Estado;
+    }
+    catch (InvalidOperationException)
+    {
+    }
+    Check(mapped is null or EstadoPago.Desconocido, $"status {status}/{detail ?? "missing"} is not loosened to pending");
+}
+
+// Fallos definitivos previos al envío: el pago queda rechazado y se puede reintentar dentro del hold original.
+const string validTestIdentity = "{\"id\":987654321,\"site_id\":\"SITE_TEST_FIXTURE\",\"tags\":[\"test_user\"]}";
+foreach (var (wrongName, wrongBody) in new (string, string)[]
+{
+    ("seller mismatch", "{\"id\":111,\"site_id\":\"SITE_TEST_FIXTURE\",\"tags\":[\"test_user\"]}"),
+    ("site mismatch", "{\"id\":987654321,\"site_id\":\"OTHER\",\"tags\":[\"test_user\"]}"),
+    ("missing test_user tag", "{\"id\":987654321,\"site_id\":\"SITE_TEST_FIXTURE\",\"tags\":[\"normal\"]}")
+})
+{
+    var preRepository = new FakePagosRepository();
+    var prePosts = 0;
+    var preHandler = CreateRealShapeHandler(() => prePosts++, realShapeCheckoutUrl,
+        () => preRepository.Current!.Pago.ReferenciaExterna);
+    preHandler.IdentityResponseFactory = (_, _) => JsonResponse(HttpStatusCode.OK, wrongBody);
+    var preService = CreatePaymentService(preRepository, paymentQuoteService, CreateCheckoutClient(preHandler), paymentNow);
+    var preError = await CaptureExceptionAsync<FalloPreEnvioProveedorException>(
+        () => preService.IniciarAsync("passenger", "IC-123", paymentRequest));
+    var rejectedPayment = preRepository.Current!.Pago;
+    Check(prePosts == 0 && rejectedPayment.Estado == EstadoPago.Rechazado && rejectedPayment.ImportePagado == 0m
+        && rejectedPayment.OrdenProveedorId is null && preRepository.RejectWithoutOrderCalls == 1
+        && !preError.Message.Contains("987654321", StringComparison.Ordinal),
+        $"identity {wrongName} before create leaves the payment rejected, unpaid, without order, with a sanitized error");
+    preHandler.IdentityResponseFactory = (_, _) => JsonResponse(HttpStatusCode.OK, validTestIdentity);
+    var preRetry = await preService.IniciarAsync("passenger", "IC-123", paymentRequest);
+    Check(preRetry.Estado == EstadoPago.Pendiente && preRetry.PagoId != rejectedPayment.Id && prePosts == 1
+        && preRepository.Current!.HoldVenceEn == quoteExpiry,
+        $"retry after {wrongName} is allowed within the original hold");
+}
+foreach (var (preName, preFailure) in new (string, Exception)[]
+{
+    ("typed pre-send failure", new FalloPreEnvioProveedorException()),
+    ("invalid idempotency/argument", new ArgumentException("clave inválida"))
+})
+{
+    var preRepository = new FakePagosRepository();
+    var preGateway = new FakeMercadoPagoCheckoutClient { CreateException = preFailure };
+    await CheckThrowsAsync<InvalidOperationException>(
+        () => CreatePaymentService(preRepository, paymentQuoteService, preGateway, paymentNow)
+            .IniciarAsync("passenger", "IC-123", paymentRequest),
+        $"{preName} surfaces an error instead of 202");
+    Check(preRepository.Current!.Pago.Estado == EstadoPago.Rechazado && preRepository.LastOrder is null,
+        $"{preName} leaves the payment rejected");
+}
+var identityOutageRepository = new FakePagosRepository();
+var identityOutageHandler = CreateRealShapeHandler(() => { }, realShapeCheckoutUrl,
+    () => identityOutageRepository.Current!.Pago.ReferenciaExterna);
+identityOutageHandler.IdentityResponseFactory = (_, _) => JsonResponse(HttpStatusCode.InternalServerError, "secret");
+await CheckThrowsAsync<FalloPreEnvioProveedorException>(
+    () => CreatePaymentService(identityOutageRepository, paymentQuoteService, CreateCheckoutClient(identityOutageHandler), paymentNow)
+        .IniciarAsync("passenger", "IC-123", paymentRequest),
+    "/users/me HTTP error before create is a definitive pre-send failure");
+Check(identityOutageRepository.Current!.Pago.Estado == EstadoPago.Rechazado,
+    "/users/me HTTP error leaves the payment rejected");
+
+// Fallos posteriores al envío del POST siguen siendo ambiguos.
+foreach (var (postName, postFailure) in new (string, Func<HttpResponseMessage>)[]
+{
+    ("POST 500", () => JsonResponse(HttpStatusCode.InternalServerError, "boom")),
+    ("POST network error", () => throw new HttpRequestException("reset")),
+    ("POST timeout", () => throw new TaskCanceledException("timeout", new TimeoutException())),
+    ("POST unparseable body", () => JsonResponse(HttpStatusCode.Created, "not-json"))
+})
+{
+    var ambiguousRepository = new FakePagosRepository();
+    var ambiguousPosts = 0;
+    var ambiguousHandler = new MockHttpMessageHandler((request, _) =>
+    {
+        ambiguousPosts++;
+        return postFailure();
+    });
+    var ambiguousPayment = await CreatePaymentService(ambiguousRepository, paymentQuoteService,
+            CreateCheckoutClient(ambiguousHandler), paymentNow)
+        .IniciarAsync("passenger", "IC-123", paymentRequest);
+    Check(ambiguousPosts == 1 && ambiguousPayment.Estado == EstadoPago.Desconocido
+        && ambiguousRepository.Current!.Pago.Estado == EstadoPago.Desconocido
+        && ambiguousRepository.RejectWithoutOrderCalls == 0,
+        $"{postName} after the order POST was sent stays unknown and is never rejected");
+}
+
 var expiredAcceptedQuote = new CotizarCompraResponseDto
 {
     IntentoId = unchangedQuote.IntentoId,
@@ -1488,6 +1610,25 @@ Check(pendingRecoveredResponse.Pago.Estado == EstadoPago.Pendiente && pendingRec
     && pendingRecoveredResponse.Compra is null && pendingRecoveryGateway.CreateCalls == 0,
     "recovered pending order remains synchronizable without an invented checkout URL or second order creation");
 
+var realShapeRecoveryPayment = ConfirmationRecord(EstadoPago.Desconocido, 0m, confirmationHoldExpiryUtc, null).Pago;
+var realShapeRecoveryHandler = CreateRealShapeHandler(() => { }, realShapeCheckoutUrl, () => confirmationReference);
+var realShapeRecoveryRepository = new FakeConfirmationRepository(
+    new ResultadoConciliacionPago(new RegistroPago(realShapeRecoveryPayment, confirmationHoldExpiryUtc, false), null, false))
+{
+    OnConciliate = (order, _) =>
+    {
+        var reconciled = ConfirmationResult(order.Estado, order.ImportePagado, order.Id, 350m, confirmationHoldExpiryUtc, null, false);
+        reconciled.Registro.Pago.CheckoutUrl = order.CheckoutUrl;
+        return reconciled;
+    }
+};
+var realShapeRecovered = await new ConciliacionesPagoService(realShapeRecoveryRepository,
+        CreateCheckoutClient(realShapeRecoveryHandler), recoveryClock)
+    .SincronizarAsync("passenger", "IC-confirm");
+Check(realShapeRecovered.Pago.Estado == EstadoPago.Pendiente && realShapeRecovered.Pago.CheckoutUrl == realShapeCheckoutUrl
+    && realShapeRecovered.Compra is null,
+    "unknown payment recovered from a real-shape order becomes pending with its checkout URL while the hold is live");
+
 var queryFailureRepository = new FakeConfirmationRepository(noOrderSnapshot with
 {
     Registro = ConfirmationRecord(EstadoPago.Desconocido, 0m, confirmationHoldExpiryUtc, "order-stored")
@@ -1859,7 +2000,7 @@ static ItinerarioDto CloneQuote(ItinerarioDto source) => new()
 static PagosService CreatePaymentService(
     FakePagosRepository repository,
     FakeCotizacionesCompraService quotes,
-    FakeMercadoPagoCheckoutClient gateway,
+    IMercadoPagoCheckoutClient gateway,
     TimeProvider timeProvider)
 {
     repository.NowUtc = timeProvider.GetUtcNow().UtcDateTime;
@@ -1879,6 +2020,29 @@ static RegistroPago CreatePaymentRecord(string id, EstadoPago state, DateTime ho
         CheckoutUrl = checkoutUrl
     };
     return new RegistroPago(payment, holdExpiry, false);
+}
+
+static MockHttpMessageHandler CreateRealShapeHandler(Action onPost, string checkoutUrl, Func<string> currentReference)
+{
+    static string RealOrder(string reference, string? checkoutUrl) =>
+        "{\"id\":\"ORD-REAL-1\",\"type\":\"online\",\"processing_mode\":\"manual\",\"external_reference\":\"" + reference
+        + "\",\"total_amount\":\"350.00\"" + (checkoutUrl is null ? "" : ",\"checkout_url\":\"" + checkoutUrl + "\"")
+        + ",\"country_code\":\"URY\",\"user_id\":\"987654321\",\"status\":\"created\",\"capture_mode\":\"automatic_async\","
+        + "\"currency\":\"UYU\",\"created_date\":\"2026-11-16T14:00:01.000Z\",\"last_updated_date\":\"2026-11-16T14:00:01.000Z\","
+        + "\"integration_data\":{\"application_id\":\"1\"},\"items\":[]}";
+    return new MockHttpMessageHandler((request, _) =>
+    {
+        if (request.Method == HttpMethod.Post)
+        {
+            onPost();
+            var body = JsonDocument.Parse(request.Content!.ReadAsStringAsync().GetAwaiter().GetResult()).RootElement;
+            return JsonResponse(HttpStatusCode.Created, RealOrder(body.GetProperty("external_reference").GetString()!, checkoutUrl));
+        }
+        if (request.RequestUri!.Query.Contains("external_reference=", StringComparison.Ordinal))
+            return JsonResponse(HttpStatusCode.OK, "{\"data\":[" + RealOrder(currentReference(), null)
+                + "],\"paging\":{\"total\":1,\"total_pages\":1,\"offset\":0,\"limit\":2}}");
+        return JsonResponse(HttpStatusCode.OK, RealOrder(currentReference(), checkoutUrl));
+    });
 }
 
 async Task<TException> CaptureExceptionAsync<TException>(Func<Task> action) where TException : Exception
@@ -2157,6 +2321,26 @@ sealed class FakePagosRepository : IPagosRepository
             Current.Pago.CheckoutUrl = orden.CheckoutUrl;
             Current.Pago.Estado = ReglasInicioPago.EstadoTrasCrearOrden(Current.Pago.Estado, Current.Pago.ImportePagado, orden);
             Current.Pago.ActualizadoUtc = DateTime.UtcNow;
+            return Task.FromResult(Current with { EsNuevo = false });
+        }
+    }
+
+    public int RejectWithoutOrderCalls { get; private set; }
+
+    public Task<RegistroPago> RechazarSinOrdenAsync(
+        string identificadorPublico,
+        string pagoId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (_sync)
+        {
+            if (Current is null || Current.Pago.Id != pagoId)
+                throw new InvalidOperationException("The fake payment reservation is unavailable.");
+            RejectWithoutOrderCalls++;
+            if (Current.Pago.Estado == EstadoPago.Desconocido && Current.Pago.OrdenProveedorId is null
+                && Current.Pago.ImportePagado == 0m)
+                Current.Pago.Estado = EstadoPago.Rechazado;
             return Task.FromResult(Current with { EsNuevo = false });
         }
     }

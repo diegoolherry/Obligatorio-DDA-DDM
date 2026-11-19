@@ -69,6 +69,12 @@ public sealed class PagosService : IPagosService
         {
             throw;
         }
+        catch (Exception ex) when (ex is FalloPreEnvioProveedorException or ArgumentException)
+        {
+            // Fallo definitivo antes de enviar la orden: no hay nada que conciliar, así que se libera el intento.
+            await _pagos.RechazarSinOrdenAsync(identificadorPublico, reserva.Pago.Id, CancellationToken.None);
+            throw new FalloPreEnvioProveedorException(ex);
+        }
         catch (Exception ex) when (EsFalloAmbiguoDelProveedor(ex))
         {
             return CrearRespuesta(reserva);

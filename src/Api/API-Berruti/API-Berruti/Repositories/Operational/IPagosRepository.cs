@@ -21,4 +21,13 @@ public interface IPagosRepository
         string pagoId,
         OrdenCheckoutMercadoPago orden,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Rechaza un pago reservado cuyo envío al proveedor falló de forma definitiva antes de crear la orden.
+    /// Solo aplica a pagos desconocidos, sin orden del proveedor y sin importe pagado.
+    /// </summary>
+    Task<RegistroPago> RechazarSinOrdenAsync(
+        string identificadorPublico,
+        string pagoId,
+        CancellationToken cancellationToken = default);
 }

@@ -187,6 +187,61 @@ public sealed class PagosRepository : IPagosRepository
         }
     }
 
+    public async Task<RegistroPago> RechazarSinOrdenAsync(
+        string identificadorPublico,
+        string pagoId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(pagoId))
+            throw new ArgumentException("El identificador del pago es obligatorio.", nameof(pagoId));
+
+        var pagoInicial = await contexto.Set<Pago>().AsNoTracking()
+            .SingleOrDefaultAsync(pago => pago.Id == pagoId, cancellationToken)
+            ?? throw new KeyNotFoundException("El pago no existe.");
+        await intentos.ConsultarAsync(identificadorPublico, pagoInicial.IntentoId, cancellationToken);
+
+        await using var transaccion = await contexto.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+        try
+        {
+            await BloquearIntentoAsync(pagoInicial.IntentoId, transaccion, cancellationToken);
+            var intento = await intentos.ConsultarAsync(identificadorPublico, pagoInicial.IntentoId, cancellationToken);
+            var pago = await contexto.Set<Pago>().AsNoTracking()
+                .SingleOrDefaultAsync(item => item.Id == pagoId && item.IntentoId == intento.IntentoId, cancellationToken)
+                ?? throw new KeyNotFoundException("El pago no existe.");
+
+            // Solo un pago sin rastro en el proveedor puede rechazarse sin conciliar.
+            if (pago.Estado != EstadoPago.Desconocido || pago.OrdenProveedorId is not null || pago.ImportePagado != 0m)
+            {
+                await transaccion.CommitAsync(cancellationToken);
+                return new RegistroPago(pago, intento.HoldVenceEn, false);
+            }
+
+            pago.Estado = EstadoPago.Rechazado;
+            pago.ActualizadoUtc = TruncarMicrosegundos(timeProvider.GetUtcNow().UtcDateTime);
+            var entrada = contexto.Attach(pago);
+            entrada.Property(item => item.Estado).IsModified = true;
+            entrada.Property(item => item.ActualizadoUtc).IsModified = true;
+            await contexto.SaveChangesAsync(cancellationToken);
+            await transaccion.CommitAsync(cancellationToken);
+            contexto.Entry(pago).State = EntityState.Detached;
+            return new RegistroPago(pago, intento.HoldVenceEn, false);
+        }
+        catch
+        {
+            try
+            {
+                await transaccion.RollbackAsync(CancellationToken.None);
+            }
+            finally
+            {
+                var tracked = contexto.ChangeTracker.Entries<Pago>().FirstOrDefault(entry => entry.Entity.Id == pagoId);
+                if (tracked is not null)
+                    tracked.State = EntityState.Detached;
+            }
+            throw;
+        }
+    }
+
     private async Task BloquearIntentoAsync(
         string intentoId,
         IDbContextTransaction transaccion,

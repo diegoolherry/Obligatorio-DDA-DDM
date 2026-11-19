@@ -162,9 +162,24 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         using var request = new HttpRequestMessage(HttpMethod.Get, UserProfileEndpoint);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        HttpResponseMessage response;
+        try
+        {
+            response = await _httpClient.SendAsync(request, cancellationToken);
+        }
+        catch (HttpRequestException exception)
+        {
+            // Aún no se envió ninguna orden: el fallo de red al verificar la identidad es definitivo.
+            throw new FalloPreEnvioProveedorException(exception);
+        }
+        catch (TaskCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new FalloPreEnvioProveedorException(exception);
+        }
+
+        using var _ = response;
         if (!response.IsSuccessStatusCode)
-            throw ErrorProveedor();
+            throw new FalloPreEnvioProveedorException();
 
         try
         {
@@ -183,11 +198,11 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
                 || !tags.EnumerateArray().Any(tag =>
                     tag.ValueKind == JsonValueKind.String
                     && string.Equals(tag.GetString(), "test_user", StringComparison.Ordinal)))
-                throw ErrorProveedor();
+                throw new FalloPreEnvioProveedorException();
         }
         catch (JsonException)
         {
-            throw ErrorProveedor();
+            throw new FalloPreEnvioProveedorException();
         }
     }
 
@@ -255,7 +270,7 @@ public sealed class MercadoPagoCheckoutClient : IMercadoPagoCheckoutClient
         ("processed", "accredited") when paidAmount == expectedAmount => EstadoPago.Aprobado,
         ("processed", "refunded") or ("refunded", "refunded") => EstadoPago.Devuelto,
         ("processed", "partially_refunded") => EstadoPago.DevolucionPendiente,
-        ("created", "created") => EstadoPago.Pendiente,
+        ("created", "created") or ("created", null) => EstadoPago.Pendiente,
         ("processing", "pending_review_manual") or ("processing", "in_process") => EstadoPago.Pendiente,
         ("action_required", "waiting_capture") => EstadoPago.Pendiente,
         ("failed", "bad_filled_card_data")
