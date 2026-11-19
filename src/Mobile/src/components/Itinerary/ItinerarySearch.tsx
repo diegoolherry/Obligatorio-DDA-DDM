@@ -10,6 +10,10 @@ import { Banner } from '../ui/Banner';
 import { Button } from '../ui/Button';
 import { StatusBadge } from '../ui/StatusBadge';
 import { TextField } from '../ui/TextField';
+import type { IAuthenticationService } from '../../services/Authentication/IAuthenticationService';
+import type { IntentoPendienteResponseDto } from '../../contracts/purchase';
+import type { PurchaseFinalization, PurchaseService } from '../../services/Purchase/PurchaseService';
+import { PurchaseFlow } from '../Purchase/PurchaseFlow';
 
 type StopsState =
   | { status: 'loading' }
@@ -57,16 +61,54 @@ function money(value: number): string {
   return `$ ${whole.replace(/\B(?=(\d{3})+(?!\d))/g, '.')},${cents}`;
 }
 
-export function ItinerarySearch({ service }: { service: IItinerarySearchService }) {
+export function purchaseFlowInstanceKey(sessionEpoch: number, selectionRevision: number): string {
+  return `${sessionEpoch}:${selectionRevision}`;
+}
+
+export function ItinerarySearch({ service, authentication, purchase, sessionEpoch }: {
+  service: IItinerarySearchService; authentication: IAuthenticationService; purchase: PurchaseService; sessionEpoch: number;
+}) {
   const [stops, setStops] = useState<StopsState>({ status: 'loading' });
   const [originId, setOriginId] = useState<number | undefined>();
   const [destinationId, setDestinationId] = useState<number | undefined>();
   const [date, setDate] = useState(todayLocal);
   const [submitted, setSubmitted] = useState(false);
   const [search, setSearch] = useState<SearchState>({ status: 'idle' });
+  const [purchaseItinerary, setPurchaseItinerary] = useState<ItinerarioDto>();
+  const [purchaseSessionEpoch, setPurchaseSessionEpoch] = useState(sessionEpoch);
+  const [purchaseRevision, setPurchaseRevision] = useState(0);
+  const [purchaseVisible, setPurchaseVisible] = useState(true);
+  const [pendingPurchase, setPendingPurchase] = useState<{ epoch: number; data: IntentoPendienteResponseDto }>();
+  const [pendingMessage, setPendingMessage] = useState('');
+  const pendingLookup = useRef(0);
   const lastRequest = useRef<BusquedaItinerarioRequest | undefined>(undefined);
   const active = useRef<AbortController | undefined>(undefined);
   const searchCounter = useRef(0);
+
+  useEffect(() => {
+    setPurchaseItinerary(undefined);
+    setPurchaseSessionEpoch(sessionEpoch);
+    setPurchaseVisible(true);
+  }, [sessionEpoch]);
+
+  // Asks the API for the current passenger's pending attempt. Only the current session is used and
+  // an answer that arrives after the session changed is ignored, so one passenger never sees another's attempt.
+  const lookupPending = useCallback(() => {
+    const lookup = ++pendingLookup.current;
+    setPendingPurchase(undefined);
+    setPendingMessage('');
+    if (!authentication.getState().authenticated) return;
+    void purchase.getPendingAttempt().then(result => {
+      if (lookup !== pendingLookup.current) return;
+      if (!result.ok) { setPendingMessage(result.message); return; }
+      if (result.data) setPendingPurchase({ epoch: sessionEpoch, data: result.data });
+    });
+  }, [authentication, purchase, sessionEpoch]);
+
+  useEffect(() => {
+    lookupPending();
+    return () => { pendingLookup.current += 1; };
+  }, [lookupPending]);
 
   const loadStops = useCallback(() => {
     const controller = new AbortController();
@@ -162,13 +204,68 @@ export function ItinerarySearch({ service }: { service: IItinerarySearchService 
   );
 
   const results = search.status === 'success' ? search.results : [];
+  const activePurchaseItinerary = purchaseSessionEpoch === sessionEpoch ? purchaseItinerary : undefined;
+  const activePending = pendingPurchase?.epoch === sessionEpoch ? pendingPurchase.data : undefined;
+  const pendingHeader = activePending
+    ? (
+      <View className="gap-3">
+        <View className={purchaseVisible ? '' : 'hidden'}>
+          <PurchaseFlow key={`pendiente:${sessionEpoch}:${activePending.intento.intentoId}`} itinerary={activePending.intento.itinerario}
+            authentication={authentication} service={purchase} pending={activePending}
+            onClose={() => setPurchaseVisible(false)} onFinalize={(_reason: PurchaseFinalization) => {
+              setPendingPurchase(undefined);
+              setPurchaseVisible(false);
+            }} />
+        </View>
+        {!purchaseVisible && (
+          <View className="gap-2">
+            <Text className="text-base text-ink-900" accessibilityLiveRegion="polite">Hay una compra pendiente de verificación.</Text>
+            <Button label="Volver a la compra pendiente" onPress={() => setPurchaseVisible(true)} />
+          </View>
+        )}
+      </View>
+    ) : undefined;
+  const purchaseHeader = pendingHeader ?? (activePurchaseItinerary
+    ? (
+      <View className="gap-3">
+        <View className={purchaseVisible ? '' : 'hidden'}>
+          <PurchaseFlow key={purchaseFlowInstanceKey(sessionEpoch, purchaseRevision)} itinerary={activePurchaseItinerary} authentication={authentication} service={purchase}
+            onClose={() => setPurchaseVisible(false)} onFinalize={(_reason: PurchaseFinalization) => {
+              setPurchaseItinerary(undefined);
+              setPurchaseVisible(false);
+            }} onDiscard={() => {
+              // The create may have succeeded without an answer: look the attempt up instead of creating another one.
+              setPurchaseItinerary(undefined);
+              setPurchaseVisible(true);
+              lookupPending();
+            }} />
+        </View>
+        {!purchaseVisible && (
+          <View className="gap-2">
+            <Text className="text-base text-ink-900" accessibilityLiveRegion="polite">Hay una compra en curso en esta aplicación.</Text>
+            <Button label="Volver a la compra en curso" onPress={() => setPurchaseVisible(true)} />
+          </View>
+        )}
+      </View>
+    ) : (
+      <View className="gap-2">
+        {pendingMessage !== '' && <Banner kind="warning" actionLabel="Reintentar" onAction={lookupPending}>{pendingMessage}</Banner>}
+        {header}
+      </View>
+    ));
   return (
     <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <FlatList
-        data={results}
+          data={activePurchaseItinerary || activePending ? [] : results}
         keyExtractor={(item, index) => `${item.salida}-${item.tramos.map(leg => leg.servicioId).join('-')}-${index}`}
-        renderItem={({ item }) => <ItineraryCard itinerary={item} />}
-        ListHeaderComponent={header}
+        renderItem={({ item }) => <ItineraryCard itinerary={item} onPurchase={() => {
+          if (activePurchaseItinerary) return;
+          setPurchaseRevision(revision => revision + 1);
+          setPurchaseItinerary(item);
+          setPurchaseSessionEpoch(sessionEpoch);
+          setPurchaseVisible(true);
+        }} />}
+        ListHeaderComponent={purchaseHeader}
         contentContainerClassName="gap-4 p-6"
         keyboardShouldPersistTaps="handled"
       />
@@ -213,7 +310,7 @@ function StopChooser({ label, stops, selected, onSelect }: {
   );
 }
 
-function ItineraryCard({ itinerary }: { itinerary: ItinerarioDto }) {
+function ItineraryCard({ itinerary, onPurchase }: { itinerary: ItinerarioDto; onPurchase: () => void }) {
   const legs = [...itinerary.tramos].sort((a, b) => a.orden - b.orden);
   const direct = legs.length === 1;
   return (
@@ -233,6 +330,7 @@ function ItineraryCard({ itinerary }: { itinerary: ItinerarioDto }) {
           <Leg leg={leg} />
         </View>
       ))}
+      <Button label="Comprar este viaje" onPress={onPurchase} />
     </View>
   );
 }
