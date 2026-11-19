@@ -1114,6 +1114,35 @@
         "Hay una reproducción documentada para la generación de Servicios y al menos una escritura operativa, antes y después del cambio."
       ],
       "evidence": "PR #85 (merge 37e5239; commits be7f807, 062233d).\nBloqueo forzado en MySQL local: generación, PUT de parada y PUT/DELETE de servicio responden 409 en ~3 s sin cambiar datos; global 50; tests 48/48, 139, 129/129, 27/27; tres verificaciones independientes PASS.\nRevisor Enzo: aprobó el PR y los criterios según el reporte de Diego; sin review registrada en GitHub."
+    },
+    {
+      "id": "FIN-013",
+      "name": "Invalidar tickets de una compra cuyo pago fue devuelto",
+      "description": "Si el pago que financió una compra confirmada termina en estado Devuelto (por ejemplo, devolución hecha manualmente desde el panel de Mercado Pago TEST), sus tickets no deben servir para viajar. Los tickets no se borran: la validación del QR recorre ticket → compra → pago y rechaza el código cuando el pago está Devuelto, conservando el historial. Decisión de Diego del 2026-11-19 en la revisión cruzada de MVP-004.",
+      "priority": "media",
+      "area": [
+        "API",
+        "Web",
+        "Mobile"
+      ],
+      "status": "pending",
+      "assignee": null,
+      "reviewer": null,
+      "createdAt": "2026-11-19T15:04:45-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [
+        "MVP-004",
+        "MVP-005"
+      ],
+      "acceptanceCriteria": [
+        "Escanear el QR de un ticket cuya compra tiene el pago en estado Devuelto devuelve un resultado claro de ticket anulado por devolución y no consume el ticket.",
+        "Los tickets, la compra y el pago devuelto se conservan en la base; ningún flujo borra tickets.",
+        "El pasajero ve esos tickets como anulados y no puede mostrarlos como válidos.",
+        "Una prueba automatizada cubre la validación de un ticket con pago Devuelto y la de un ticket con pago Aprobado."
+      ],
+      "evidence": "Planificado, no iniciado. Surge de la revisión cruzada de MVP-004 (rama mvp-004-main/09-correcciones-revision); asignación y revisión pendientes de acuerdo entre Diego y Enzo."
     }
   ]
 }
