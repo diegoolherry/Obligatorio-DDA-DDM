@@ -16,6 +16,8 @@ foreach ($tree in @($configured, $missing)) {
 }
 $script:failures = 0
 $script:count = 0
+$mpKeys = @('MercadoPago__AccessToken', 'MercadoPago__ExpectedSellerId',
+    'MercadoPago__ExpectedSiteId', 'MercadoPago__TestCredentialOriginConfirmed')
 function Check([string]$Name, [bool]$Condition) {
     $script:count++
     if ($Condition) { Write-Output "PASS $Name" }
@@ -54,7 +56,19 @@ function Invoke-Probe([string]$Name, [string]$Text, [bool]$Valid = $false,
     $expectedJwtPrevious = 'PREVIOUS_JWT_SYNTHETIC'
     if ($AbsentPrevious) { $expectedJwtPrevious = $null }
     $safe = $result.Restored -ceq $expectedPrevious -and $result.JwtRestored -ceq $expectedJwtPrevious -and $result.Other -ceq 'UNCHANGED'
+    foreach ($k in $mpKeys) {
+        $expectedMpPrevious = 'PREVIOUS_MP_' + $k
+        if ($AbsentPrevious) { $expectedMpPrevious = $null }
+        $safe = $safe -and $result.MpRestored.$k -ceq $expectedMpPrevious
+    }
     if ($Valid) {
+        foreach ($k in $mpKeys) {
+            $line = @($Text.Split("`n") | Where-Object { $_.StartsWith($k + '=') })
+            $expectedMp = 'PREVIOUS_MP_' + $k
+            if ($AbsentPrevious) { $expectedMp = $null }
+            if ($line.Count -eq 1) { $expectedMp = $line[0].Substring($k.Length + 1) }
+            $safe = $safe -and $result.Mp.$k -ceq $expectedMp
+        }
         $expectedValue = $Text.Split("`n") | Where-Object { $_.StartsWith('ConnectionStrings__Berruti=') }
         $expectedValue = $expectedValue.Substring('ConnectionStrings__Berruti='.Length)
         $expectedJwt = ($Text.Split("`n") | Where-Object { $_.StartsWith('Jwt__Key=') }).Substring('Jwt__Key='.Length)
@@ -111,6 +125,21 @@ Invoke-Probe 'http-profile' $both -Valid $true -Profile 'http'
 Invoke-Probe 'restore-child-nonzero' $both -Valid $true -ChildExit 17
 Invoke-Probe 'restore-absent-env' $both -Valid $true -AbsentPrevious
 Invoke-Probe 'restore-child-exception' $both -Valid $true -ThrowChild
+$mpAll = 'MercadoPago__AccessToken=TEST-synthetic==$(not-executed)#x;y' + "`nMercadoPago__ExpectedSellerId=12345" +
+    "`nMercadoPago__ExpectedSiteId=MLU" + "`nMercadoPago__TestCredentialOriginConfirmed=true"
+Invoke-Probe 'mp-all-forwarded-literal' ($both + "`n" + $mpAll) -Valid $true
+Invoke-Probe 'mp-subset-forwarded' ($both + "`nMercadoPago__ExpectedSiteId=MLU`nMercadoPago__AccessToken=a=b") -Valid $true
+Invoke-Probe 'mp-absent-keeps-caller-value' $both -Valid $true
+Invoke-Probe 'mp-restore-absent-env' ($both + "`n" + $mpAll) -Valid $true -AbsentPrevious
+Invoke-Probe 'mp-restore-child-nonzero' ($both + "`n" + $mpAll) -Valid $true -ChildExit 17
+Invoke-Probe 'mp-restore-child-exception' ($both + "`n" + $mpAll) -Valid $true -ThrowChild
+Invoke-Probe 'mp-duplicate-key' ($both + "`nMercadoPago__ExpectedSiteId=MLU`nMercadoPago__ExpectedSiteId=MLU")
+Invoke-Probe 'mp-quoted-value' ($both + "`nMercadoPago__AccessToken=`"TEST-x`"")
+Invoke-Probe 'mp-single-quoted-value' ($both + "`nMercadoPago__ExpectedSellerId='1'")
+Invoke-Probe 'mp-empty-value' ($both + "`nMercadoPago__ExpectedSellerId=")
+Invoke-Probe 'mp-wrong-case-key' ($both + "`nmercadopago__accesstoken=TEST-x")
+Invoke-Probe 'mp-export-not-supported' ($both + "`nexport MercadoPago__ExpectedSiteId=MLU")
+Invoke-Probe 'mp-colon-name-not-supported' ($both + "`nMercadoPago:AccessToken=TEST-x")
 $privatePaths = @('src/Api/API-Berruti/API-Berruti/.env',
     'src/Api/API-Berruti/API-Berruti/.env.local', 'src/Api/API-Berruti/API-Berruti/.env.production',
     '.local/mysql-tests.json', 'src/Api/API-Berruti/API-Berruti/bin/probe.dll')

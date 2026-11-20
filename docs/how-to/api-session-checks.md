@@ -29,15 +29,18 @@ No copiar esta configuración a Web, Mobile ni variables `EXPO_PUBLIC`.
 
 Sintaxis deliberadamente pequeña: líneas vacías, comentarios con `#` al inicio
 (admite espacios antes del comentario) y exactamente una línea
-`ConnectionStrings__Berruti=valor` y una línea `Jwt__Key=valor` (ambas obligatorias). Clave exacta, sin espacios alrededor del `=`;
+`ConnectionStrings__Berruti=valor` y una línea `Jwt__Key=valor` (ambas obligatorias).
+Opcionalmente, a lo sumo una línea de cada clave TEST de Mercado Pago:
+`MercadoPago__AccessToken`, `MercadoPago__ExpectedSellerId`, `MercadoPago__ExpectedSiteId`
+y `MercadoPago__TestCredentialOriginConfirmed`, con las mismas reglas. Clave exacta, sin espacios alrededor del `=`;
 valor no vacío, sin comillas exteriores (balanceadas o no), `export`, otras claves
 ni duplicados. No hay interpolación, evaluación ni comentarios al final: `#`,
 `;`, `=` y expresiones dentro del valor son datos literales. Se conserva todo lo
 que sigue al primer `=`, incluidos espacios. No admite valores multilínea ni NUL.
 
 Archivo ausente, ilegible o inválido: diagnóstico constante y exit 2 antes de
-invocar dotnet, sin modificar el entorno. Solo se asignan esas dos claves en
-el entorno del proceso; se restauran sus valores anteriores en `finally`, también ante
+invocar dotnet, sin modificar el entorno. Solo se asignan esas claves (las dos obligatorias y las opcionales presentes) en
+el entorno del proceso; una opcional ausente no modifica el valor que ya tenga la terminal; se restauran sus valores anteriores en `finally`, también ante
 fallo del hijo. No modifica entorno User/Machine. Invoca `dotnet run --project`
 con el proyecto existente y `--launch-profile https` por defecto, sin secretos en
 argumentos; devuelve el exit del hijo. Fallo al invocarlo: mensaje genérico/exit 2.

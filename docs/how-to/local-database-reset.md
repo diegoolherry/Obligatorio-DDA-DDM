@@ -28,7 +28,7 @@ Verificación de esta preparación: restauración solo desde la caché local, AP
 
 ## Una sola vez: permiso de esquema
 
-Requiere las bases y cuentas de [Bases MySQL locales](local-auth-database.md) y el `.env` privado de la API con `ConnectionStrings__Berruti` y `Jwt__Key` (clave aleatoria de al menos 32 bytes; la exige `start-api-local.ps1`).
+Requiere las bases y cuentas de [Bases MySQL locales](local-auth-database.md) y el `.env` privado de la API con `ConnectionStrings__Berruti` y `Jwt__Key` (clave aleatoria de al menos 32 bytes; la exige `start-api-local.ps1`). Si el `.env` también tiene claves `MercadoPago__*`, `reset-local-db.ps1` las ignora.
 
 En Workbench, con la cuenta administradora local, ejecutá [`scripts/database/grant-local-ddl.sql`](../../scripts/database/grant-local-ddl.sql). Esto da a `berruti_app` y `berruti_test` permiso para crear y borrar tablas en sus bases.
 

@@ -3,9 +3,13 @@
 Inicia solo la API con configuracion privada local opcional al arranque nativo.
 .DESCRIPTION
 Lee src/Api/API-Berruti/API-Berruti/.env relativo al repositorio del script.
-Acepta lineas vacias, comentarios # y exactamente una vez cada una de estas claves:
-ConnectionStrings__Berruti=valor y Jwt__Key=valor (clave HS256 de al menos 32 bytes,
-fuera de Git). No admite export, comillas exteriores, interpolacion ni otras claves.
+Acepta lineas vacias, comentarios # y exactamente una vez cada una de estas claves
+obligatorias: ConnectionStrings__Berruti=valor y Jwt__Key=valor (clave HS256 de al
+menos 32 bytes, fuera de Git). Acepta ademas, como opcionales y como maximo una vez
+cada una: MercadoPago__AccessToken, MercadoPago__ExpectedSellerId,
+MercadoPago__ExpectedSiteId y MercadoPago__TestCredentialOriginConfirmed (solo
+credenciales TEST). Una clave opcional ausente no modifica el valor que el terminal
+ya tenga en $env:. No admite export, comillas exteriores, interpolacion ni otras claves.
 Los valores se transmiten literalmente por entorno Process, nunca como argumento de
 dotnet, y se restauran al terminar. El archivo es texto plano, no una boveda.
 No cambia cuentas ni evita el guard API.
@@ -16,7 +20,10 @@ Perfil existente https (predeterminado) o http (solo scaffold, no credenciales).
 #>
 param([string]$Profile = 'https')
 $ErrorActionPreference = 'Stop'
-$keys = @('ConnectionStrings__Berruti', 'Jwt__Key')
+$required = @('ConnectionStrings__Berruti', 'Jwt__Key')
+$optional = @('MercadoPago__AccessToken', 'MercadoPago__ExpectedSellerId',
+    'MercadoPago__ExpectedSiteId', 'MercadoPago__TestCredentialOriginConfirmed')
+$keys = $required + $optional
 $root = Split-Path $PSScriptRoot -Parent
 $project = Join-Path $root 'src/Api/API-Berruti/API-Berruti/API-Berruti.csproj'
 $file = Join-Path (Split-Path $project -Parent) '.env'
@@ -37,7 +44,7 @@ try {
             $trimmed.StartsWith("'") -or $trimmed.EndsWith("'")) { throw 'Invalid configuration' }
         $values[$matched] = $value
     }
-    foreach ($key in $keys) { if (!$values.ContainsKey($key)) { throw 'Invalid configuration' } }
+    foreach ($key in $required) { if (!$values.ContainsKey($key)) { throw 'Invalid configuration' } }
 } catch {
     [Console]::Error.WriteLine('API local: configuracion .env invalida o no disponible.')
     exit 2
@@ -46,7 +53,7 @@ $previous = @{}
 foreach ($key in $keys) { $previous[$key] = [Environment]::GetEnvironmentVariable($key, 'Process') }
 $code = 2
 try {
-    foreach ($key in $keys) { [Environment]::SetEnvironmentVariable($key, $values[$key], 'Process') }
+    foreach ($key in $values.Keys) { [Environment]::SetEnvironmentVariable($key, $values[$key], 'Process') }
     & dotnet run --project $project --launch-profile $Profile
     $code = $LASTEXITCODE
 } catch {
