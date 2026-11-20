@@ -1,499 +1,202 @@
-# Obligatorio Berruti — Informe académico del proyecto — pasajes y abonos
+# Obligatorio Berruti — Informe académico del proyecto
 
-> **Estado del documento:** borrador vivo; Markdown es la fuente para la futura entrega en Word. No representa un sistema oficial ni un producto desplegado. Los datos operativos son ficticios.
+**Última actualización:** 2026-11-19
+
+> **Qué es este documento:** la fuente en Markdown del informe académico; la versión Word se genera a partir de él. El sistema es un proyecto académico local, con datos ficticios y credenciales de prueba. No es un producto desplegado ni representa a la empresa que inspiró el caso.
 >
-> **Leyenda:** **Verificado** = respaldado por evidencia revisable; **Decidido** = elección del equipo todavía no necesariamente implementada; **Planificado** = objetivo con trabajo pendiente; **Pendiente** = falta decisión, evidencia o confirmación. Cada afirmación de ejecución deberá enlazar su prueba, fecha y resultado.
+> **Leyenda:** **Verificado** = respaldado por una prueba o un PR enlazado; **Decidido** = elección del equipo; **Planificado** = trabajo pendiente; **Pendiente** = falta una decisión o una evidencia.
+>
+> **Autoridad:** el estado de cada tarea lo define [`tasks.json`](tasks.json); este informe lo resume y no lo reemplaza. Los PR se enlazan por su número en [el repositorio](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pulls?q=is%3Apr+is%3Amerged).
 
 ## 1. Resumen y estado actual
 
-**Obligatorio Berruti** es el nombre del proyecto académico; **Berrutti** refiere al operador real que inspiró el caso, sin implicar afiliación ni aval.
+**Obligatorio Berruti** es una plataforma de venta y validación de pasajes y abonos por tramo, inspirada en un operador real de transporte interdepartamental (Berrutti), sin afiliación ni aval. Tiene tres piezas:
 
-El proyecto académico propone una plataforma de venta y validación de pasajes y abonos por tramo: un portal Blazor para pasajeros y administración, una aplicación React Native/Expo para pasajeros y cobradores, y una API compartida. La compra propone la API de Mercado Pago con credenciales TEST (aún sin integración implementada ni cobros reales), cada tramo emite su propio ticket QR y el cobrador valida tickets o descuenta unidades del abono correspondiente. La consulta de posición, llegada y demora es una demostración básica con datos ficticios, no seguimiento operativo garantizado. El alcance detallado y sus límites están en [MVP](explanation/mvp.md).
+- una **API** ASP.NET (`net10.0`) con Entity Framework Core y MySQL;
+- una aplicación **Web** Blazor Web App con `InteractiveServer`, para pasajeros y administración;
+- una aplicación **Mobile** Expo / React Native (TypeScript), para pasajeros y cobradores.
 
-| Tema | Estado | Evidencia / próximo paso |
+Estado del backlog al 2026-11-19, contado desde [`tasks.json`](tasks.json): 42 registros (23 originales y 19 hijos). Entre los 23 originales hay 11 `done`, 2 `in_progress` (MVP-004 y FIN-005) y 10 `pending`; los 19 hijos están `done`.
+
+| Tema | Estado | Evidencia |
 | --- | --- | --- |
-| Alcance, requisitos y escenarios | **Planificado** | [Requerimientos](reference/requirements.md), [historias](reference/user-stories.md) y [MVP](explanation/mvp.md); contrastar con la consigna oficial. |
-| Ejecución y planificación final | **Estado del backlog, no funcionalidad** | [Backlog del proyecto completo](tasks.json): 22 registros en un único array `tasks`: 14 originales (diez MVP y cuatro FIN), seis hijos ejecutables de MVP-001 (`MVP-001-01` a `MVP-001-06`, por `parentId`) y dos tareas futuras independientes (`FIN-005` y `FIN-006`); 17 `pending`, 0 `in_progress`, 1 `blocked` (MVP-001-03: preparación de propuesta SQL demo tras reporte humano de base vacía; W1 resuelto, pruebas reales de navegador/circuito/TLS/API/SQL/dispositivo y revisión de Enzo todavía pendientes) y 4 `done` (MVP-010, MVP-001-01, MVP-001-02 y MVP-001-06, modelado/fundación/contratos sin autenticación ejecutable). Los hijos tienen a Diego como responsable confirmado y a Enzo como revisor. Los originales con hijos son hitos, no funcionalidades adicionales; estos conteos no miden implementación ni completitud independiente. Clasificación por áreas `API`, `Web`, `Mobile` y `Docs`, con varias áreas para tareas transversales e IDs legados `MVP-*`/`FIN-*` estables. Responsables FIN propuestos, sin aprobación humana de asignación; aprobación conceptual conjunta de Diego y Enzo registrada según lo informado por el usuario; MVP-010 cerrado tras validación documental independiente de sus tres criterios; MVP-001-01 y MVP-001-02 cerrados con aprobación de Enzo de sus tres criterios reportada explícitamente por el usuario (§7); no acredita implementación de negocio. |
-| Base Mobile | **Cliente escrito y comprobado en servicio; dispositivo pendiente** | [App](../src/Mobile/App.tsx) y servicio con interfaz propia, sesión solo en memoria y pantalla nativa con StyleSheet/áreas seguras. Pruebas del servicio con transporte ficticio: 15/15; typecheck exit 0. No prueban iPhone, UI táctil, TLS ni API/SQL reales. [Configuración, flujo y límites](how-to/mobile-passenger-login.md); estado aún incompleto en MVP-001-03. |
-| Arquitectura offline-first en Mobile | **Análisis terminado; implementación pendiente** | `FIN-006` cerrada con el [PR #77](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/77): [análisis del material del curso](explanation/offline-first-mobile.md). Compra, pago, validación de QR y asientos siguen en línea y autoritativos en el servidor. Propuesta mínima aprobada (tickets disponibles sin conexión, QR visible desde la copia y aviso de conectividad) registrada como `FIN-009`, pendiente de MVP-005; SQLite diferido y sesión solo en memoria. |
-| Base API | **Scaffold existente; evidencia funcional histórica** | [Solución API-Berruti.slnx](../src/Api/API-Berruti/API-Berruti.slnx) y [proyecto net10.0](../src/Api/API-Berruti/API-Berruti/API-Berruti.csproj); Controllers/OpenAPI y WeatherForecast, sin negocio ni integración. La verificación previa de la sesión original (§7) no sustituye checks del candidato actual. |
-| Base Web | **Cliente y página escritos; circuito real pendiente** | [Página /ingreso](../src/Web/Web-App/Web-App/Components/Pages/Login.razor) InteractiveServer por página, servicio con interfaz y memoria scoped por circuito. Transporte configurado sin cookies de API ni redirecciones; pruebas actuales de servicio/guard 75/75 y build sin advertencias/errores; guard HTTPS previo al formulario implementado, sin prueba pública de TLS, interacción de navegador ni integración SQL. Home/Counter/Weather y Bootstrap mínimo se conservan. [Guía Web](how-to/web-passenger-login.md); evidencia histórica en §7. |
-| Clientes y API | **Clases propias implementadas y revisadas; integración pendiente** | [Contratos de autenticación](reference/auth-contracts.md): DTOs propios de API y modelos propios de Web con JSON compatible; tipos TypeScript de Mobile equivalentes. Shared y sus referencias se retiraron en MVP-001-06, con aprobación de todos sus criterios por Enzo reportada por el usuario. El cierre histórico de MVP-001-02 se conserva (§7); el candidato actual ya tiene código de ingreso, sesiones, autorización e interfaces, verificado estática/unitariamente y mediante diferencial de contratos (§7), y los clientes ya tienen pantallas/servicios de ingreso comprobados en unidades, pero sin flujo público integrado HTTP/HTTPS/SQL ni revisión visual/dispositivo. |
-| Arquitectura de API | **Decidido** | Controllers → Services → Repositories → EF Core DbContext; el usuario exige una interfaz propia por cada Service y Repository, utilizada por sus consumidores y DI. DTOs propios separados de las entidades siguen aprobados. Las cinco clases actuales de servicio/repositorio implementan sus interfaces y se verificaron con DI y unidades; integración pendiente. |
-| Persistencia | **Decidido** (motor), **aprobación reportada** (base conceptual), **propuesto** (esquema) | MySQL seleccionado e instalado localmente; [MVP §10](explanation/mvp.md#10-arquitectura-y-límites) refleja el motor. El [modelo UML y ER candidato](explanation/data-model.md) registra la aprobación de Diego y Enzo informada por el usuario como base conceptual evolutiva, no esquema físico aprobado. Aplicabilidad/vigencia de tarifas y correspondencia bidireccional abono–servicio son decisiones futuras que condicionan su implementación; esquema, DTO definitivos, integración EF Core, usuario de aplicación y producción siguen pendientes. |
-| Pagos TEST | **Decidido, revisable; no implementado** | [MVP §5.6](explanation/mvp.md#56-pago-de-prueba-con-mercado-pago): API de Mercado Pago en TEST, resultado verificado por la API antes de emitir tickets. El usuario acordó intento durable de compra con pagos conservados: rechazo definitivo permite reintentar dentro del tiempo restante del hold; pendiente o desconocido bloquea otro pago hasta resolución autoritativa, aun vencido el hold. Hold por asiento/salida/intervalo de **15 minutos configurables desde creación en API** (decisión de Diego y Enzo del 2026-11-19), sin reinicio por recarga o reintento. Aprobación verificada, disponibilidad confirmada **y hold vigente** generan una sola compra y sus tickets idempotentemente ([modelo §2](explanation/data-model.md#2-persistencia-candidata-er-mysql)). Vencer libera el asiento, no declara rechazo. Aprobación posterior al vencimiento no emite ni confirma, aunque haya lugar: requiere seguimiento de devolución hasta confirmación autoritativa. Esquema, transacciones, checkout, estados externos y soporte TEST de devolución pendientes; producción necesita decisión futura. |
-| Despliegue | **No autorizado por el usuario** | Proyecto exclusivamente local y aislado con cuentas totalmente ficticias. No se autoriza despliegue en ninguna plataforma ni uso de credenciales o usuarios reales; no hay despliegue comprobado. |
-
-El MVP de las primeras semanas de octubre es un corte inicial; la entrega completa incorpora las mejoras del equipo del [alcance final](reference/final-scope.md), no requisitos académicos explícitos: catálogo/calendarios, planos académicos de vehículos y selección web con disponibilidad por intervalo. El [modelo complementario](explanation/data-model.md#5-modelo-conceptual-complementario-de-la-entrega-final) no sustituye el UML/ER MVP. La implementación sigue planificada. La aprobación humana de la base conceptual está registrada según el usuario, sin acreditar revisión del esquema físico, ejecución de escenarios o pruebas del proveedor.
-
-**Avance independiente de cobrador (MVP-001-04):** pantalla Mobile compartida con pasajero y comprobación de permiso `prueba-cobrador` de solo lectura, sin duplicar ingreso/salida ni añadir operaciones de transporte. Mobile: 17/17 checks offline y typecheck exit 0; la presencia de las acciones UI se comprueba estructuralmente, no en un dispositivo. Verificación API y revisión independiente offline conformes: sesiones 45/45, contratos 50/50, Mobile 17/17 y typecheck exit 0; comparación del flujo anterior sin diferencias. Evidencia y límites en su [seguimiento](../odd/tasks/mvp-001-04-collector-auth.md). No se ejecutó SQL ni se inició la API; el flujo real, iPhone y revisión de Enzo siguen pendientes. La corrección SQL de pruebas conserva su bloqueo administrativo.
-
-**Avance independiente de administrador (MVP-001-05):** `/ingreso` reutiliza el servicio y endpoint existentes mediante una acción de comprobación administrativa de lectura, con progreso y reintento, sin panel operativo. Web RED estructural 83/84 → GREEN 84/84, matriz API offline ampliada 46/46 y build Web sin advertencias/errores. Verificación independiente conforme (`mw16b3cu-3-wtyo`), con los mismos checks exit 0 y sin bloqueadores concretos; en ese momento navegador/circuito, TLS, cuenta ficticia y MySQL no estaban verificados (luego cubiertos por L30–L31, ver sección de alta administrativa); revisión de Enzo pendiente. [Seguimiento y límites](../odd/tasks/mvp-001-05-admin-auth.md).
-
-**Publicación e incidente de integración de MVP-001:** [tracker #37](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/37) y 14 hijos #38–#51 se publicaron correctamente como borradores, con `Refs #36` y un único tipo por PR. Después, el usuario informó que había integrado todos; la consulta de GitHub confirmó los 15 como merged, pero #37 se fusionó primero. `main` quedó en `722e14d`, con el documento coordinador y sin los cambios de autenticación: ninguno de los 91 blobs finales comparados coincidió con la implementación completa `bb0452a`. Los merges posteriores hacia las ramas base no propagaron automáticamente sus cambios a `main`. El código original se conserva intacto; se preparó una recuperación **solo local** en `fix/mvp-001-auth-integration-recovery`, conservando la historia completa y sin modificar código de aplicación, tests ni scripts. La simulación sobre el candidato revisado preservó el árbol completo más el coordinador del destino, con cero conflictos; pasaron builds API/Web sin advertencias/errores, contratos 50/50, sesiones 46/46, Web 84/84, Mobile 17/17 y typecheck. La revisión independiente confirmó procedencia, equivalencia y referencias, y reprodujo sesiones 46/46 y Mobile 17/17; no repitió la simulación ni la suite completa. La advertencia experimental de Node no fue bloqueante. El destino fijado es `origin/main` en `722e14d`; la rama local `main` en `c5ea2bf` permaneció intacta. Esto no aplica la recuperación a GitHub: no hubo push ni merge de esta rama. [Seguimiento y límites de recuperación](../odd/tasks/mvp-001-auth-integration-recovery.md). La [issue #36](https://github.com/diegoolherry/Obligatorio-DDA-DDM/issues/36) aparece cerrada y conserva `status:approved`; no se infiere la causa del cierre ni aceptación académica y no se reabre en esta preparación. La CI histórica del tracker solo comprobó JSON/whitespace; no acredita autenticación ni los 14 hijos. Continúan pendientes SQL administrativo/fixtures, TLS/navegador/iPhone y revisión cruzada. [Evidencia de publicación y límites](../odd/tasks/mvp-001-pr-preparation.md).
+| Autenticación y roles (MVP-001) | **Verificado** (`done`) | Ver [§5](#5-cortes-implementados). |
+| Administración operativa y demo (MVP-002) | **Verificado** (`done`) | PR #61–#68. |
+| Búsqueda de itinerarios (MVP-003) | **Verificado** (`done`) | PR #69–#71. |
+| Compra, pago TEST y tickets (MVP-004) | **Implementado y fusionado**; en `tasks.json` figura `in_progress` | PR #121–#131; recorrido real con Mercado Pago TEST el 2026-11-19 ([§7](#7-calidad-y-evidencia-de-pruebas)). |
+| Ubicación de demostración (MVP-009) | **Verificado** (`done`) | PR #72–#74. |
+| Catálogo, administración y diseño (FIN-001, 008, 010, 011, 012) y análisis offline (FIN-006) | **Verificado** (`done`) | Ver [§5](#5-cortes-implementados). |
+| JWT sin estado (FIN-005) | **Implementado y fusionado**; en `tasks.json` figura `in_progress` | PR #86–#89 y #120. |
+| QR y validación (MVP-005) y siguientes | **Planificado** (`pending`) | Ver [§8](#8-riesgos-y-pendientes). |
+| Despliegue | **Fuera de alcance** | Solo entorno local con datos ficticios. |
 
 ## 2. Contexto, problema y objetivos
 
-- **Problema y destinatarios — Planificado:** permitir a pasajeros consultar y comprar un itinerario de varios tramos, presentar cada comprobante y consultar abonos; permitir al cobrador validarlos y al administrador preparar datos ficticios. Reconstruir la justificación y antecedentes para la entrega sin atribuir patrocinio a la empresa que inspiró el caso.
-- **Objetivo demostrable — Planificado:** recorrido Ombúes → Radial de Conchillas → Colonia, con dos tickets, validación de un solo uso y dos abonos de saldos independientes; agregar consulta básica de ubicación con estados de información vigente, desactualizada y ausente. Ver criterios en [MVP §2](explanation/mvp.md#2-criterio-de-éxito-del-mvp).
-- **Límites — Decidido:** sin cobro real, datos financieros reales, integración empresarial, validación sin conexión ni predicción avanzada. Consultar [MVP §13](explanation/mvp.md#13-fuera-del-mvp) antes de ampliar alcance.
-- **Pendiente:** confirmar consigna oficial, supuestos de operación y objetivos académicos definitivos; separar experiencia relatada, simplificación de demo y requisito exigido.
+- **Problema:** permitir a un pasajero buscar y comprar un itinerario de varios tramos, presentar un QR por tramo y consultar abonos; al cobrador, validar esos QR; y al administrador, preparar los datos de la demostración.
+- **Objetivo demostrable:** el recorrido Ombúes → Radial de Conchillas → Colonia con dos tickets, validación de un solo uso y dos abonos con saldos independientes, más una consulta básica de ubicación. Criterios en [MVP §2](explanation/mvp.md#2-criterio-de-éxito-del-mvp).
+- **Límites:** sin cobro real, sin datos financieros reales, sin integración con la empresa, sin validación sin conexión ni predicción avanzada ([MVP §13](explanation/mvp.md#13-fuera-del-mvp)). La entrega final suma catálogo y calendarios, planos académicos de vehículos y selección web de asientos ([alcance final](reference/final-scope.md)); esas ampliaciones son elección del equipo, no requisitos explícitos de la consigna.
 
 ## 3. Requisitos y trazabilidad
 
-| Entregable | Fuente vigente | Ampliación necesaria en este informe |
-| --- | --- | --- |
-| Actores, flujos y reglas de negocio | [MVP](explanation/mvp.md) | Explicar contexto y decisiones que afectan a ambos clientes. |
-| Requisitos funcionales y no funcionales | [RF/RNF](reference/requirements.md) | Sintetizar prioridades, restricciones y mediciones cuando exista evidencia. |
-| Historias y aceptación | [Historias](reference/user-stories.md) | Enlazar demostraciones y resultados sin copiar criterios volátiles. |
-| Estado, dependencias y responsables por corte | [Backlog del proyecto completo](tasks.json) | MVP-010 diseña antes de MVP-001; resumir únicamente hitos realmente terminados y evidencia de revisión cruzada. |
+| Entregable | Fuente vigente |
+| --- | --- |
+| Actores, flujos y reglas de negocio | [MVP](explanation/mvp.md) |
+| Requisitos funcionales y no funcionales | [Requisitos](reference/requirements.md) |
+| Historias y criterios de aceptación | [Historias de usuario](reference/user-stories.md) |
+| Contratos de autenticación | [Contratos de autenticación](reference/auth-contracts.md) |
+| API implementada | [Referencia de la API](reference/api.md) |
+| Modelo de datos | [Modelo UML y ER](explanation/data-model.md), [entidades explicadas](explanation/entities-explained.md) |
+| Estado, dependencias y responsables | [Backlog](tasks.json) |
 
-**Pendiente:** matriz final requisito → historia → tarea → prueba/resultado; criterios de aceptación ejecutados y cambios de alcance aprobados. El backlog, no este resumen, determina qué tarea está terminada.
+**Pendiente:** una matriz final requisito → historia → tarea → prueba. Hoy la trazabilidad se apoya en los criterios de aceptación de cada tarea y en el PR que la entrega.
 
 ## 4. Solución y decisiones tecnológicas
 
-| Área | Estado | Decisión / evidencia a incorporar |
+### Arquitectura
+
+| Capa | Decisión |
+| --- | --- |
+| API | Controllers → Services → Repositories → `DbContext` de EF Core, cada Service y Repository detrás de su propia interfaz. DTOs propios, separados de las entidades. MySQL como motor; el esquema se define con migraciones de EF Core. |
+| Web | Blazor Web App con `InteractiveServer` por página. Modelos y servicios propios, sin biblioteca compartida con la API. La sesión vive en memoria del circuito. |
+| Mobile | Expo SDK 58 y React Native con TypeScript, vistas según el rol (pasajero y cobrador), NativeWind y el [sistema de diseño](explanation/ux-design.md). La sesión vive solo en memoria. |
+| Contratos | DTOs en la API y modelos propios en cada cliente, con JSON compatible; no hay referencia entre aplicaciones ([referencia](reference/auth-contracts.md)). |
+
+El modelo conceptual (ER y UML) fue aprobado como base evolutiva por Diego y Enzo y está en [data-model.md](explanation/data-model.md). Los identificadores son `string` con prefijo de dos letras y guion; ver el [catálogo](explanation/data-model.md#identificadores-de-las-entidades).
+
+### Decisiones
+
+| Decisión | Detalle | Origen |
 | --- | --- | --- |
-| Canales | **Decidido** | Blazor para pasajero y administración; una app React Native/Expo con vistas según rol para pasajero y cobrador. [Guía UX](explanation/ux-design.md) contiene propuestas visuales, no UI implementada. |
-| Contratos API y clientes | **Separación implementada; aprobación reportada** | DTOs en `API_Berruti.DTOs.Authentication` y modelos propios en `Web_App.Models.Authentication`; sin biblioteca Shared ni referencia entre las aplicaciones. Propiedades españolas, DataAnnotations, campos JSON y roles textuales conservados. [Referencia y comprobaciones](reference/auth-contracts.md). Mobile no cambia. Autorización y reglas de negocio siguen pendientes. |
-| Capas del servidor | **Decidido** | Controllers → Services → Repositories → EF Core DbContext; cada servicio y repositorio debe implementar su interfaz específica y consumirse por ella, por indicación explícita del usuario. La base de cuentas/contadores fue adaptada y comprobada en unidades; SQL real y autenticación integrada siguen pendientes. No implica repositorios genéricos ni Shared. |
-| Autenticación básica | **JWT sin estado y hash de contraseñas implementados en fuente (FIN-005); recorrido público HTTPS/MySQL pendiente** | **Decisión (Diego, 2026-11-18, FIN-005):** se adopta JWT HS256 sin estado; OpenIddict **no** se adopta; Identity **no** se adopta (solo `IPasswordHasher<Usuario>` del framework compartido). El contrato de ingreso `{identificadorUsuario, roles[], token, venceEnUtc}` se mantiene y solo cambia el formato del token. **Mecanismo en fuente:** `sub` = identificador público, `jti`, un rol por claim, vencimiento de 7 días (`exp` = `venceEnUtc`), validación de emisor, audiencia, clave y vencimiento, `Jwt__Key` (≥ 32 bytes) solo en el `.env` local, contraseñas solo como hash y `salida` `204` sin estado; se eliminó la tabla `sesion` y los seeds con texto plano. **Riesgo aceptado:** cerrar sesión solo descarta el token en el cliente; un token robado, un cambio de rol o una cuenta desactivada siguen vigentes hasta el vencimiento (7 días) y las diapositivas docentes recomiendan tokens cortos. Cuentas ficticias solo locales; sigue prohibido desplegar o usar credenciales reales sin autorización humana explícita e independiente. **Verificado por quien redactó esto:** `WebAuthentication` 177/177, `MobileAuthentication` 26/26 y typecheck de Mobile; los totales de pruebas API los reporta el coordinador en el PR de FIN-005. **No verificado:** recorrido HTTPS/MySQL real con JWT, `--mysql`, iPhone. [Decisiones y límites](reference/auth-contracts.md#decisiones-de-fin-005-jwt-y-hash-de-contraseñas). Las secciones históricas de §7 sobre sesiones opacas, revocación y texto plano describen el mecanismo anterior y no acreditan el JWT. |
-| Base de datos | **Decidido** | MySQL instalado y conexión administrativa local comprobada con `root`; [Aprovisionamiento local](how-to/local-auth-database.md) ejecutado por el usuario: las capturas aportadas muestran `berrutilocal` y `berrutiauthtests`, y los resultados SQL aportados muestran `berruti_app` y `berruti_test` en `localhost`, desbloqueados (`account_locked = 'N'`), con los cuatro permisos DML únicamente sobre su base respectiva, además de `USAGE` sin privilegios globales. El usuario reportó que ambas conexiones en Workbench funcionan; el agente no ejecutó SQL ni vio contraseñas. Es inspección administrativa y conexión reportada, no prueba funcional de aislamiento ni integración API. **Pendiente:** EF Core, esquema/migraciones, respaldos y compatibilidad de despliegue; no acredita autenticación ni cierre del backlog. |
-| Identificadores de entidades | **Formato, prefijos y política del correlativo decididos; generación pendiente** | IDs reales `string` con abreviaturas de dos letras y guion: `Substring(3)` extrae el correlativo, pero no valida ni garantiza concurrencia. [Catálogo aprobado por el usuario y límites](explanation/data-model.md#identificadores-de-las-entidades): incluye `US-` para Usuario, sin nuevas identidades para Itinerario ni `usuario_rol`; las tablas técnicas conservan su condición de candidatas. Política del correlativo aprobada por el usuario: inicio en 1, sin ceros de relleno, contador independiente por entidad, sin reutilización tras borrados y con huecos permitidos, para evitar que referencias antiguas identifiquen un registro distinto (justificación aceptada por el usuario y detallada en el modelo); asignación desde la API, no por el cliente, y validación de prefijo y entero positivo. Rango aprobado de 1 a 50.000 inclusive por entidad, referido a números asignados históricamente, no a registros existentes; al agotarlo, rechazar el alta con un error claro, sin reiniciar ni guardar parcialmente. El usuario aprobó un contador durable por entidad con incremento transaccional protegido ante altas simultáneas; SQL, aislamiento concreto, implementación y pruebas siguen pendientes. Sin entidades persistidas, migraciones ni pruebas de generación implementadas por este acuerdo. |
-| QR, pagos y ubicación | **Planificado** | QR opacos, escenarios de aprobación/rechazo del proveedor en TEST y posición de dispositivo embarcado autorizado. La aplicación no solicita ni guarda números de tarjeta/CVV; faltan integración, selección de checkout y pruebas. |
+| **JWT sin estado** | HS256, vigencia de **7 días**, contraseñas guardadas solo como hash con `IPasswordHasher<Usuario>`. No se adoptan OpenIddict ni Identity. Riesgo aceptado: cerrar sesión no revoca el token en el servidor ([detalle](reference/auth-contracts.md#decisiones-de-fin-005-jwt-y-hash-de-contraseñas)). | Diego, 2026-11-18 (FIN-005); implementado en [#86](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/86). |
+| **Hold de 15 minutos** | El asiento se reserva 15 minutos, configurables, desde la creación del hold en la API y sin reinicio. Reemplaza los cinco minutos de la base conceptual previa. Un rechazo definitivo permite reintentar dentro del tiempo restante; un pago pendiente o desconocido bloquea otro pago hasta que se resuelva. | Aprobado por Diego y Enzo el 2026-11-19. |
+| **Baja lógica en el catálogo** | Bloques, rutas y salidas se dan de baja con `activo = 0`; feriados y excepciones se eliminan de verdad ([API](reference/api.md#administración-del-catálogo-fin-008)). | FIN-008: [#82](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/82), [#83](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/83), [#84](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/84). |
+| **Mercado Pago Checkout Pro por la Orders API, en TEST** | La API crea la orden, devuelve el link del checkout y verifica el resultado con el proveedor antes de confirmar la compra y emitir tickets. Solo credenciales de prueba, sin cobros reales. | MVP-004: [#123](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/123), [#124](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/124). |
+| **Despliegue** | Solo entorno local con datos ficticios; no se despliega en ninguna plataforma. | Restricción del proyecto. |
 
-**Acuerdo conceptual de pagos y hold — Incluido en la base evolutiva aprobada por Diego y Enzo, según lo informado por el usuario; no implementado:** el intento durable conserva sus pagos y es distinto del hold y de la compra confirmada. Hold por asiento/salida/intervalo de viaje de **15 minutos configurables desde creación en API** (decisión de Diego y Enzo del 2026-11-19); recarga o reintento tras rechazo definitivo no reinician el plazo. Ese rechazo permite otro intento dentro del tiempo restante. Pendiente/desconocido, incluida falla de red, bloquea otro pago hasta resolución autoritativa incluso tras el vencimiento. La API exige aprobación verificada, disponibilidad confirmada y hold vigente para una sola compra y sus tickets idempotentemente. Vencer libera el asiento pero no prueba rechazo. Aprobación después del vencimiento no confirma ni emite, aunque el asiento siga disponible: registrar y seguir compensación/devolución; no declarar devuelto por haberlo solicitado, sino tras confirmación autoritativa. Detalle en [modelo §2](explanation/data-model.md#2-persistencia-candidata-er-mysql).
+## 5. Cortes implementados
 
-**Diseño e integración pendientes:** esquema físico, transacciones, concurrencia, checkout y mapeo/verificación del proveedor; comparación temporal, timestamp autoritativo y carreras aprobación/notificación/vencimiento. Notificación tardía no equivale automáticamente a aprobación tardía. Soporte de devoluciones en TEST **no verificado**, sin autorización de reemplazo simulado. No se acuerdan transbordos todo-o-nada, límites por usuario, corte antes de salida, cancelación/renovación ni reintento después del vencimiento. No hay implementación ni pruebas externas acreditadas.
+Cada corte se trabajó en una rama propia y se entregó en un PR con revisión cruzada entre Diego y Enzo.
 
-**Alternativas y justificación — Pendiente:** comparar opciones de persistencia, hosting, autenticación, generación/lectura QR y publicación de ubicación según consigna, costo, compatibilidad y riesgos; registrar descartes con fuentes. No confundir tecnología elegida con integración completada.
-
-## 5. Ambientes, factibilidad y recursos
-
-| Apartado de la entrega | Estado | Qué falta documentar |
+| Tarea | Qué entrega | PR |
 | --- | --- | --- |
-| Desarrollo | **Parcial, tres fundaciones** | Entorno previo observado: Node `24.11.1`, npm `11.19.0`. [Mobile](../src/Mobile/package.json): Expo `57.0.27`, React `19.2.3`, RN `0.86.3`, TypeScript `6.0.3`; lockfile existente y [comandos locales](tutorials/first-local-run.md#3-iniciá-mobile). API: [solución existente](../src/Api/API-Berruti/API-Berruti.slnx) y proyecto `net10.0`, paquete OpenAPI `10.0.12`; [instrucciones locales](tutorials/first-local-run.md#1-iniciá-api). SDK `10.0.401`, build y HTTP fueron observados por el verificador en la sesión original (§7), no reejecutados aquí. Web: [solución existente](../src/Web/Web-App/Web-App.slnx), `net10.0` y [comandos desde la raíz en terminales separadas](tutorials/first-local-run.md#2-iniciá-web); perfil HTTP Development en localhost:5025. El verificador independiente comprobó build/HTTP/navegador del corte reducido (§7), además de la evidencia histórica separada del candidato completo. IDE compatible con `.slnx`, TLS e integración siguen sin verificar. |
-| Producción y despliegue | **Fuera del alcance autorizado** | El usuario prohíbe desplegar el proyecto en plataformas. Solo entorno local aislado y cuentas ficticias; completar `FIN-005` no levanta esta restricción. Cualquier futura apertura de alcance requiere autorización humana explícita y revisión de seguridad. |
-| Usuario final | **Planificado** | Navegador para Blazor, celular compatible para pasajero/cobrador, cámara y conectividad para QR; comprobar requisitos mínimos y permisos. |
-| Factibilidad técnica | **Pendiente** | Prueba temprana de cámara/QR en Expo, transacciones para consumos concurrentes, compatibilidad de API y base de datos. |
-| Factibilidad operativa y capacitación | **Pendiente** | Guías de uso para tres roles, datos de demo, permisos, recuperación de fallos y entrenamiento necesario. |
-| Factibilidad económica y legal | **Pendiente** | Costos de hosting/dispositivos/tiempo, licencias, privacidad de cuentas y ubicación, uso de marca e imágenes; no atribuir aval empresarial. |
-| Herramientas y alternativas | **Pendiente** | Inventario con versiones, finalidad, costos/licencias, alternativas evaluadas y criterios de selección. |
+| **MVP-001** — autenticación y roles | Persistencia de cuentas, ingreso y autorización por rol en la API; ingreso en Web y Mobile; comprobación de cobrador y de administrador; migraciones EF Core y reinicio local de la base. | [#37](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/37) (integra #38–#51), [#52](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/52), [#55](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/55), [#56](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/56), [#59](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/59), [#60](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/60) |
+| **MVP-002** — administración operativa y demo | Esquema operativo, administración en la API y en Blazor, preparación idempotente de la demostración, diagnóstico local. | [#61](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/61)–[#68](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/68) |
+| **MVP-003** — búsqueda de itinerarios | Endpoint público de búsqueda y pantallas en Blazor y React Native. | [#69](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/69), [#70](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/70), [#71](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/71) |
+| **MVP-009** — ubicación de demostración | API de publicación y consulta; publicación del cobrador y consulta del pasajero en Mobile y Web. | [#72](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/72), [#73](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/73), [#74](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/74) |
+| **FIN-001** — catálogo de rutas y calendarios | Catálogo de horarios en la API a partir de la transcripción del horario de invierno 2026, y página de horarios en Blazor. | [#75](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/75), [#76](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/76) |
+| **FIN-006** — análisis offline-first de Mobile | Análisis del material del curso: la compra, el pago y la validación del QR siguen en línea y autoritativos en el servidor. La implementación no se inició. | [#77](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/77) ([análisis](explanation/offline-first-mobile.md)) |
+| **FIN-008** — administración del catálogo | ABM de bloques, rutas y salidas con baja lógica; feriados y excepciones; página `/admin/catalogo`. | [#82](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/82), [#83](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/83), [#84](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/84) |
+| **FIN-010 y FIN-011** — diseño y accesibilidad | Sistema de diseño y mockups Mobile; NativeWind en Mobile; diseño en Web; accesibilidad de validación y menú sin sesión. | [#78](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/78), [#79](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/79), [#80](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/80), [#81](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/81) |
+| **FIN-012** — respuesta acotada ante filas bloqueadas | La API responde de forma acotada cuando MySQL retiene filas bloqueadas. | [#85](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/85) |
 
-## 6. Equipo, iteraciones y cronograma
+### MVP-004 — compra, pago TEST y tickets
 
-**Modelado conceptual cerrado:** el usuario informa que Diego y Enzo aprobaron la base conceptual evolutiva de MVP-010 (Diego, revisor Enzo), conservando cambios futuros. Tras validación documental independiente del agente de sus tres criterios, MVP-010 pasó a `done`, con `completedAt` = `2026-10-06T00:29:10.047000-03:00` y `completedBy` = Diego; la aprobación humana se atribuye al reporte del usuario, no a corroboración externa. La evidencia y fuentes están en [MVP-010](tasks.json). Es un hito documental, no un esquema físico o DTO aprobados ni implementación o pruebas de aplicación/proveedor. MVP-001 conserva su dependencia original MVP-010, ahora cumplida, y sigue `pending`, sin inicio automático. Las decisiones de dominio y mecanismos técnicos abiertos se definen y revisan antes de implementar la función correspondiente, no todos antes de preparar infraestructura. La descomposición original aprobada de MVP-001 organiza cinco hijos, con MVP-001-01 en `done` (cierre y aprobación reportada en §7), MVP-001-02 en `done` (contratos, aprobación de Enzo reportada en el chat y cierre autorizado en §7) y los otros tres pendientes. Los cinco hijos cubren estructura integrada, contratos tipados y sesiones de pasajero (Web/Mobile), conductor/cobrador (Mobile, rol cobrador del MVP) y administrador (Web), con autorización comprobable en API. Todos dependen explícitamente de MVP-010; contratos depende además de estructura y cada flujo de sesión de contratos, sin dependencias entre flujos ni hacia el padre. El cambio posterior solicitado por el usuario agrega MVP-001-06 como sexto hijo para retirar Shared, dependiente de MVP-010 y MVP-001-02 en done; no modifica los criterios ni estados de los cinco hijos originales. La jerarquía se deriva de `parentId`, sin agregación automática de estados. El padre conserva su puerta original y criterios autoritativos; solo podrá completarse con todos los hijos en `done`, criterios propios verificados y revisión cruzada, según [AGENTS.md](../AGENTS.md). Ningún hijo puede comenzar con dependencias pendientes. Esto organiza trabajo futuro, no acredita autenticación, compilaciones ni pruebas. Luego dos estudiantes desarrollan cortes verticales que atraviesan clientes y API, con revisión cruzada. [Backlog del proyecto completo](tasks.json) fija responsables, revisor, dependencias y orden sugerido; no sustituirlo por fechas inferidas. **Pendiente:** explicitar roles efectivos, disponibilidad, formación necesaria, iteraciones, hitos, estimaciones, calendario y ruta crítica (dependencias MVP-001/002 antes de flujos consumidores). Registrar desvíos y decisiones con fecha cuando ocurran; no declarar hitos alcanzados por el mero hecho de estar planificados.
+Fusionada en `main`. En `tasks.json` la tarea sigue en `in_progress` hasta que el backlog registre su cierre con la revisión cruzada confirmada. Los PR son:
 
-Para la entrega final, FIN-001..004 ordenan catálogo/calendarios, configuraciones de vehículos, disponibilidad concurrente/compra y selección web con pruebas end-to-end, sobre fundamentos MVP. No se fija fecha final ni se inician tareas con dependencias pendientes. Las políticas de reintento, hold y aprobación posterior al vencimiento forman parte de la base conceptual con aprobación conjunta reportada. Sus mecanismos y diseño físico requieren definición y revisión antes de implementar. La [puerta técnica](reference/final-scope.md#puerta-abierta-reserva-temporal-y-pago) y el [backlog vigente](tasks.json) reflejan el acuerdo actual de §4; sus requisitos y estados/criterios conservan autoridad para completar tareas. La transcripción/verificación completa del horario y una fuente reproducible compartible siguen pendientes; no se infieren tarifas ni flota real del horario.
-
-## 7. Calidad, pruebas y gestión de configuración
-
-### Consolidación local de los entregables
-
-Se guardaron tres unidades independientes: `cd3ddb6` (referencia docente de IDs), `f58ec82` (plan de autenticación solo local y FIN-005) y `05cf867` (retirada de Shared y MVP-001-06). Se reunieron en `chore/consolidate-project-state`, con merges `cf0f195` y `1248cfc`; sus tres ramas de origen son ancestros de la integración y sus worktrees quedaron limpios. [Seguimiento y evidencia](../odd/tasks/consolidate-project-state.md). Esta consolidación es local: no publica, no modifica `main`, no elimina ramas/worktrees y no implementa login ni IDs. La revisión de Enzo de MVP-001-06 sigue pendiente y FIN-005 sigue pending.
-
-**Comprobación del conjunto por el implementador, no revisión independiente:** `dotnet run --project tests/AuthenticationContracts/AuthenticationContracts.csproj --no-launch-profile` exit 0, 50/50 comprobaciones; builds de las soluciones API y Web con `--no-restore --nologo`, ambos exit 0, cero advertencias y errores. Controles estructurales PASS: 21 tareas (17 pending, una in_progress y tres done), campos originales conservados salvo cuatro evidence ampliados, ambas tareas nuevas idénticas a sus fuentes, dependencias sin ciclos, enlaces locales/fences y ausencia de marcadores de conflicto. Código y pruebas coinciden con `05cf867`; skill con `cd3ddb6`; Mobile no cambia. Convenciones `src --strict` y whitespace PASS. El primer comprobador estructural falló por tratar un evidence nulo como texto; se corrigió el comprobador y la validación completa pasó, sin atribuir PASS al intento fallido. No se ejecutaron UI, login ni typecheck Mobile porque este corte no modifica esas superficies.
-
-### Separación de contratos MVP-001-06
-
-**Cierre académico autorizado:** MVP-001-06 pasa a `done`, con `completedAt` = `2026-10-15T19:14:45.112396-03:00` (hora actual del sistema al registrar el cierre, no fecha de revisión ni de pruebas), `completedBy` = Diego y reviewer Enzo. El usuario confirmó explícitamente que Enzo revisó y aprobó **los cuatro criterios originales**. Esta aprobación humana se atribuye al reporte del chat, no al agente ni a una review formal de GitHub. El [PR #34](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/34) está mergeado en [e651bd4](https://github.com/diegoolherry/Obligatorio-DDA-DDM/commit/e651bd4c1e3c98afa0a43f59bdf0c89ddabfbabd); el merge no sustituye esa confirmación.
-
-Trazabilidad: (1) clases propias y ausencia de Shared/referencias entre aplicaciones; (2) JSON, roles, inicializadores, validaciones y Mobile preservados; (3) comprobaciones de separación/regresión **50/50** y builds API/Web exitosos, según la evidencia histórica inferior, sin reejecución en este cierre; (4) revisión de Enzo de todos los criterios confirmada por el usuario, sin reabrir MVP-001-02 ni acreditar login, sesión, autorización o cambio de IDs. Dependencias MVP-010 y MVP-001-02 comprobadas en `done`. `id`, `createdAt` y `startedAt` se conservan. MVP-001 sigue `pending`; FIN-005 y los flujos de sesión permanecen pendientes y no se inician automáticamente. Los párrafos que registran revisión pendiente describen el estado anterior a este cierre.
-
-**Cambio implementado y cerrado; revisión de Enzo reportada por el usuario:** clases propias de API y Web sin Shared, sin referencia entre aplicaciones y sin modificar Mobile. Se mantienen campos/tipos JSON, valores de roles, inicializadores y DataAnnotations. No cambia el identificador de usuario ni se implementa login. Los IDs prefijados y el login básico pertenecen a otros cortes.
-
-Comprobación reproducible desde la raíz del worktree, sin DB ni servidores:
-
-```sh
-dotnet run --project tests/AuthenticationContracts/AuthenticationContracts.csproj --no-launch-profile
-```
-
-Observación del implementador: RED exit 1, cinco fallos esperados de ocho comprobaciones por dependencia de Shared y ausencia de tipos propios; GREEN exit 0, **50/50 comprobaciones** de separación y regresión en ambas aplicaciones. El proyecto consola referencia las aplicaciones reales sin paquetes nuevos. Coteja el registro del conversor y prueba clases públicas/JSON/validación; no ejecuta HTTP, UI ni autenticación. Compilaciones finales observadas: `dotnet build src/Api/API-Berruti/API-Berruti.slnx --no-restore --nologo` y `dotnet build src/Web/Web-App/Web-App.slnx --no-restore --nologo`, ambas exit 0, cero advertencias y errores. Control estructural Python PASS: 19 registros originales del backlog y metadatos intactos, dependencias de MVP-001-06 en done, clases idénticas a las originales salvo namespace, enlaces locales y fences válidos. `git diff --exit-code HEAD -- src/Mobile` exit 0 confirma Mobile intacto; script de convenciones con `src --strict` y `git diff --check` exit 0. Git advierte normalización futura LF/CRLF en el JSON, sin fallo de comprobación. No se repitió typecheck Mobile ni se ejecutó navegador porque no se modificaron Mobile ni UI. No se atribuye verificación independiente ni aprobación humana. MVP-001-06 conserva `in_progress` y finalización null hasta cumplir sus criterios y la revisión de Enzo.
-
-### Contratos pasivos MVP-001-02
-
-La sección siguiente conserva evidencia histórica del corte con biblioteca compartida, anterior a MVP-001-06; no describe las dependencias actuales.
-
-**Cierre académico autorizado:** MVP-001-02 pasa a `done`, con `completedAt` = `2026-10-07T20:25:18.791816-03:00` (hora real del sistema al cerrar, no fecha de pruebas o revisión), `completedBy` = Diego y reviewer Enzo; id/createdAt/startedAt permanecen intactos. El usuario confirmó explícitamente que Enzo revisó y aprobó **todos los criterios originales** y autorizó marcar backlog/informe terminados y cerrar issue #28. Esa revisión cruzada se atribuye al reporte del chat, no a una review formal de GitHub: la evidencia remota recibida indica `reviews` vacío. El [PR #29](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/29) está MERGED en `2026-10-07T23:19:14Z`, con [commit de implementación 18430fb](https://github.com/diegoolherry/Obligatorio-DDA-DDM/commit/18430fb50d6e9c4386e0e04c36ba99d7bc2b658a) y merge `88e2d7c0f969097dc283059a8f0d84ead07fc30f`, según la evidencia recibida del coordinador; el merge no sustituye la aprobación humana.
-
-Trazabilidad de los tres criterios originales:
-
-1. **Campos y significado equivalentes:** [solicitud C# del corte histórico](https://github.com/diegoolherry/Obligatorio-DDA-DDM/blob/18430fb50d6e9c4386e0e04c36ba99d7bc2b658a/src/Shared/Berruti.Contracts/Authentication/AuthenticationRequest.cs), respuestas compartidas y [tipos Mobile](../src/Mobile/src/contracts/authentication.ts) explicitan seis campos y los mismos roles textuales; [referencia del contrato](reference/auth-contracts.md) documenta tipos, significado y opciones JSON MVC.
-2. **Separación de persistencia:** [API](../src/Api/API-Berruti/API-Berruti/API-Berruti.csproj) y [Web](../src/Web/Web-App/Web-App/Web-App.csproj) referencian la misma biblioteca de contratos; DTOs sin entidades persistidas e interfaces Mobile sin `any`, comprobados mediante lectura de fuente. Web mantiene solo un comentario para su futuro consumidor, no integración ficticia.
-3. **Compatibilidad y revisión cruzada:** la evidencia independiente previa conservada abajo incluye builds API/Web sin advertencias/errores, typecheck Mobile, JSON veinte PASS y validación nueve PASS; el usuario reportó aprobación de Enzo de los tres criterios. No se repiten pruebas en este cierre documental.
-
-Las dependencias MVP-010 y MVP-001-01 fueron rechecadas en `done`. Los otros 18 registros, padre y sucesoras no cambian ni se inician automáticamente. El estado de revisión pendiente en la referencia es una fotografía anterior; [backlog](tasks.json) y este cierre posterior conservan autoridad actual. No se acredita login, HTTP, sesión ni autorización; los límites e historia de las pruebas siguientes siguen vigentes. Cierre remoto del issue y publicación de esta actualización documental quedan a cargo del coordinador.
-
-**Candidato anterior, sustituido:** los DTOs ingleses con `JsonPropertyName` y sintaxis no discutida tuvieron builds/typecheck/convenciones propios exitosos; esa evidencia no verifica esta revisión. El usuario detuvo ese candidato y aprobó explícitamente en el chat clases y propiedades españolas ordinarias con `get; set;`, cadenas `string.Empty` y DataAnnotations con mensajes exactos. Confirmó bibliotecas de clases y referencias como enseñadas, por lo que en ese corte se conservaron Shared y sus referencias. La separación posterior se documenta en MVP-001-06. En esa fase no se atribuía aprobación de Enzo, sesiones ni esquema físico; la revisión humana posterior se registra en el cierre de arriba. `startedAt` original `2026-10-07T18:24:48.489295-03:00` permanece inmutable.
-
-**Candidato español anterior con constantes string:** verificación independiente recibida del coordinador confirmó builds API/Web (cero advertencias/errores), typecheck, convenciones, whitespace, backlog inmutable, GREEN de validación nueve PASS y JSON doce PASS; todos exit 0. RED de validación de ocho fallos esperados pertenece al escritor, no se reprodujo independientemente. El coordinador eliminó solo el harness autorizado tras controles y confirmó ausencia. Estos resultados son históricos, no se transfieren al enum.
-
-**Revisión enum actual, aprobada explícitamente por el usuario tras explicación:** `RolIngreso` y array enum compartido; API agrega `JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false)` a opciones MVC. Web agrega solo comentario pedagógico para un futuro consumidor HTTP, sin configuración dormida, DI ni cliente. Mobile conserva bytes y textos españoles. La autorización se atribuye al chat, no a enseñanza demostrada del conversor ni revisión de Enzo. [Referencia y receta](reference/auth-contracts.md). El verificador independiente también observó GREEN JSON20 y validación9, builds API/Web sin advertencias/errores y los checks autorizados exit 0; RED5 histórico pertenece únicamente al escritor.
-
-| Comando desde la raíz | Resultado observado sobre esta revisión |
+| PR | Contenido |
 | --- | --- |
-| `dotnet run --project D:/CTC/Semestre-4/mvp-001-02-contracts-harness/Harness.csproj -- json` | RED tras enum sin conversor: exit 1, cinco fallos esperados de veinte aserciones (salida numérica, roundtrip de textos, números definidos/no definidos aceptados y serialización de enum no definido). GREEN con conversor: exit 0, veinte PASS; registro MVC cotejado con fuente, seis campos/tipos, tres roles y Mobile equivalentes, roundtrip, array vacío, rechazo de números/texto numérico/desconocido/enum no definido y ausencia de credenciales en respuestas. |
-| `dotnet run --project D:/CTC/Semestre-4/mvp-001-02-contracts-harness/Harness.csproj -- validacion` | Exit 0, nueve PASS; mismos casos null/vacío/espacios, correo mal formado, caso válido sin fuerza de contraseña y solicitud nueva con dos errores; atributos y mensajes sin cambios. |
-| `dotnet build src/Api/API-Berruti/API-Berruti/API-Berruti.csproj --nologo` | Exit 0; compila también `Berruti.Contracts`, cero advertencias/errores. |
-| `dotnet build src/Web/Web-App/Web-App/Web-App.csproj --nologo` | Exit 0; compila la misma biblioteca, cero advertencias/errores. |
-| `cd src/Mobile && npm run typecheck` | Exit 0; `tsc --noEmit` incluye los contratos. |
-| `python .agents/skills/ctc-project-conventions/scripts/check_project_conventions.py src/Mobile/src/contracts --strict` | Exit 0, sin advertencias; uso del script inspeccionado antes de ejecutar. El script existe en la skill, aunque `scripts/check_project_conventions.py` en la raíz sigue ausente. |
+| [#121](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/121) | Base de compra e inventario. |
+| [#122](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/122) | Reservas temporales (holds). |
+| [#123](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/123) | Checkout de prueba de Mercado Pago. |
+| [#124](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/124) | Pagos y cotizaciones. |
+| [#125](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/125) | Confirmación de compras y generación de tickets con QR opaco. |
+| [#126](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/126), [#127](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/127) | Compra en Web y en Mobile. |
+| [#128](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/128), [#129](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/129) | Corrección y verificación del flujo; correcciones de la revisión cruzada. |
+| [#130](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/130) | Correcciones del recorrido con Mercado Pago TEST y [guía para defender los conceptos](explanation/mvp-004-defensa-conceptos.md). |
+| [#131](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/131) | El arranque local de la API lee las claves TEST de Mercado Pago desde la configuración privada. |
 
-**Control estructural del escritor:** JSON válido; comparación de huella Python antes/después del backlog excluyendo solo evidence de MVP-001-02 idéntica, preservando los otros 18 registros y todos los campos inmutables/de estado. Mobile también conserva su huella. `git diff --check` exit 0. La verificación independiente del enum confirmó los checks autorizados y la preservación del backlog y Mobile.
+### FIN-005 — JWT sin estado
 
-**Límites actuales:** camelCase de propiedades depende de opciones web; los textos enum y rechazo numérico dependen del conversor MVC, no del DTO. Serialización independiente predeterminada sigue siendo PascalCase/numérica. El harness recreado en la misma ruta autorizada, comprobada ausente, usa `FrameworkReference Microsoft.AspNetCore.App` sin paquetes y resuelve opciones MVC de un registro reproducido y cotejado con fuente API; no ejecuta su entrypoint ni HTTP. Inventario propio `Harness.csproj`, `Program.cs`, `bin/` y `obj/`; el coordinador eliminó únicamente esos archivos generados después de la verificación independiente, con controles de inventario y enlaces simbólicos; ausencia confirmada. [Receta completa](reference/auth-contracts.md#receta-reproducible-del-harness-aislado). Sin métodos nuevos en contratos, persistencia, login, UI, sesión, autorización ni nueva auditoría Mobile. Verificación técnica independiente del enum PASS. Antes del cierre documentado arriba, Enzo estaba pendiente y MVP-001-02 seguía `in_progress` con finalización null; ahora `done` por autorización y aprobación reportada, con startedAt intacto, sin completar el padre ni iniciar sucesoras.
+La API reemplaza las sesiones opacas por JWT sin estado y hashea las contraseñas ([#86](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/86)); Web y Mobile aceptan los tokens ([#88](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/88)); los scripts de arranque y demostración se adaptaron ([#87](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/87)); la documentación recoge la custodia de la clave y el estado verificado ([#89](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/89)); todo se integró en [#120](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/120). La tarea sigue `in_progress` en el backlog; el recorrido HTTPS real con MySQL permanece pendiente según la [referencia de la API](reference/api.md#límites-y-evidencia).
 
-**Fundación Mobile — evidencia previa, no reejecutada en este corte documental:** se incorpora el scaffold existente sin modificar sus fuentes. El [registro original de trabajo](../odd/tasks/mvp-001-01-mobile-foundation.md) y la evidencia conservada de MVP-001-01 en [backlog](tasks.json) atribuyen los resultados siguientes; no son comprobaciones funcionales nuevas.
+## 6. Ambientes, factibilidad y recursos
 
-| Comprobación previa en Mobile | Resultado y límite |
+| Apartado | Estado |
 | --- | --- |
-| `npm install`; `npm ci` | Éxito reportado por el implementador; `npm ci` independiente no ejecutado por diseño. |
-| `npm run typecheck`; `npx --no-install expo install --check` | Pasaron para implementador y verificador independiente. La compatibilidad falló primero por `@types/react@19.2.2`; pasó tras fijar `19.2.4`. |
-| `npx --no-install expo export --platform android --output-dir dist` | Pasó de forma independiente: 589 módulos, Hermes 1.4 MB. Exportación JS, no compilación nativa ni ejecución en dispositivo. |
-| Metro acotado, `expo start --localhost` con `CI=1` | Implementador reportó HTTP 200 y `packager-status:running`; ambos intentos independientes agotaron el tiempo sin confirmar readiness. Causa desconocida, sin remediación atribuida. |
-| `npm audit`; `npm audit --omit=dev` | Ambos exit 1: 22 paquetes afectados (15 altos, 7 moderados), exactamente tres avisos distintos; sin remediación. |
+| Desarrollo | Todo corre en local: API y Web con el SDK de .NET (`net10.0`), Mobile con Node y Expo ([versiones en `package.json`](../src/Mobile/package.json)). Base MySQL local descartable, con migraciones y datos de demostración reproducibles ([reinicio de la base](how-to/local-database-reset.md)). Arranque paso a paso en el [tutorial](tutorials/first-local-run.md). |
+| Usuario final | Navegador para Blazor y celular con Expo para pasajero y cobrador. Cámara y permisos para el QR: **pendiente** (MVP-005). |
+| Producción | **Fuera de alcance:** sin despliegue ni credenciales reales. |
+| Pagos | Cuentas de prueba de Mercado Pago y credenciales TEST; ver las [pruebas de compra](how-to/purchase-test-checks.md). |
+| Factibilidad económica y legal | **Pendiente** de documentar: licencias, privacidad de cuentas y ubicación, uso de marca. |
 
-Avisos previos: `braces@3.0.3` ([GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm), alta, vía micromatch/metro-file-map/@expo/metro); `node-forge@1.4.0` ([GHSA-86w9-cpqp-85rv](https://github.com/advisories/GHSA-86w9-cpqp-85rv), alta, vía Expo CLI/code-signing-certificates); `uuid@7.0.3` ([GHSA-w5hq-g745-h8pq](https://github.com/advisories/GHSA-w5hq-g745-h8pq), moderada, vía xcode/config-plugins). Las rutas de herramientas no prueban inclusión en runtime ni explotabilidad. No se aplicó `audit fix`, `--force` ni downgrade mayor; evaluación y remediación pendientes.
+## 7. Calidad y evidencia de pruebas
 
-**Reporte humano posterior:** el usuario escaneó el QR mediante túnel/ngrok y reportó «perfecto, anda». Es arranque en celular atribuido a la persona, no observación del agente, revisión visual de insets ni sustitución de los timeouts independientes. No prueba integración API ni resuelve la auditoría.
+### Pruebas automatizadas sin red
 
-**MVP-001-01 cerrado académicamente:** `done`, con `startedAt` original, `completedAt` = `2026-10-07T01:40:09.656454-03:00` (hora actual del sistema al cerrar, no fecha de pruebas ni revisión) y `completedBy` = Diego. El usuario confirmó explícitamente «Enzo revisó y aprobó los tres criterios», incluida la guía cliente/API; revisión cruzada atribuida a su reporte, sin corroboración externa ni revisión impersonada. Trazabilidad: (1) los scaffolds `src/Api/API-Berruti`, `src/Web/Web-App` y `src/Mobile` y el [tutorial local](tutorials/first-local-run.md) distinguen las partes y documentan requisitos/comandos; (2) la tabla siguiente conserva comandos exactos y resultados independientes API/Web build/HTTP y Mobile typecheck/export, con arranque en celular atribuido al usuario y límites JS, Metro, TLS y navegador intactos; (3) la [guía cliente/API](how-to/client-api-configuration.md) documenta direcciones alcanzables, localhost/LAN/túnel y exclusión de secretos, con aceptación documental reportada, no integración cliente/API. Las carpetas API/Web vacías corresponden a la fase Mobile original, no al estado actual. No hay URL API consumida por Mobile ni auth, QR, pagos o flujos de producto implementados por esta fundación. La validación documental independiente previa `muxm4o7t-4-jmae` reportó PASS de preservación profunda de 19 registros, alcance y enlaces; no es aprobación humana ni ejecución funcional nueva. Esta reconciliación pasiva no tiene RED de comportamiento significativo; no repite runtime ni acredita aprobación nativa. En ese corte, MVP-001 y las sucesoras permanecían `pending`, sin inicio automático; el inicio autorizado posterior de MVP-001-02 se registra abajo.
+Las suites están en [`tests/`](../tests) y se ejecutan sin servicios externos, con dobles de prueba para el transporte y el proveedor de pagos. Protegen los invariantes de autorización, pagos, QR y concurrencia de la API y los clientes.
 
-### Reconciliación actual: ejecución independiente sobre la raíz integrada
-
-**PASS reportado por `muxluqvg-2-xnv2` sobre el `main` original `92bbb8533fd681726b3cc407beb4cb6f92bbdacf`:** la evidencia de MVP-001-01 en el [backlog](tasks.json) identifica esta comprobación actual de las tres fundaciones, separada de los candidatos y sesiones históricos conservados abajo. Se transcribe el resultado recibido; no se inventa fecha de ejecución ni se reejecuta runtime en este corte documental.
-
-| Directorio de trabajo | Comandos exactos y resultado observado |
+| Suite | Qué protege |
 | --- | --- |
-| `src/Api/API-Berruti` | `dotnet build API-Berruti.slnx --nologo`: exit 0, restore al día, cero advertencias/errores. `dotnet run --project API-Berruti/API-Berruti.csproj --no-build --launch-profile http`: Development, `http://localhost:5095`; `/weatherforecast` HTTP 200 con cinco registros tipados (`date`, `temperatureC`, `temperatureF`, `summary`); `/openapi/v1.json` HTTP 200, OpenAPI `3.1.1`, GET `/WeatherForecast`. |
-| `src/Web/Web-App` | `dotnet build Web-App.slnx --nologo`: exit 0, restore al día, cero advertencias/errores. `dotnet run --project Web-App/Web-App.csproj --no-build --launch-profile http`: Development, `http://localhost:5025`; `/`, `/counter` y `/weather` HTTP 200 con HTML esperado, Counter inicial 0/botón y cinco filas Weather. No hubo nueva observación de interacción InteractiveServer en navegador. |
-| `src/Mobile` | `npm run typecheck`: exit 0. `npm run export:android`: exit 0, 589 módulos, bundle Hermes 1.4 MB en `dist`. Exportación JS, no compilación nativa ni ejecución en dispositivo. |
+| `AuthenticationContracts`, `AuthenticationSessions` | Contratos de ingreso, JWT, roles y rechazos. |
+| `PaymentContracts` | Estados y errores del pago, mapeo de Mercado Pago y cancelación de órdenes sin pagar. |
+| `PurchaseHolds`, `PurchaseHoldSchema` | Reglas de hold, vencimiento y esquema. |
+| `OperationalAdministration`, `OperationalControllerValidation`, `RouteCatalog` | Administración operativa y catálogo. |
+| `WebAuthentication`, `WebPurchase` | Servicios y guardas de la Web, incluida la compra. |
+| `MobileAuthentication`, `MobilePurchase`, `MobileLocation`, `Geolocation` | Servicios de Mobile y ubicación. |
+| `MySqlPersistence`, `MySqlPurchase`, `MySqlInspection` | Persistencia real; requieren una base MySQL local. |
+| `ApiLocalEnv`, `DemoAdministratorPreparation`, `LocalMigrationDiagnostics`, `SessionDurabilityDiagnostic` | Scripts de arranque, demostración y diagnóstico local. |
 
-Los procesos .NET propios terminaron de forma ordenada con exit 0 y los puertos 5095/5025 quedaron cerrados en IPv4/IPv6. Ambos servidores advirtieron `Failed to determine the https port for redirect`: HTTP pasó, TLS sigue sin verificar. Los manifiestos de bytes de 102 archivos versionados y 47 extras no-CodeGraph permanecieron sin cambios durante la verificación; dependencias, cachés y respaldos ignorados no se auditaron exhaustivamente. Pasó la preservación de los 19 registros del backlog. `scripts/check_project_conventions.py` estaba ausente: control opcional omitido.
+Resultados informados en el [PR #130](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/130): compilación de la API sin errores; `PaymentContracts` 378 comprobaciones sin fallas; `PurchaseHolds` 83/83; `WebPurchase` 213/213; `WebAuthentication` 182/182. En el [PR #131](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/131): `ApiLocalEnv` 45/45.
 
-No hubo reintentos Metro, nuevo arranque/observación en dispositivo, navegador, integración cliente/API ni nueva auditoría. El reporte humano «perfecto, anda», los timeouts independientes y los 22 paquetes afectados (15 altos, 7 moderados; tres avisos) conservan su procedencia histórica, sin remediación ni resultado de auditoría actual atribuido. El cierre académico de MVP-001-01 se registra arriba con aprobación de los tres criterios reportada por el usuario; no se cierra MVP-001 ni se inician sucesoras.
+**Fallos conocidos:** `RouteCatalog` dejó de compilar con MVP-004 y una prueba de sesión de `MobileLocation` no pasa. Se corrigen en la rama de preentrega; este informe no los da por resueltos hasta ver el PR correspondiente.
 
-### API: fuente actual y verificación histórica
+Las suites con dobles no prueban llamadas reales al proveedor ni concurrencia real contra MySQL.
 
-Se incorporan nueve archivos API existentes, copiados sin cambios por el padre. [Program.cs](../src/Api/API-Berruti/API-Berruti/Program.cs) registra Controllers y OpenAPI, limita `MapOpenApi` a Development y mantiene `UseHttpsRedirection`/`UseAuthorization`; no acredita autenticación ni permisos por rol. [WeatherForecastController](../src/Api/API-Berruti/API-Berruti/Controllers/WeatherForecastController.cs) genera cinco registros aleatorios. Los [perfiles](../src/Api/API-Berruti/API-Berruti/Properties/launchSettings.json) configuran Development: `http` usa `http://localhost:5095`; `https`, `https://localhost:7053;http://localhost:5095`.
+### Recorrido real con Mercado Pago TEST (2026-11-19)
 
-La tabla conserva evidencia comunicada por el **verificador independiente de la sesión original**, no ejecutada de nuevo en este corte ni validación funcional del candidato reconstruido:
+Descrito en el cuerpo del [PR #130](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/130): Web y API locales con credenciales del vendedor de prueba, base reiniciada, itinerario Ombúes → Colonia de dos tramos.
 
-| Comprobación previa API | Resultado y límite |
+| Caso | Resultado |
 | --- | --- |
-| SDK .NET observado | `10.0.401`; no verifica el IDE. |
-| `dotnet build src/Api/API-Berruti/API-Berruti.slnx --nologo` | Éxito: 0 advertencias, 0 errores. |
-| Arranque Development con `--no-build --no-launch-profile --urls http://127.0.0.1:5095` | `/weatherforecast` HTTP 200, cinco registros JSON; `/openapi/v1.json` HTTP 200, OpenAPI `3.1.1`. Override explícito, no ejecución de los perfiles localhost aunque coincida el puerto HTTP. Procesos propios cerrados en aquella sesión. |
-| Redirección HTTPS | Se observó `Failed to determine the https port for redirect`. TLS, integración Web/Mobile/API y auth no verificados. |
+| Pago aprobado | Compra con 2 tickets (tramo 1 sin asiento, tramo 2 con asiento 1). Una segunda compra tomó el asiento 2, sin reutilizar el 1. |
+| Aprobación verificada después del vencimiento del hold | Sin tickets; devolución confirmada por Mercado Pago. |
+| Orden sin pagar al vencer el hold | La API canceló la orden, el pago quedó `Rechazado` y el pasajero pudo iniciar otra compra. |
+| Menú del pasajero | Sin enlaces de administración. |
+| Rechazo de tarjeta con hold vigente y reintento | **No ejecutado:** con sesión iniciada, Mercado Pago no pide titular para forzar el rechazo. Cubierto solo por pruebas automáticas. |
+| Mobile, suite MySQL `--run` y persistencia real de `RechazarSinOrdenAsync` | **No ejecutados** en el recorrido. |
 
-`.gitignore` conserva `.atl/` y excluye `bin/`, `obj/` (también `Bin/` y `Obj/`), `.vs/` y `*.csproj.user` a cualquier profundidad, sin excluir `.cs`, `.csproj`, `.slnx` ni `.razor`. El [registro API](../odd/tasks/api-foundation-delivery.md) documenta los checks estructurales y el límite de revisión propio del nuevo candidato. Ese corte API no importó Web; el candidato de publicación descrito aquí sí lo incorporó, antes de la reorganización Diataxis (rutas antiguas hasta PUB-06). Es contexto histórico, no el estado documental actual. La nueva comprobación de la raíz integrada está separada en la reconciliación anterior.
+Las correcciones surgidas del recorrido (orden recién creada sin `status_detail`, fallo antes de enviar la orden, cancelación al vencer el hold) están en el [PR #130](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/130).
 
-### Web: fuente actual y evidencia histórica del candidato completo
+### Gestión de configuración
 
-Se importaron 23 archivos Web byte-idénticos al checkout original: 22 textos de plantilla/primera parte (820 líneas) y un PNG. Después de la verificación funcional, el usuario autorizó quitar únicamente una línea vacía final de `NavMenu.razor` en la copia de publicación para cumplir el control de whitespace; el archivo original permanece intacto. Los otros 22 archivos conservan sus bytes originales. Git almacena textos con LF usando la configuración existente, sin reescribir los originales. Se conservan sin escritura Bootstrap CSS y LICENSE del [PR #20](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/20): `5.3.3`, CSS de 232.803 bytes, licencia MIT completa; se excluyen las 43 variantes/scripts/mapas no usados del candidato completo. El trailer `sourceMappingURL` se conserva sin distribuir el mapa ni prometer depuración DevTools con sourcemaps.
+- Una rama por tarea del backlog y un PR por rama; la revisión cruzada se hace sobre ese PR.
+- Los scripts SQL de cada migración se generan con `dotnet ef migrations script` y se versionan en `scripts/database/`; no se editan a mano.
+- Las claves (cadena de conexión, clave JWT, credenciales TEST) viven en un archivo privado de configuración local que no se versiona ([guía](how-to/local-database-reset.md)).
+- Los PR de documentación se validan con integración continua ([#4](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/4)).
 
-[Program.cs](../src/Web/Web-App/Web-App/Program.cs) registra InteractiveServer; [App.razor](../src/Web/Web-App/Web-App/Components/App.razor) carga Routes y Blazor sin interactividad global. [Counter](../src/Web/Web-App/Web-App/Components/Pages/Counter.razor) declara `@rendermode InteractiveServer`. Home (`/`), Counter (`/counter`), Weather (`/weather`, datos aleatorios locales), Error (`/Error`) y NotFound (`/not-found`) son páginas de plantilla, no negocio ni cliente API. El [perfil HTTP](../src/Web/Web-App/Web-App/Properties/launchSettings.json) declara Development y `http://localhost:5025`.
+## 8. Riesgos y pendientes
 
-| Comprobación histórica Web | Resultado y límite |
+### Riesgos
+
+| Riesgo | Estado |
 | --- | --- |
-| Verificador de la sesión original: SDK y build | SDK `10.0.401`; `dotnet build src/Web/Web-App/Web-App.slnx --nologo`: 0 advertencias, 0 errores. No reejecutado aquí. |
-| Sesión original: Development explícito con `--no-build --no-launch-profile --urls http://127.0.0.1:5025` | HTTP 200 HTML en `/`, `/counter` y `/weather`; override distinto del perfil localhost. HTML solo no prueba interactividad, TLS, auth ni integración. |
-| Verificador posterior del candidato completo basado en `5f83c38` (67 archivos, incluidos 44 vendor) | Build con SDK `10.0.401`, 0 advertencias/errores; Home/Counter/Weather y cuatro recursos fingerprinted reales: 200. Playwright ya instalado con Chrome observó frames WebSocket Blazor, Counter 0→1 por clic, encabezado Home y cinco filas Weather; sin errores/advertencias de consola, fallos de red ni respuestas ≥400. |
-
-La verificación posterior conservada en el registro del candidato anterior es **histórica respecto del corte reducido actual**. Servidor/navegador propios cerrados y puerto liberado fueron reportados entonces, no ejecutados aquí. El warning de puerto HTTPS volvió a observarse; TLS, auth e integración siguen sin verificar. La comparación anterior de 137 archivos elegibles no cubrió bytes totales de índices locales, outputs API ni dependencias Mobile ignoradas; tampoco sustituye la comparación actual.
-
-### Publicación: resultados previos y verificación propia del corte reducido
-
-Las ejecuciones independientes de Mobile/API conservan su procedencia anterior; Web reducido tiene una verificación propia posterior. Ninguna completa tareas académicas:
-
-| Candidato | Resultado y procedencia |
-| --- | --- |
-| Mobile, [PR #18](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/18) | `npm ci --ignore-scripts --no-audit --no-fund`: exit 0, 468 paquetes; `npm run typecheck`: exit 0. Sin scripts de instalación ni nueva ejecución en celular/Metro. |
-| API, [PR #19](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/19) | Build SDK `10.0.401`: 0 advertencias/errores; Development con override: `/weatherforecast` 200/cinco elementos y OpenAPI 200/`3.1.1`, ruta `/WeatherForecast`. Proceso propio cerrado y puerto liberado. |
-| Web reducido, hijo del CSS [PR #20](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/20) | Verificador independiente: `dotnet build src/Web/Web-App/Web-App.slnx --nologo` ejecutado una vez, SDK `10.0.401`, restore normal, exit 0 y cero advertencias/errores. Development con `dotnet run --project src/Web/Web-App/Web-App/Web-App.csproj --no-build --no-launch-profile --urls http://127.0.0.1:5025`: Home/Counter/Weather 200 con contenido esperado y cuatro assets fingerprinted 200, CSS `text/css` y Blazor `text/javascript`. Playwright ya instalado con Chrome: Home visible, Counter 0→1 por clic, cinco filas Weather y Bootstrap `.btn` aplicado con padding `6px 12px`; el color de `.btn-primary` está legítimamente sobrescrito por app.css. Cero warnings/errores de consola, errores de página, requests fallidos o respuestas ≥400. |
-
-Servidor/navegador propios terminaron correctamente y el puerto quedó libre; no se instalaron herramientas. Se observó `Failed to determine the https port for redirect.`, no fatal; TLS, auth, integración API y dominio siguen sin probar. No hubo solicitudes de mapas ni Bootstrap JS durante el recorrido; eso no demuestra disponibilidad de sourcemaps en DevTools. El verificador confirmó sin deriva sus 96 rutas elegibles durante la ejecución, incluyendo los 23 archivos de primera parte y dos vendor. Esa fotografía precede esta actualización de README/informe/ODD y no representa un hash del candidato documental posterior ni recupera el manifiesto histórico faltante.
-
-El [registro Web](../odd/tasks/web-foundation-delivery.md) delimita procedencia, comprobaciones, incidentes del harness y rollback. DH-02 no puede completarse sin el manifiesto original de 96 archivos; comparar esta base no recupera esa prueba. En aquel corte, la publicación de fundaciones no completaba MVP-001-01 ni acreditaba revisión cruzada de Enzo; auditoría Mobile de 22 paquetes afectados (15 altos, 7 moderados) sigue pendiente. No se afirma aprobación nativa: el padre reportó RDD desactivado en el clon por excepción humana explícita, con modo global activado; los rechazos de contexto no crearon autoridad. En aquel corte, la verificación independiente reducida estaba completada; evaluación final, CI de publicación, revisión humana y entrega se registraron pendientes a cargo del padre, sin merge en ese corte. Ese estado histórico de publicación no sustituye la comprobación actual de la raíz integrada ni el cierre académico posterior con aprobación de Enzo reportada por el usuario, registrado arriba.
-
-**Proceso de asistencia — Documentado, pendiente de prueba en los hosts:** se incorporan las skills canónicas [DDA: Blazor/C#/API](../.agents/skills/ctc-dda-blazor/SKILL.md) y [DDM: React Native/Expo/NativeWind](../.agents/skills/ctc-ddm-mobile/SKILL.md), compartidas por Diego (Pi) y Enzo (Codex Desktop), manteniendo [flujo y UX comunes](../.agents/skills/ctc-project-conventions/SKILL.md). Sus mapas atribuyen las fuentes a extractos NotebookLM aportados por el usuario, sin inspección independiente de originales; distinguen conceptos enseñados, mencionados, exigidos por el proyecto y no verificados, con consulta al equipo antes de implementar extensiones no demostradas. [La tarea documental](../odd/tasks/course-grounded-skills.md) registra alcance y seguimiento; [la incorporación a los hosts](../.agents/skills/ctc-dda-blazor/references/uso-hosts.md) deja pendientes el smoke test de Pi tras `/reload` y el descubrimiento en Codex Desktop. Esto no acredita compatibilidad de versiones docentes, implementación, pruebas del producto ni finalización de MVP-001-01 u otra tarea del [backlog](tasks.json).
-
-**Mentoría opcional — Incorporación documental, hosts pendientes:** se añade [socratic-code-mentor](../.agents/skills/socratic-code-mentor/SKILL.md), una adaptación independiente de [inspiración y límites documentados](../.agents/skills/socratic-code-mentor/references/source.md), para pedidos explícitos de aprendizaje guiado. El usuario intenta la regla central y recibe explicaciones y pistas progresivas, con solución directa si la solicita; activar el modo no autoriza ediciones. No sustituye convenciones, backlog completo, pruebas de invariantes ni revisión cruzada. No acredita aprendizaje logrado, descubrimiento en Pi/Codex Desktop ni pruebas del producto; los smoke tests de hosts siguen pendientes.
-
-**Planificado:** verificar autorización por rol, emisión idempotente solo tras aprobación TEST verificada por la API (no por el cliente) y disponibilidad confirmada con hold vigente, bloqueo de otro pago ante resultado pendiente/desconocido aun vencido el hold y reintento tras rechazo definitivo dentro del plazo restante, liberación por vencimiento sin inferir rechazo y seguimiento de devolución por aprobación posterior al vencimiento, QR de un solo uso, consumo atómico de abonos, estados de carga/error y datos de ubicación vencidos o insuficientes. [RNF y evidencia esperada](reference/requirements.md#requisitos-no-funcionales) definen qué medir; faltan resultados. **Pendiente:** estrategia y herramientas de pruebas unitarias, integración y recorrido manual, matriz de casos y resultados con comando/fecha/entorno; control de versiones, ramas, revisión cruzada, registro de defectos, cambios y versiones entregables. No convertir criterios de aceptación en afirmaciones de pruebas exitosas. El [checklist de escenarios](explanation/data-model.md#escenarios-esperados-para-revisión-de-enzo) mantiene expectativas de diseño sin marcar: la aprobación conceptual conjunta reportada no acredita ejecución de esos casos ni pruebas del proveedor. **Verificado:** el workflow [Documentation validation](../.github/workflows/docs-validation.yml) terminó en `SUCCESS` en el [PR #4](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/4), luego mergeado. Ese resultado corresponde a la versión del backlog anterior a la migración. El workflow vigente comprueba la sintaxis de `docs/tasks.json` y los espacios del diff contra el commit base; su ejecución con la nueva ruta sigue pendiente. No valida semántica del backlog, renderizado Mermaid ni reemplaza la revisión cruzada de Enzo.
-
-### Sesiones e interfaces: avance local sin cierre funcional
-
-Registro del estado al 2026-10-19T20:49:54.752368-03:00, no fecha atribuida a la ejecución de cada prueba:
-
-- Verificación independiente de código API: `dotnet run --project tests/AuthenticationSessions/AuthenticationSessions.csproj --no-launch-profile -- --unit` → exit 0, 44/44; `dotnet run --project tests/AuthenticationContracts/AuthenticationContracts.csproj --no-launch-profile` → exit 0, 50/50; `dotnet run --project tests/MySqlPersistence/MySqlPersistence.csproj --no-launch-profile -- --unit` → exit 0, 17 PASS. Son unidades/dobles, no SQL ni endpoints públicos.
-- Builds API/Web → exit 0, cero advertencias/errores; comandos y límites en [sesiones API](how-to/api-session-checks.md). Diferencial efímero de DTOs sobre base `8f1e7e4235bfdc50a7fcc856386c570e9bf4dc44` y candidato: ambos probes exit 0, stderr vacío, 55 tuplas previas iguales; únicas adiciones intencionales `token` y `venceEnUtc`. Ningún test versionado lee historia Git.
-- Desde Mobile, `npm ci --ignore-scripts --no-audit --no-fund` → exit 0, 468 paquetes; warning de deprecación de uuid, sin versiones nuevas ni auditoría. Luego `npm run typecheck` → exit 0 observado por el agente. No prueba una pantalla de ingreso, Expo ni iPhone.
-- Ambos ejecutores de clientes fallaron sin resultados; inventario sin nuevas pantallas/servicios/tests Web/Mobile. Causa no informada, sin reintentos ni cambios externos. API existente preservada, sin commit/publicación.
-- Pendientes: SQL/proveedor real, rollback/concurrencia, durabilidad/reinicio/revocación, HTTP/HTTPS público, clientes y revisión de Enzo. No se declara login funcional ni cierre del backlog.
-
-### Clientes de ingreso: comprobaciones no integradas
-
-Registro al 2026-10-19T21:27:37.400474-03:00, sin atribuir esa hora a cada ejecución:
-
-- Web: revisión independiente parcial sin bloqueadores deterministas; `dotnet run --project tests/WebAuthentication/WebAuthentication.csproj --no-launch-profile` → exit 0, 63/63; build Web → exit 0, cero advertencias/errores; contratos → exit 0, 50/50. Fuente/copia e índice scoped coincidieron. El harness no acredita exhaustivamente todos los efectos juntos en cada rechazo.
-- Mobile: revisión independiente parcial sin bloqueadores deterministas; `node --test tests/MobileAuthentication/*.test.mjs` → 15/15, exit 0; `npm run typecheck` y `git diff --check` → exit 0. El cotejo final de inmutabilidad quedó sin completar por scratch ausente, causa desconocida; no se repitió ni se atribuyó defecto al producto.
-- El padre ejecutó además un seam check conjunto: Web63/63, Mobile15/15, typecheck y contratos50/50, exit 0. Node solo advirtió que el borrado de tipos es experimental. Guías: [Web](how-to/web-passenger-login.md) y [Mobile](how-to/mobile-passenger-login.md).
-- Pendientes: navegador/interactividad/circuito, teclado/accesibilidad/visual, comportamiento iPhone y TLS/redirects/cookies nativos, flujo real API/SQL, durabilidad/reinicio/revocación y revisión final de Enzo. No hay herramienta de navegador automatizado expuesta; no se instalaron herramientas ni cambiaron certificados/permisos.
-- Los scripts preparados siguen siendo propuestas sin ejecución del agente. Esquema/cuenta ficticia de demo en `berrutilocal` y conexión privada no están aprobados/comprobados como arranque funcional; no se presume ausencia de objetos ni se autoriza reset, otra base o DDL automático. No se completa MVP-001-03 ni el padre.
-
-### W1: ingreso Web exige HTTPS, integración real pendiente
-
-Corrección acotada de S5: [LimiteIngresoHttps.cs](../src/Web/Web-App/Web-App/Security/LimiteIngresoHttps.cs#L14-L24) rechaza HTTP en `/ingreso` antes de [redirección y Razor](../src/Web/Web-App/Web-App/Program.cs#L34-L40), sin bloquear las páginas hermanas ni el hub compartido. El escritor observó RED **71/75** (cuatro rechazos HTTP faltantes) y GREEN **75/75**: conserva 63 casos anteriores y agrega 12 comprobaciones W1. Las [pruebas W1](../tests/WebAuthentication/Program.cs#L164-L223) componen HttpsRedirectionMiddleware real sin puerto HTTPS en memoria; verifican 400/cuerpo/content-type/no-store exactos, ausencia de Location y de procesamiento del formulario, HTTPS una vez y forwarding HTTP de páginas/hub. El orden en Program.cs se comprueba estructuralmente, **no mediante HTTP público**.
-
-Resultado recibido del revisor independiente `mvfysj4e-i-7qx9`, scratch `web-w1-review.f51BKa`: WebAuthentication **75/75**, build Web `--no-restore --nologo` sin advertencias/errores y AuthenticationContracts **50/50**, todos exit 0 y stderr vacío; `git diff --check` exit 0 sin salida. Las cuatro copias versionadas W1 fueron byte-idénticas fuente/scratch antes y después, con índice scoped intacto. El padre también observó 75/75 y validó 44 destinos Markdown locales, fences/claves y diff checks unstaged/cached exit 0 (solo advertencias de normalización CRLF; anclas no comprobadas). La verificación independiente requerida por ASSESS item 2 está cumplida en el alcance implementado; `rdd_disabled` no es un bloqueo de entrega. No quedan correcciones de fuente ni se abre otra auditoría. No se repitieron Node/typecheck después de W1: Mobile 15/15 y typecheck conservan su evidencia histórica; el cotejo final de su scratch sigue sin recuperar ni reintentar.
-
-**Bloqueo externo, sin cierre:** siguen pendientes UI/accesibilidad, navegador/circuito, TLS confiable Web→API y navegador→Web, API/SQL reales, iPhone, reinicio, logout durable y revisión de Enzo. Desbloquear requiere revisión y preparación humana autorizada del entorno demo existente `berrutilocal`, esquema/cuenta ficticia y conexión privada, TLS y disponibilidad de dispositivo/revisión cruzada para observar el flujo completo. Tablas/datos/configuración privados actuales son desconocidos: no se presume una base vacía ni aprobación de preparación SQL, reset, otra base, grants, certificados o settings globales. [Guía Web](how-to/web-passenger-login.md), [tutorial](tutorials/first-local-run.md) y [direcciones de clientes](how-to/client-api-configuration.md) distinguen Web HTTPS 7054 y API HTTPS 7053, y las opciones consumidas `Api:BaseUrl`/`Api__BaseUrl`/`EXPO_PUBLIC_API_URL`; no acreditan certificados confiables. T3/T5 y MVP-001-03 quedan bloqueados, T1/T2 siguen bloqueados; ningún criterio ni tarea se declara terminado por estas unidades o por la reconciliación documental.
-
-**Reanudación T6 (2026-10-20T10:24:56.156429-03:00):** recuperados los [scripts y guía de demo](how-to/demo-passenger-setup.md) como propuestas no ejecutadas. El reporte humano «Está vacía» no es inventario SQL observado. Revisión estática independiente no disponible; el chequeo estructural propio falló por capturar texto CREATE en comentarios y no acredita un defecto del producto ni un PASS. Controles de whitespace exit 0. T6/MVP-001-03 bloqueados hasta revisión independiente/manual, sin ejecución SQL, finalización ni aprobación de Enzo. La preparación histórica en curso indicada arriba no implica estado actual activo.
-
-**Esquema demo observado (2026-10-20T11:08:20.226720-03:00):** el usuario creó las tres primeras tablas; tras autorización explícita, el agente creó únicamente `usuario_rol` y `sesion` con `berruti_app`, sin contraseña ni uso de `root`. Job-1 terminó exit 0 y cada sentencia SQL exit 0. Lecturas posteriores confirmaron las cinco tablas vacías, claves/restricciones revisadas y definiciones/filas/contadores previos sin cambios. No se ejecutó seed, DML, cambios de permisos ni configuración de credenciales. Se conserva el aviso genérico del cliente sobre contraseñas en CLI aunque se usó `--skip-password`. Esto actualiza los límites históricos anteriores: hay evidencia de DDL/readback local, pero no de proveedor, login, revocación/durabilidad, TLS, dispositivo o revisión de Enzo. La revisión independiente T6 continúa no disponible; MVP-001-03 permanece bloqueado. Evidencia y autorización: [registro L39–L40](../odd/tasks/mvp-001-03-passenger-auth.md).
-
-**Bootstrap demo observado (2026-10-20T11:18:45.097985-03:00):** tras elegir el usuario generación privada, job-4 terminó exit 0 y confirmó una cuenta activa `US-1` / `pasajero.demo@example.test`, rol `RO-1`/`Pasajero`, una membresía, dos contadores en 1 y cero sesiones. La contraseña ficticia se generó dentro de MySQL, sin seleccionarla ni mostrarla; permanece en texto plano solo bajo la excepción demo ya aprobada. Filas afectadas 2/1/1/1, paso 4 y postchecks correctos precedieron un COMMIT separado; conexión nueva verificó la persistencia del bootstrap. Worker detenido sin SQL, truncamiento del comando y discrepancia de representación DATE_ADD del preflight se registran separados; ninguno había alcanzado DML. La revisión independiente T6 sigue no disponible. **Integración aún bloqueada:** `berruti_app` no tiene contraseña y el guard de la API exige una no vacía; no se modificó cuenta ni guard. No prueba login, sesiones durables, autorización HTTP, TLS/iPhone o aprobación de Enzo. [Evidencia L41–L45](../odd/tasks/mvp-001-03-passenger-auth.md); el [backlog](tasks.json) conserva la autoridad y el estado bloqueado.
-
-**Preparación `.env` parcial (2026-10-20T11:49:06.641418-03:00):** existe un launcher opcional PowerShell con carga literal de una clave, restauración del entorno de proceso y diagnósticos constantes; no cambia el arranque nativo, perfiles ni guardias. El writer reportó RED 1/20 y resultado final 19/20 (exit 1, stderr vacío), con controles Git y sintaxis aprobados en su alcance. Falta el ejemplo vacío: su escritura/lectura quedó bloqueada por política de seguridad, sin elusión. Se requiere una decisión explícita sobre la plantilla pública; no se acredita GREEN completo ni revisión independiente. Ningún archivo privado real ni contraseña MySQL fue configurado en esta unidad. [T9/L46–L48](../odd/tasks/mvp-001-03-passenger-auth.md); estados y finalización siguen bajo autoridad del [backlog](tasks.json).
-
-**Mecanismo `.env` preparado y revisado (2026-10-20T12:09:55.135053-03:00):** la corrección autorizada usa [api-local-config.example.txt](../src/Api/API-Berruti/API-Berruti/api-local-config.example.txt), solo comentarios y clave vacía; el archivo denegado no se accedió ni reutilizó. El [launcher opcional](../scripts/start-api-local.ps1) y sus [pruebas públicas](../tests/ApiLocalEnv/check.ps1) pasaron 20/20 para writer, padre y revisor independiente. `mvgtg5fn-5-3jss`: harness exit 0/stderr vacío, diff-check exit 0 (solo aviso CRLF), diez fuentes SHA-256 y scoped index idénticos; S13/S5/S9 sin bloqueadores. El diff-check no cubre nuevos no indexados. Esto supera la falla histórica 19/20 documentada arriba, no acredita integración: no hubo `.env` real, contraseña MySQL nueva, dotnet/servidor real, SQL ni TLS en T9. [Guía de uso](how-to/api-session-checks.md#arranque-opcional-con-env-solo-api-powershell-51); [L49–L51](../odd/tasks/mvp-001-03-passenger-auth.md). Configurar una contraseña MySQL privada no vacía y la conexión API sigue pendiente de autorización específica; no desactivar el guard, usar `root` ni enviar secretos al chat. El [backlog](tasks.json) permanece bloqueado para el flujo completo.
-
-**Configuración privada detenida (2026-10-20T12:13:45.765521-03:00):** el usuario autorizó configurar la cuenta y conexión, pero la política bloqueó la escritura directa de `.env` incluso sin credenciales. Se detuvo antes de generar/cambiar contraseña o ejecutar SQL; no se modificó `root`, permisos ni guard. Se requiere un plan seguro explícito de configuración privada por la persona, sin acceso del agente al archivo denegado ni elusión por otras herramientas. El mecanismo T9 revisado permanece listo; no hay nueva evidencia de conexión API o login. [L52–L53](../odd/tasks/mvp-001-03-passenger-auth.md).
-
-**Evidencia local posterior, sin cierre académico (registro 2026-10-27T23:09:14-03:00):** actualiza los pendientes históricos anteriores sin alterar sus resultados ni los estados del [backlog](tasks.json). La persona creó el `.env` privado y reportó arranque API Development HTTPS7053/HTTP5095; el agente no leyó configuración privada ni contraseñas. El padre comprobó en fuente que el launcher acepta ese archivo sin registrar secretos e inició Web HTTPS7054 usando solo la dirección pública `Api__BaseUrl` hacia HTTPS7053. El usuario informó cierre accidental de VSCode y reinicio de API; no se estableció el momento exacto del reinicio respecto del ingreso exitoso.
-
-- **API HTTPS observada por el padre:** curl8.12.1/Schannel con validación TLS normal, sin bypass: GET `/openapi/v1.json` → 200; GET `/api/autenticacion/identidad`, `/prueba-pasajero` y `/prueba-administrador` sin credenciales → 401 cada uno. POST `/api/autenticacion/ingreso` con credenciales inválidas SINTÉTICAS → 401, `codigo` = `ingresoRechazado`, `mensaje` exacto `No se pudo ingresar con las credenciales proporcionadas.` Todos los curl exit 0. La lectura del servicio/repositorio por el padre confirmó una consulta EF anterior al rechazo: evidencia de funcionamiento de esa ruta de consulta a BD, no de permisos con token válido ni 403.
-- **Web funcional independiente:** resultado entregado por `gentle-ai-verify`, tarea `mvrh3nth-1-0eyc`, ego lite `taskSpace2/p1`. Contraseña de pasajero aportada privadamente por el usuario, nunca leída ni impresa; un ingreso mostró `Consultando la API…` y después `Sesión confirmada por la API.`, con campo de contraseña vacío tras enviar. Después del aviso de reinicio seguía visible la sesión confirmada y no había controles visibles de reconexión; no demuestra supervivencia de la sesión en el servidor. Un logout mostró `Sesión cerrada en el servidor.` y volvió el botón de ingreso. Demuestra el camino positivo Web real y carga/éxito/acuse de logout visibles, no rechazo del token anterior ni revocación durable. El navegador no exponía controles para operaciones protegidas. `finish({keep:[]})` una vez; skill CLI una vez y nodejs6 mediante heredocs Bash, límites de 30 segundos; sin cambios del verificador en código/configuración/SQL/secretos ni reinicios.
-
-### Matriz local posterior de permisos y revocación inmediata
-
-> **Mecanismo anterior (FIN-005).** Este resultado corresponde al token opaco con revocación; con JWT sin estado el rechazo del token tras la salida ya no existe y esta matriz no acredita el JWT.
-
-**Evidencia independiente entregada (registro 2026-10-27T23:30:01-03:00):** continuación `gentle-ai-verify` `mvrhvpx1-4-zlh6`, preparación `mvrhkzbx-3-l5o2`, ego lite `space3/p1` sobre `https://localhost:7053`: **7/7 PASS**. Actualiza únicamente los pendientes históricos de identidad/roles autenticados, 403 y rechazo inmediato del token anterior; los párrafos previos conservan su carácter histórico.
-
-| Secuencia observada | Resultado comprobado |
-| --- | --- |
-| GET `/api/autenticacion/prueba-pasajero` sin token | 401, cuerpo vacío, no-store, challenge Bearer PASS. |
-| POST `/api/autenticacion/ingreso` válido | 200, forma JSON esperada, no-store PASS. |
-| GET `/api/autenticacion/identidad` con token | 200, misma identidad pública/roles esperados, JSON, no-store PASS. |
-| GET `/api/autenticacion/prueba-pasajero` con token | 200, identidad esperada, JSON, no-store PASS. |
-| GET `/api/autenticacion/prueba-administrador` con el mismo token | 403, cuerpo vacío, no-store PASS. |
-| POST `/api/autenticacion/salida` con el mismo token | 204, cuerpo vacío, no-store PASS. |
-| GET `/api/autenticacion/prueba-pasajero` con el MISMO token anterior | 401, cuerpo vacío, no-store, challenge Bearer PASS. |
-
-Un clic, un ingreso y una salida, sin reintentos, limpieza extra ni nuevo ingreso entre logout y 401 final. La persona ingresó privadamente la contraseña; el token quedó en una variable local del handler, reutilizada tras salir, nunca leído ni impreso por el agente. `passwordEmpty=true` y botón terminal deshabilitado confirmados dentro de 20 segundos; comandos CLI de reanudar/inspeccionar, clic/espera/resultado y finalizar exitosos, cada uno ≤30 segundos. `finish({keep:[]})` exactamente una vez, `space3` cerrado. Sin ediciones de fuente del verificador. El [panel diagnóstico temporal](../odd/browser-checks/20261027/api-permissions-panel.mjs), creado por el padre sin secretos literales, se instaló solo en el DOM del origen API: no es UI de la aplicación ni código de producción. `node --check` pasó antes de instalarlo; el fallo previo de parseo del heredoc no tuvo efectos de autenticación. Fuente de producto/configuración intactas no significa ausencia de archivos nuevos.
-
-La decisión que revirtió la postergación fue, literalmente: 'dale vamos con eso. Ademas fijate que quedo corriendo un jobs  que creo que es de ego lite'. El padre identificó el job-1 propio como Web HTTPS, no ego lite, y lo detuvo; dejó intacta la API de la persona. Memoria no disponible por sesión terminada; procedencia segura conservada en [L58–L61](../odd/tasks/mvp-001-03-passenger-auth.md).
-
-**Pendientes vigentes:** durabilidad/reinicio/revocación durable, vencimiento exacto, fallos/reintento, Mobile/iPhone, pruebas SQL con estados frescos independientes y revisión de Enzo. La matriz no prueba invariancia de BD/contadores, concurrencia ni otras sesiones. No se declaran todos los S2–S5 cumplidos ni se infiere aprobación de Enzo. [L54–L61](../odd/tasks/mvp-001-03-passenger-auth.md) registra la procedencia entregada; esta actualización documental no ejecuta pruebas nuevas. Specs, estados de tareas y backlog se conservan, sin cierre académico. No cambia la aptitud para producción: demo local ficticia, sin autorización de despliegue ni usuarios reales.
-
-### Ajuste acotado del estado HTTP de errores de autenticación
-
-Por decisión explícita del usuario («usamos 500 por 503»), el `catch` general de [LimiteAutenticacion.cs](../src/Api/API-Berruti/API-Berruti/Security/Authentication/LimiteAutenticacion.cs) responde `500` ante fallos inesperados, incluidos proveedor/configuración, sin cambiar guardias, autorización ni respuestas `400/401/403`. Conserva el JSON `{"codigo":"autenticacionNoDisponible","mensaje":"La autenticación no está disponible. Intentá nuevamente."}` y `Cache-Control: no-store`; la [prueba final del middleware](../tests/AuthenticationSessions/Program.cs) exige los tres. El padre reportó RED exit 1, 43/44, únicamente por esa nueva expectativa. En esta continuación, `dotnet run --project tests/AuthenticationSessions/AuthenticationSessions.csproj --no-launch-profile -- --unit` y `dotnet run --project tests/AuthenticationContracts/AuthenticationContracts.csproj --no-launch-profile` terminaron exit 1 antes de ejecutar comprobaciones: MSB3027/MSB3021, ejecutable API bloqueado por el proceso `API-Berruti (20900)`. No se acredita GREEN ni se detuvo ese proceso o repitieron comandos. Regresiones observadas: `dotnet run --project tests/WebAuthentication/WebAuthentication.csproj --no-launch-profile` exit 0, 75/75; `node --test tests/MobileAuthentication/*.test.mjs` exit 0, 15/15 (advertencia experimental de borrado de tipos). Se conservan los escenarios cliente de `503` y `500`. No hubo pruebas nuevas de servidor/SQL/TLS ni cambios del backlog. La evaluación de revisión del padre fue no evaluable por archivos preexistentes sin seguimiento; no constituye revisión independiente ni aprobación.
-
-**Verificación posterior autorizada:** tras confirmar el padre que detuvo `API-Berruti (20900)` con autorización explícita del usuario, se ejecutó una vez cada comando: `dotnet run --project tests/AuthenticationSessions/AuthenticationSessions.csproj --no-launch-profile -- --unit` → exit 0, **44/44 PASS**, incluida la excepción privada convertida en `500` con JSON exacto y `no-store`; `dotnet run --project tests/AuthenticationContracts/AuthenticationContracts.csproj --no-launch-profile` → exit 0, **50/50 PASS**. Salidas sin errores ni advertencias. Este GREEN supera el bloqueo de compilación anterior, cuya evidencia se conserva; son comprobaciones unitarias/en memoria y de contratos, no HTTP público, SQL real, durabilidad ni revocación MySQL. No se repitieron Web/Mobile ni la evaluación de revisión, ni se modificó código o backlog.
-
-### Verificación actual para preparar la publicación
-
-**Observación de publicación del padre: 2026-10-28T10:17:59-03:00**, no fecha histórica de ejecución de pruebas. Se registran siete commits locales encadenados desde `feat/mvp-001-03-passenger-auth`, base `8f1e7e4235bfdc50a7fcc856386c570e9bf4dc44`: persistencia `f4727dc`, contratos `91e8d2c`, sesiones API `6daaf95`, Web `79d8975`, Mobile `f291386`, preparación demo `1527642` y configuración local `44464d4`. Mapa completo de ramas y procedencia en [L62–L64](../odd/tasks/mvp-001-03-passenger-auth.md). Se reutiliza la aprobación `auto-chain`/`feature-branch-chain`; tras una pasada de organización, los cortes cohesivos de 901/824/618/607 líneas conservan pruebas y documentación completas, sin división forzada. Slice08 de evidencia final pendiente, sin auto-hash; todavía sin push. No se autorizaron PR, merge ni despliegue.
-
-**Nota posterior de publicación (reporte del padre, registro documental 2026-10-28T11:18:29-03:00):** la publicación anterior sí se completó, con 14 refs remotas verificadas y slice08 de autenticación `7c7abc9`; supera el «todavía sin push» de la observación histórica anterior. El nuevo diagnóstico `4d35b5898ee4927808fd0ebd59edd8b8a3175e71`, su bookkeeping `318ea56` y la evidencia runtime actual permanecen **locales**. Esta reconciliación no realiza nuevo push, PR, merge ni despliegue, ni verifica remotos de nuevo.
-
-**Verificación independiente recibida:** `mvs4tbx3-2-ybb9`, reporte recuperado `mvs50b0d-5-72o3`; cada comando existente una vez en el worktree:
-
-| Comando | Resultado observado |
-| --- | --- |
-| `dotnet run --project tests/AuthenticationSessions/AuthenticationSessions.csproj --no-launch-profile -- --unit` | Exit 0, 44/44. |
-| `dotnet run --project tests/AuthenticationContracts/AuthenticationContracts.csproj --no-launch-profile` | Exit 0, 50/50. |
-| `dotnet run --project tests/MySqlPersistence/MySqlPersistence.csproj --no-launch-profile -- --unit` | Exit 0, 17 PASS; sin MySQL. |
-| `dotnet run --project tests/WebAuthentication/WebAuthentication.csproj --no-launch-profile` | Exit 0, 75/75. |
-| `node --test tests/MobileAuthentication/*.test.mjs` | Exit 0, 15/15. |
-| `npm --prefix src/Mobile run typecheck` | Exit 0, tsc sin diagnósticos. |
-
-Solo se capturaron streams combinados: no se afirma stderr independientemente vacío. Única advertencia Node: `stripTypeScriptTypes` experimental. Inspección estática de autenticación/custodia/concurrencia y escaneo de secretos de 76 archivos públicos sin bloqueadores concretos ni secretos reales en las fuentes revisadas; no es certificación integral de seguridad ni auditoría de historia Git. Seam check Mobile del padre una vez: 15/15, exit 0.
-
-**Higiene recibida:** worker `mvs4xoed-4-sws5`, `powershell -NoProfile -File tests/ApiLocalEnv/check.ps1` → exit 0, 20/20, solo datos sintéticos. Nueva exclusión de fixtures generados: comprobación estructural RED check-ignore exit 1 → GREEN exit 0; readback/check-ignore del padre exit 0. `git diff HEAD --check` final del padre exit 0 tras retirar tres espacios finales del constructor AuthenticationController, sin semántica modificada. Esta actualización documental no repite pruebas/builds, procesos, SQL ni navegador; conserva los resultados históricos anteriores.
-
-**MVP-001-03 sigue incompleto y bloqueado:** faltan SQL normal/frontera/concurrencia/rollback con estados frescos independientes, reinicio/revocación durable, vencimiento integrado y fallos/reintento, Mobile/iPhone y revisión cruzada de Enzo. El Web/API real 7/7 previo sigue siendo evidencia histórica válida, no reejecutada ni prueba de esos pendientes. No cambia ningún estado ni criterio del [backlog](tasks.json); finalización null. Solo demo local ficticia, con excepción temporal aprobada de contraseñas en texto plano y su riesgo explícito; sin usuarios reales ni despliegue.
-
-### Diagnóstico de durabilidad: preparación histórica, antes de la ejecución real
-
-> **Obsoleto desde FIN-005.** No hay sesión en MySQL que sobreviva a reinicios ni se revoque; ver la [guía](how-to/api-session-durability-checks.md).
-
-El usuario postergó iPhone y autorizó un diagnóstico temporal con dos reinicios **manuales** de la API. La [guía operativa](how-to/api-session-durability-checks.md) conserva el mismo token solo en el cierre de funciones del navegador: ingreso/pasajero 200, pausa, mismo token 200 y salida 204, segunda pausa, mismo token anterior 401. No cambia aplicación, esquema, configuración ni la política de siete días. Pulsar continuar no demuestra el reinicio; hacen falta ambas confirmaciones humanas externas.
-
-El escritor reportó RED conductual 11/22, GREEN inicial 22/22, un timeout de 30 segundos al ampliar el harness y, tras su corrección, 33/33 PASS. Se conserva ese timeout como comprobación histórica fallida. La revisión del padre detectó un correo ficticio mal transcripto; una corrección acotada reprodujo RED 0/1 por el payload y GREEN 33/33, usando `pasajero.demo@example.test`, sin intentar ingreso real ni modificar cuentas. Ambas comprobaciones de sintaxis pasaron. El padre ejecutó una sola comprobación focalizada de token revocado después de la segunda pausa: 1/1 PASS, exit 0. Son DOM/fetch sintéticos, no reinicios ni MySQL reales. La revisión independiente `mvs63jzf-b-7ioc` encontró S5/S6/S9/S15/S16 conformes en ese alcance y ningún bloqueador: suite 33/33 exit 0, cuatro comprobaciones de sintaxis exit 0 y cinco fuentes SHA-256 idénticas antes/después. La matriz histórica permanece sin cambios y los cinco enlaces de la guía resuelven. Su diff-check sobre archivos nuevos no indexados no cubría whitespace; posteriormente el padre comprobó todo el corte indexado con `git diff --cached --check`, exit 0 (avisos de normalización LF/CRLF al indexar). No es aprobación de privacidad del navegador real ni de durabilidad integrada.
-
-La comprobación HTTPS de disponibilidad del padre (`curl` a OpenAPI, sin credenciales, con validación TLS normal) terminó exit 7, estado HTTP 000: conexión rechazada en localhost:7053. No se reintentó ni arrancó un servidor. La ejecución real espera arranque humano de API, contraseña privada y los dos reinicios autorizados. No se completa ningún criterio o estado del backlog; iPhone y revisión de Enzo siguen pendientes. La matriz inmediata histórica permanece intacta.
-
-### Durabilidad local observada tras dos reinicios de API
-
-> **Mecanismo anterior (FIN-005).** La supervivencia y la revocación observadas pertenecen a la sesión opaca retirada; no se trasladan al JWT.
-
-**Registro documental 2026-10-28T11:18:29-03:00**, no timestamp de cada
-solicitud. Evidencia operativa del padre en [L65–L78](../odd/tasks/mvp-001-03-passenger-auth.md),
-no verificación independiente en vivo ni ejecución de este escritor. Supera solo
-los pendientes históricos de reinicio/supervivencia y revocación de esta sesión;
-la conexión rechazada y los resultados de preparación anteriores se conservan.
-Tras el reporte humano de API disponible, job-8 observó HTTPS OpenAPI200/curl0.
-
-La autorización inicial manual fue reemplazada explícitamente por «Sí,
-automatizá los clics y los dos reinicios», solo para esta API localhost:7053,
-sin MySQL, grants ni certificados. «no para te paso la contraseña y la podes
-usar vos» detuvo toda operación; «listo ahi esta» permitió continuar tras la
-entrada privada, sin comunicar ni leer la contraseña. El padre operó el panel
-ya revisado y solo obtuvo estados/booleanos sanitizados, nunca token, payload,
-respuesta cruda ni valores de configuración privada.
-
-Secuencia real: **POST ingreso200 → GET pasajero200 → reinicio18564→20708 →
-MISMO token GET pasajero200 → POST salida204 → reinicio20708→400 → MISMO token
-anterior GET pasajero401**. Cinco solicitudes auth, un ingreso y una salida;
-JSON/identidad/roles/no-store en los éxitos, salida vacía/no-store y rechazo
-vacío/no-store/Bearer, comprobados dentro del panel. La
-[tabla de resultados y procesos](how-to/api-session-durability-checks.md#resultado-local-observado-dos-reemplazos-reales-de-proceso)
-conserva los detalles: parada1 confirmada a 2026-10-28T11:09:34.0203225-03:00,
-nuevo PID20708 iniciado a 2026-10-28T11:09:42.7753433-03:00; parada2 a
-2026-10-28T11:13:16.7025366-03:00, nuevo PID400 iniciado a
-2026-10-28T11:13:23.8899390-03:00. Se revalidó propietario de 7053,
-API-Berruti/ruta del worktree/hora de inicio antes de cada parada; salida,
-puerto cerrado y procesos nuevos se observaron fuera del panel. No es una
-inferencia por clics ni una afirmación falsa de reinicios humanos.
-
-Misma taskSpace1/p1, sin reinstalación, recarga, nuevo ingreso, refresh, retry o
-limpieza extra. Job-11/14 exit0 llegaron a pausa1/pausa2; job-17 exit0 terminó
-`terminal-conditional-success`, acciones y contraseña deshabilitadas. La prueba
-externa resuelve la condición de reinicio del diagnóstico, aunque sus etiquetas
-originales digan «manual». `task.finish({keep:[]})` fue aguardado exactamente
-una vez y el espacio se cerró sin operaciones Page posteriores. La API quedó
-restaurada/corriendo en job-15/PID400; no se autoriza una tercera parada.
-Fuente de aplicación y diagnóstico sin cambios durante esta prueba.
-
-**Incidencias auxiliares, no fallos de autenticación:** job-13 terminó exit1/curl23
-con HTTP200 por el destino `/dev/null` incorrecto en Python/Windows (nativo:
-`os.devnull` = `nul`), sin repetir esa solicitud. Job-16 tuvo curl0/HTTPS200
-observado a 2026-10-28T11:13:30.798805-03:00, pero helper exit1 y SyntaxWarning
-por escape de ruta Windows (`\\C`); metadatos faltantes obtenidos por PowerShell
-local sin nuevo HTTP/auth, PID400 observado a 11:15:27.9614649-03:00. No se
-presentan esos helpers como aprobados íntegramente. Job-12 exit127 fue la
-consecuencia del apagado intencional de su hijo API en el segundo ciclo.
-
-**Alcance y pendientes actuales:** S5–S6/S9/S15–S16, T13: supervivencia y
-revocación de esta sesión tras dos reinicios reales de API acreditadas por el
-padre. No prueba reinicio de MySQL Server, seguridad de disco, otras sesiones,
-invariancia DB/contadores ni seguridad integral de producción. Siguen pendientes
-SQL fresco normal/frontera/concurrencia/rollback, vencimiento y fallos/reintento
-integrados, Mobile/iPhone (postergado explícitamente por el usuario) y revisión
-cruzada de Enzo. MVP-001-03 sigue `blocked`, finalización null, sin criterio
-académico declarado completo; excepción local ficticia de contraseña en texto
-plano y prohibición de usuarios reales/despliegue intactas. Esta actualización
-solo reconcilia documentos: sin pruebas/builds/browser/red/SQL/procesos nuevos.
-
-### Inspección automática MySQL preparada, sin conexión real
-
-El usuario autorizó un modo `--inspect` en el runner existente para evitar copiar consultas de Workbench. La [guía de pruebas MySQL](how-to/mysql-persistence-checks.md#inspección-automática-de-solo-lectura-t15) documenta la conexión restringida a `berruti_test`/`berrutiauthtests`, identidad/base reales, consultas fijas, transacción de solo lectura, rollback y cierre. Solo informa metadatos acotados y conteos/agregados conocidos; omite filas de cuentas/sesiones, secretos, defaults, comentarios y cuerpos SQL. No crea tablas, carga semillas, cambia permisos ni valida por sí solo compatibilidad completa del DDL o invariantes.
-
-Verificación sintética recibida del escritor: RED conductual del helper (13 fallos) y CLI (5 fallos/1 PASS), luego GREEN **15/15 helper**, **6/6 grupos CLI** y **17 PASS legados**, todos exit 0. La revisión independiente `mvslr285-g-ta02` confirmó 15/15 y 6/6 (incluida regresión de los 17 PASS), siete fuentes SHA-256 intactas y ningún bloqueador concreto en S9/S10/S17/S18. Streams externos combinados, no stderr externo independientemente vacío. El padre observó 15/15 ejecutando el probe compilado y una comparación diferencial aislada contra `90b772f`: códigos/stdout/stderr de modos anteriores conservados; para combinaciones inválidas con `--inspect`, solo cambia la ayuda solicitada. No se conectó a MySQL en esas pruebas.
-
-Se conservan los fallos anteriores: compilación MSB3027/MSB3021 por el ejecutable API PID400 en uso y corrección `UseAppHost=false` ineficaz (retirada); el usuario autorizó una parada adicional y restauración de esa API. Tras liberar el bloqueo se observó el RED/GREEN real. Hubo un 4/6 intermedio de CLI por decodificación OEM850, corregido únicamente en el consumidor sintético. La verificación inicial de identidad del scratch diferencial falló por LF/CRLF; su contenido normalizado coincidió y solo se retiró ese scratch generado. No se borraron datos de usuario ni se ocultaron fallos funcionales.
-
-La configuración privada de pruebas todavía no existe según la comprobación de presencia del padre; su contenido no se leyó. La inspección real, el escenario normal y la frontera siguen pendientes de esa preparación y de revisar la fixture. La API permanece detenida durante este snapshot, con restauración obligatoria inmediatamente después de las verificaciones; no se autoriza desplegar ni cerrar el MVP. iPhone, demás pruebas SQL/integración y revisión de Enzo siguen pendientes.
-
-**Actualización posterior del snapshot, sin nueva verificación:** según memoria839 recuperada por el padre y sus observaciones previas, después del commit `0d50559b72be3ccd49cf3584191abe838c26fee0` el launcher existente inició job-19; job-20 obtuvo HTTPS OpenAPI HTTP200/curl exit0 a las `2026-10-28T18:17:21.165682-03:00`. PowerShell confirmó API-Berruti PID10712 (inicio `2026-10-28T18:17:17.1420702-03:00`) y ejecutable/ruta del worktree esperado a las `2026-10-28T18:19:12.9890261-03:00`. T16/S19 quedó cumplida. Luego el usuario pidió «corta aca me tengo que ir guarda en memoria lo que tenes que hacer y en que estabas» y detuvo job-19 tras 7m13s: esa decisión sustituye el estado corriendo. La reanudación «volvi, continuemos.» no autoriza reiniciar: la API debe permanecer apagada por elección humana, sin reabrir T16. Se conserva el snapshot anterior como historia; no se consultaron nuevamente procesos ni red ni se afirma su estado efectivo actual. Procedencia en [L95](../odd/tasks/mvp-001-03-passenger-auth.md). La inspección MySQL real sigue esperando configuración privada preparada por la persona y revisión de la fixture; no necesita la API encendida. No acredita inspección ni PASS normal/frontera, nuevas pruebas o aprobación de revisión; backlog intacto, MVP bloqueado y sin cierre académico.
-
-**Evidencia posterior real y preparación T18/S20:** el padre ejecutó una vez el inspector compilado, job-1 exit0/INSPECT_EXIT=0 en 3 segundos ([L96–L98](../odd/tasks/mvp-001-03-passenger-auth.md)), con conexión privada e identidad/base reales aceptadas por sus guardias, sin leer secretos. Observó cuatro tablas InnoDB con conteos 0, sin contadores ni `sesion` (ausencia aceptable para T1), pero la PK de `usuario_rol` contiene solo `usuario_id`, no la pareja esperada. CREATE canónico y mapeo EF ya son correctos; no se atribuye causa. Exit0 acredita inspección, no compatibilidad completa del DDL (longitudes VARCHAR/semántica CHECK no verificadas) ni pruebas normal/frontera. El usuario aprobó únicamente preparar [un parche manual administrativo](../scripts/database/repair-auth-tests-membership-primary-key.sql), con puertas humanas frescas y postchecks; no se ejecutó. La [guía T1](how-to/mysql-persistence-checks.md#hallazgo-real-y-corrección-manual-acotada-t18s20) conserva el bloqueo de semillas/escenarios hasta revisión, ejecución humana y posterior inspección. MVP-001-03 sigue `blocked`, finalización null, sin aprobación de Enzo ni cierre académico; sin cambios de API/despliegue/permisos/demo, API apagada por elección humana. Los fallos y snapshots anteriores se conservan como historia.
-
-**Actualización de autorización S21, sin ejecución:** el usuario informó que agregó `ALTER` en la base a `berruti_test` y autorizó una corrección puntual por el agente con la configuración privada existente; no se verificó el permiso ni se ejecutó el cambio. Una consulta acotada de viabilidad detectó que DML+ALTER limitados a la base no acreditan visibilidad completa de referencias entrantes desde otros esquemas: `INFORMATION_SCHEMA` filtra por privilegios. La puerta administrativa ya prevista sigue pendiente de evidencia fresca con cobertura completa y de exclusión de otros escritores; no se rebajó ni se usó `root`, ni se añadieron permisos por el agente. T18 y los escenarios SQL permanecen bloqueados; no se creó un ejecutor ni se cambió el inspector de lectura. Evidencia y distinción autorización/prueba en [L101–L102](../odd/tasks/mvp-001-03-passenger-auth.md); regla de visibilidad en el [manual MySQL](https://dev.mysql.com/doc/refman/8.0/en/information-schema-introduction.html).
-
-### Preparación aislada de administrador: núcleo revisado según reporte, conexión real pendiente
-
-Evidencia de mw4611zb-o-utgu y lectura del padre de cinco archivos nuevos, no
-reejecutada aquí: tests/DemoAdministratorPreparation, 347 líneas (248 sin README),
-consola net10 sin paquetes/referencias a proyectos. Puerto tipado IContextoSintetico
-solo Falso; sin adaptador/configuración privada/SQL/EF/CLI de alta real ni cambios
-API/aplicación. Rótulos lógicos no acreditan identidad/destino MySQL efectivos.
-RED compilable31/55 y0/55, exit1/stderr vacío; intermedio48/55 por fixtures/call counts
-corregidos sin debilitar núcleo; GREEN55/55 exacto/stderr vacío, build limpio y
-CLI3/3 (ocho procesos), exit0 reportado. Whitespace sin errores, avisos LF→CRLF.
-Los55 casos/snapshots públicos modelan guards, reutilización/alta de rol, contadores,
-fallos parciales y duplicados; no atomicidad global ni prueba SQL/concurrencia/seguridad.
-Posible rol/RO durable tras fallo de usuario, sin compensación/reset/reintento ciego.
-ASSESS nuevo: riesgo alto ítem2, no evaluable nativamente/untracked/RDD off; exige
-verificación independiente, no es aprobación. T4 done solo implementación/autocheck;
-T5/T3 siguen abiertos por adaptador/custodia/prepostchecks reales. El usuario
-informó «Reviso enzo. Me dijo que todo perfecto.» sobre el núcleo aislado:
-visto bueno reportado, sin comandos/resultados de reejecución independiente.
-No se extiende a un adaptador real inexistente ni al cierre académico. Verificador no disponible no reintentado.
-Cuenta no creada, API/Web detenidos, Ego2 finalizado; sin staging/commits/cierre MVP
-ni cambios del backlog. [Contrato, evidencia y pendientes](../tests/DemoAdministratorPreparation/README.md);
-[seguimiento L11–L16](../odd/tasks/mvp-001-05-admin-auth.md).
-
-Precontrol posterior reportado por la persona: contadores RO-=1 y US-=1, sin fila
-de rol Administrador. RO-2/US-2 serían los siguientes solo si el estado no cambia
-y se cumplen los controles restantes; no están reservados ni asignados. No hubo
-escritura ni alta. La conexión real/custodia privada aún se está definiendo para
-revisión; estos resultados no prueban identidad efectiva ni conservación SQL.
-
-### Alta administrativa: intentos, alta confirmada y recorrido en navegador
-
-La ruta consola/adaptador quedó apartada: el usuario operará Workbench. Aclaró
-«osea era eso, ya hicimos la verificacion tecnica con el profe»: revisión del SQL
-reportada, no solo aprobación visual; no repetirla ni atribuirla a Enzo. Borrador `scripts/database/review-demo-admin-creation.sql` (eliminado en FIN-005 por escribir una contraseña legible),124 líneas,
-SHA256 `0bfffae686eaa2c2ecf7051fe0214862ba3db784ca5643dee8c75a79faa1abbc`.
-Todo comentario, cero SQL al Run All, sin COMMIT ejecutable/DDL/grants/reset/delete.
-Una transacción manual con locks RO→US y cinco mutaciones/checkpoints; distinta de
-las dos de CuentasRepository/modelo sintético55 casos, cuyo visto bueno no se extiende.
-Control estático inicial exit1: regex confundió filename con DDL, resto omitido;
-corrección del padre exit0 completó asserts/regresiones. Diff no-index exit1 ambiguo,
-solo aviso LF→CRLF; chequeo textual del padre PASS. Esos controles no prueban
-sintaxis/MySQL/rollback ni preservación real. Reporte humano: berruti_app@localhost/berrutilocal,
-3306/autocommit1/versión26.7.0, MySQL Community Server - GPL; cinco tablas InnoDB.
-Screenshot administrativo root@localhost/solo lectura confirmó triggers0, distinto
-del conteo app filtrable. Comparación estructural de cinco SHOW CREATE sin diferencias
-semánticas de columnas/claves/expresiones, no prueba funcional CHECK. Después de
-«dale segui», el usuario reportó TX/precontroles, sesiones5, validaciones1,1 y
-«perfecto la guarde» para custodia privada; agentes no recibieron secretos. ROW_COUNT
-reportados1,1,1: incrementos RO/US e INSERT rol. INSERT usuario instruido pero estado
-DESCONOCIDO; membresía no instruida/confirmada, sin postchecks/COMMIT reportados.
-Tras la pausa, ROLLBACK sin error reportado mediante «si»; no repetirlo. Retorno:
-«dale sigamos dale». Proyecciones públicas posrollback reportadas coinciden con
-baseline (RO/US1, pasajero/membresía1, sin admin correo/rol, sesiones5); resuelven
-la incertidumbre pública durable del cuarto INSERT, no campos privados/filas de sesión.
-Tercer intento ([L30](../odd/tasks/mvp-001-05-admin-auth.md)), reportado por el usuario:
-una reconexión de Workbench descartó una transacción sin DML; ROW_COUNT() en ejecución
-separada dio 0 y se reemplazó por controles de estado; un UPDATE accidental dejó el hueco
-RO-2, aceptado sin reparación. Transacción final con controles en 1 y COMMIT OK; lectura
-desde conexión nueva: US-2 admin.demo@example.test activo con RO-3 Administrador y
-pasajero US-1/RO-1 preservado. T5 done.
-Flujo real en navegador ([L31](../odd/tasks/mvp-001-05-admin-auth.md)), observado por el agente con contraseñas
-tipeadas por el usuario: administrador autorizado por la API y cierre confirmado en
-servidor; pasajero (contraseña restablecida por el usuario) denegado por la API; sin
-sesión 401. Límites: no se reutilizó el token revocado ni se probaron en navegador los
-estados de fallo de S4. Revisión cruzada de Enzo conforme según reporte del usuario:
-T3 y MVP-001-05 done ([L35](../odd/tasks/mvp-001-05-admin-auth.md)).
-ASSESS es plan, no aprobación; verifier no disponible no repetido ni gate único.
-T3 bloqueado, revisión cruzada académica no dispensada; ver [L22–L24](../odd/tasks/mvp-001-05-admin-auth.md).
-T6 done solo autoría/autocheck; alta durable reportada por el usuario en L30 (campos privados no
-validados byte a byte; el agente no observó la base), sin cierre académico,
-API/Web parados, Ego2 finalizado. [Pausa y estado L25–L27](../odd/tasks/mvp-001-05-admin-auth.md). [Evidencia y puertas L19–L21](../odd/tasks/mvp-001-05-admin-auth.md).
-
-## 8. Riesgos, puesta en marcha y cierre
-
-| Tema | Estado | Seguimiento |
+| **Hora que define el vencimiento del hold.** La API compara la hora en que verifica el pago, no la de aprobación en Mercado Pago: quien paga a tiempo pero vuelve tarde recibe una devolución. | **Decisión pendiente** del equipo; figura en el [PR #130](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/130). |
+| **JWT sin revocación.** Un token robado o un cambio de rol siguen surtiendo efecto hasta los 7 días. | Riesgo aceptado por Diego; reducir la vigencia o revocar exige otra decisión. |
+| **Rechazo con hold vigente sin recorrido real.** | Cubierto solo por pruebas automáticas. |
+| **Mobile sin recorrido real de compra.** | No ejecutado el 2026-11-19. |
+| **Recorrido HTTPS/MySQL del JWT.** | Pendiente de verificación integrada. |
+| **Avisos de `npm audit` en dependencias de Mobile.** | Sin remediar; la auditoría es histórica y hay que repetirla. |
+| **Pagos TEST ≠ producción.** | No se verificó nada contra cobros reales ni se autoriza hacerlo. |
+
+### Próximos pasos
+
+| Tarea | Qué falta | Depende de |
 | --- | --- | --- |
-| Consigna y alcance | **Pendiente** | Contrastar propuesta con consigna oficial; conservar decisiones y dudas de [MVP](explanation/mvp.md). |
-| Integración web/móvil/API | **Planificado** | Probar contratos comunes temprano y evitar duplicación de reglas. |
-| Concurrencia y seguridad | **Planificado** | Probar validaciones simultáneas y autorización, sin exponer datos en QR. |
-| Cámara y conectividad | **Pendiente** | Validar dispositivo/Expo y resultados cuando no hay red. |
-| Ubicación académica | **Planificado** | Marcar antigüedad y precisión limitada; no atribuir telemetría oficial. |
-| Implantación y soporte | **Pendiente** | Plan de instalación, configuración, demostración, monitoreo, rollback y soporte; nada desplegado se presume. |
+| MVP-004 y FIN-005 | Cerrar en el backlog con la evidencia y la revisión cruzada. | — |
+| **MVP-005** | Visualización del QR y validación de ticket por el cobrador, con consumo atómico. | MVP-004 |
+| **MVP-006** | Abonos con saldos independientes. | MVP-002, MVP-005 |
+| **MVP-007** | Ver [`tasks.json`](tasks.json). | MVP-002, MVP-004, MVP-006 |
+| **MVP-008** | Ver [`tasks.json`](tasks.json). | MVP-005, MVP-006, MVP-007 |
+| **FIN-013** | Invalidar los tickets de una compra cuyo pago fue devuelto (decisión de Diego del 2026-11-19). | MVP-004, MVP-005 |
+| FIN-002, FIN-003, FIN-004, FIN-007, FIN-009 | Configuraciones de vehículos, disponibilidad por intervalo, selección web de asientos y mejoras en Mobile. | Ver [`tasks.json`](tasks.json). |
 
-**Conclusiones — Pendiente:** redactar al cierre con logros medidos, limitaciones, desvíos, aprendizaje y trabajo futuro. **Bibliografía — Pendiente:** reunir consigna, material docente, documentación técnica con versión/fecha y fuentes utilizadas; diferenciar referencias de evidencia de ejecución.
+No hay fecha final confirmada en este informe.
 
-## 9. Mantenimiento y preparación de entrega
+## 9. Proceso del equipo y mantenimiento
 
-Tras un cambio importante en requisitos, arquitectura, tecnología, tareas del proyecto completadas, pruebas, despliegue, riesgos, cronograma o equipo, revisar esta síntesis y actualizar estados y evidencia; la regla operativa figura en [AGENTS.md](../AGENTS.md). Mantener enlaces a fuentes canónicas y ampliar secciones solo con información comprobable. Antes de exportar a Word: reconciliar alcance y backlog, completar pendientes o declararlos como limitaciones, verificar enlaces y citas, y revisar formato/tablas en el documento convertido. El archivo Markdown sigue siendo la fuente de verdad. El control automático propuesto en [§7](#7-calidad-pruebas-y-gestión-de-configuración) no acredita por sí solo la entrega: quedan pendientes el resultado del check del PR y la revisión humana.
-
-
-**Navegación documental — Corte Diataxis:** el [README](../README.md) orienta por propósito hacia tutorial, guías prácticas, referencia y explicación; [AGENTS](../AGENTS.md#navegación-documental-y-uso-por-agentes) añade la ruta de lectura sin sustituir skills ni salvaguardas. Backlog e informe conservan autoridad y rutas canónicas. El [registro de guías](../odd/tasks/documentation-guides-delivery.md) separa controles documentales propios de verificación independiente, CI y revisión humana pendientes; no acredita nueva ejecución funcional ni finalización académica.
+- **Equipo:** Diego y Enzo. Cada tarea tiene responsable y revisor; Diego revisa las tareas de Enzo y viceversa.
+- **Backlog:** [`tasks.json`](tasks.json) es la única fuente de estados. Las tareas grandes se descomponen en hijos con `parentId`; el padre se cierra solo cuando todos sus hijos y sus criterios originales están cumplidos. Una tarea `done` no se reabre.
+- **Flujo:** una rama por tarea, un PR por rama, revisión cruzada sobre el PR y pruebas automáticas obligatorias para autorización, pagos, QR, abonos y concurrencia. El resto se verifica con un recorrido manual descrito en el PR.
+- **Convenciones de código:** las [skills del proyecto](../.agents/skills/ctc-project-conventions/SKILL.md) fijan las reglas de Blazor, C# y React Native del curso.
+- **Este informe:** se actualiza una vez por semana, con los cambios importantes y enlaces a sus PR, sin copiar evidencia. La versión Word se genera después.
+- **Para la entrega:** la matriz de trazabilidad, las alternativas tecnológicas descartadas con su justificación y la factibilidad económica y legal siguen **pendientes**.

@@ -1,25 +1,45 @@
 # Preparar verificaciones de compra MVP-004
 
-Esta guía separa evidencia local ya observada de pruebas futuras que requieren una base aislada o una operación real de Checkout Pro TEST. **No ejecutes los pasos de escritura sin autorización explícita para ese destino.** Ningún paso de esta guía autoriza usar producción.
+Esta guía tiene dos partes: la [receta de punta a punta](#mercado-pago-test-de-punta-a-punta) con Mercado Pago TEST y su base local descartable, y la evidencia y los pasos de la suite MySQL aislada. Ningún paso de esta guía autoriza usar producción ni cobros reales.
 
 ## Estado de evidencia
 
-- **Observado, offline/fake:** PaymentContracts 269/269; API build sin errores; WebPurchase 164/164 y build Web sin advertencias/errores; MobilePurchase 14/14 y `npm run typecheck` exit 0. Son harnesses deterministas, no prueban una base MySQL, HTTP integrado ni Checkout Pro real.
+- **Observado, offline/fake:** PaymentContracts 269/269; API build sin errores; WebPurchase 164/164 y build Web sin advertencias/errores; MobilePurchase 14/14 y `npm run typecheck` exit 0. Son suites deterministas, no prueban una base MySQL, HTTP integrado ni Checkout Pro real.
 - **Observado, MySQL local:** con autorización limitada a `berruticomprastests` en loopback:3306 y el usuario no-root `berruti_purchase_test`, `--prepare --allow-test-db-writes` terminó con exit 0 y 12 PASS; luego `--run --allow-test-db-writes` terminó con exit 0 y 40 PASS. La preparación aplicó migraciones versionadas y seed; la suite ejercitó persistencia real. Las filas y asientos ocupados se conservaron; no se hizo reset ni limpieza.
-- **Límites aún pendientes:** órdenes de pago controladas por DTO; no hubo llamadas a Mercado Pago ni confirmación de devolución por el proveedor. Siguen pendientes transacción real de Checkout Pro TEST, recorrido API/Web/Mobile, render/UI y revisión humana cruzada. La evidencia previa de harnesses offline/fake no se presenta como prueba de proveedor ni de UI integrada.
+- **Observado, E2E real Web + API + MySQL local + Checkout Pro TEST (2026-11-19, [PR #130](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/130)):** compra aprobada con 2 tickets; verificación tardía (después del vencimiento del hold) que termina en devolución; orden sin pagar cancelada al vencer el hold. Detalle en la [receta](#mercado-pago-test-de-punta-a-punta).
+- **Límites:** la suite MySQL usa órdenes controladas por DTO y no llama a Mercado Pago. El rechazo definitivo (`OTHE`) no se pudo forzar en el E2E. La compra desde Mobile no se ejecutó en ese E2E.
 
-## Bloqueos para ejecución real
+## Mercado Pago TEST de punta a punta
 
-- `ConfiguracionAutenticacion.ValidarConexion` permite `PurchaseTests/berruticomprastests/berruti_purchase_test` solo en loopback:3306, además de los dos pares existentes. La DB y la cuenta deben crearse externamente por un DBA; el harness nunca las crea.
+Receta para alguien que nunca lo hizo. Usa solo cuentas de prueba y la base local descartable; no hay cobros reales. Nunca pegues el token en chat, logs, capturas ni `EXPO_PUBLIC_*`.
+
+1. **Cuentas de prueba.** En el panel de desarrolladores de Mercado Pago (país Uruguay) creá dos cuentas de prueba: una **vendedora** y una **compradora**. Guardá sus usuarios y contraseñas en un lugar privado.
+2. **Aplicación.** Con la sesión iniciada como la cuenta de prueba **vendedora**, creá una aplicación de tipo Checkout Pro y copiá su access token de prueba (empieza con `APP_USR-`).
+3. **Id del vendedor.** `MercadoPago__ExpectedSellerId` debe ser el id de usuario del dueño del token (la vendedora). La API consulta `/users/me` con el token y exige que el id coincida, que el usuario tenga la etiqueta `test_user` y que el sitio sea `MLU`.
+4. **`.env` privado de la API.** En `src/Api/API-Berruti/API-Berruti/.env`, junto a `ConnectionStrings__Berruti` y `Jwt__Key`, agregá `MercadoPago__AccessToken`, `MercadoPago__ExpectedSellerId`, `MercadoPago__ExpectedSiteId=MLU` y `MercadoPago__TestCredentialOriginConfirmed=true`. Sin comillas ni `;` final; `scripts/start-api-local.ps1` las acepta.
+5. **Base.** Con las cuentas MySQL y el permiso DDL de [bases locales](local-auth-database.md), ejecutá `scripts/reset-local-db.ps1`. Pide una contraseña ficticia para las cuentas demo ([detalle](local-database-reset.md)).
+6. **API.** Ejecutá `scripts/start-api-local.ps1` (HTTPS, `https://localhost:7053`).
+7. **Web.** En otra terminal, desde `src/Web/Web-App`, definí `Api__BaseUrl=https://localhost:7053/` y arrancá con el perfil `https` (ver el [tutorial](../tutorials/first-local-run.md#demo-completa)). Las compras requieren HTTPS.
+8. **Comprar.** Ingresá como `pasajero.demo@example.test`, buscá Ombúes → Colonia para mañana, aceptá la cotización y elegí comprar. La API devuelve el enlace de Checkout Pro.
+9. **Pagar.** Abrí ese enlace en una ventana de incógnito con la sesión de la cuenta de prueba **compradora** (nunca la vendedora). Pagá con una tarjeta de prueba de Mercado Pago y titular `APRO`, dentro de los 15 minutos del hold.
+10. **Verificar.** Volvé a la pestaña de la Web y presioná **Verificar pago**. Una compra aprobada muestra la compra y sus tickets.
+
+Con la sesión de Mercado Pago iniciada, el checkout puede no pedir el nombre del titular; en ese caso no se puede forzar un rechazo (`OTHE`).
+
+**Observado en el E2E real del 2026-11-19** ([PR #130](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/130)): compra aprobada con 2 tickets; verificación tardía (hold vencido) que terminó en devolución; orden sin pagar cancelada al vencer el hold. El rechazo definitivo no se observó, y la compra desde Mobile no se ejecutó en ese E2E.
+
+## Bloqueos para la suite MySQL aislada
+
+- `ConfiguracionAutenticacion.ValidarConexion` permite `PurchaseTests/berruticomprastests/berruti_purchase_test` solo en loopback:3306, además de los dos pares existentes. La DB y la cuenta deben crearse externamente por un DBA; la suite nunca las crea.
 - `--prepare --allow-test-db-writes` requiere una base vacía (cero tablas, incluida la historia de migraciones), aplica migraciones versionadas y siembra un pasajero de prueba más el escenario operativo existente. Si falla a mitad, no limpia ni reintenta: detente y pide revisión DBA. `scripts/reset-local-db.ps1` sigue siendo destructivo y no debe usarse.
 - La preparación lee `DemoSeed__Contrasena` solo tras opt-in. El flujo académico actual guarda y compara literalmente la contraseña; usa un valor de prueba desechable, nunca una contraseña real. No se imprime la contraseña; solo subject público e IDs de servicio.
 - Para API, configura `ConnectionStrings__Berruti` en el proceso y usa `ASPNETCORE_ENVIRONMENT=PurchaseTests` con el listener HTTPS existente; el arranque normal no migra ni siembra. Web usa InteractiveServer, así que sus llamadas al API son server-side y no requieren CORS de navegador. El listener/certificado TLS no se validó. El túnel Cloudflare para Mobile requiere autorización separada.
 
-## Harness MySQL: solo con fixture aislado autorizado
+## Suite MySQL: solo con fixture aislado autorizado
 
 El modo `--run` no migra, crea esquema, reinicia ni limpia datos. Una corrida autorizada escribe compras, pagos, tickets y asientos y los conserva; no se debe repetir sobre el mismo fixture. El modo separado `--prepare` solo aplica migraciones/seed tras opt-in explícito, provisión DBA previa y confirmación de base vacía. Si encuentra tablas o falla a mitad, rehúsa y no borra datos.
 
-La corrida autorizada usó una DB y usuario previamente provisionados; la preparación comprobó cero tablas, aplicó migraciones versionadas y reutilizó el seed/escenario existente. La salida segura de preparación se pasó privadamente al proceso de prueba; no se guardan aquí IDs de fixture. El harness no crea DB/usuario ni imprime contraseña desechable, conexión, token o QR. Esa DB ahora contiene resultados retenidos: los comandos de abajo describen el flujo para una futura DB nueva, no una invitación a repetirlo en el fixture usado.
+La corrida autorizada usó una DB y usuario previamente provisionados; la preparación comprobó cero tablas, aplicó migraciones versionadas y reutilizó el seed/escenario existente. La salida segura de preparación se pasó privadamente al proceso de prueba; no se guardan aquí IDs de fixture. La suite no crea DB/usuario ni imprime contraseña desechable, conexión, token o QR. Esa DB ahora contiene resultados retenidos: los comandos de abajo describen el flujo para una futura DB nueva, no una invitación a repetirlo en el fixture usado.
 
 La preparación lee `BERUTI_MYSQL_PURCHASE_TEST_CONNECTION` y `DemoSeed__Contrasena` solo después de ambos flags. El modo `--run` también requiere `BERUTI_MYSQL_PURCHASE_TEST_PASSENGER_SUBJECT`, `BERUTI_MYSQL_PURCHASE_TEST_SERVICE_NO_SEAT` y `BERUTI_MYSQL_PURCHASE_TEST_SERVICE_ASSIGNED`, configurados privadamente desde la salida segura. No leas valores de `.env` ni los pegues en comandos, documentación o chat. La conexión debe coincidir con la tupla exacta de API para `PurchaseTests` en loopback:3306.
 
@@ -41,7 +61,7 @@ Luego configura privadamente los tres valores públicos impresos. La verificaci�
 dotnet run --no-restore --project tests/MySqlPurchase/MySqlPurchase.csproj -- --run --allow-test-db-writes
 ```
 
-El harness ejecutado cubre aprobación con dos tickets (un tramo sin asiento y otro asignado), idempotencia concurrente del mismo pago, asignación concurrente sin colisión/reuso de asiento confirmado, estado desconocido y rechazo con reintento dentro del hold original, aprobación tardía con devolución pendiente/rollback de contadores y fallo inyectado con rollback. Los órdenes son DTOs controlados: la prueba **no llama a Mercado Pago** ni demuestra que el proveedor haya completado una devolución. La ejecución observada fue `--prepare --allow-test-db-writes` (exit 0, 12 PASS) seguida por `--run --allow-test-db-writes` (exit 0, 40 PASS). Las filas y asientos ocupados permanecen; el fixture ya no es fresco y el guard debe rechazar un nuevo prepare. No repitas la suite sobre esta DB.
+La suite ejecutada cubre aprobación con dos tickets (un tramo sin asiento y otro asignado), idempotencia concurrente del mismo pago, asignación concurrente sin colisión/reuso de asiento confirmado, estado desconocido y rechazo con reintento dentro del hold original, aprobación tardía con devolución pendiente/rollback de contadores y fallo inyectado con rollback. Los órdenes son DTOs controlados: la prueba **no llama a Mercado Pago** ni demuestra que el proveedor haya completado una devolución. La ejecución observada fue `--prepare --allow-test-db-writes` (exit 0, 12 PASS) seguida por `--run --allow-test-db-writes` (exit 0, 40 PASS). Las filas y asientos ocupados permanecen; el fixture ya no es fresco y el guard debe rechazar un nuevo prepare. No repitas la suite sobre esta DB.
 
 | Escenario por verificar | Resultado requerido | Evidencia disponible / pendiente |
 | --- | --- | --- |
@@ -91,9 +111,9 @@ ORDER BY ti.orden;
 
 Para revisar solapamientos confirmados, el conteo debe ser cero cuando se comparen tickets de compras distintas con la misma salida y asiento, usando el intervalo estricto `a.orden_embarque < b.orden_desembarque AND b.orden_embarque < a.orden_desembarque`. No filtres tickets ya confirmados según el vencimiento del hold: la ocupación confirmada no desaparece al vencerlo. La suite MySQL observó la protección de asientos confirmados incluso tras vencer el hold; esta consulta opcional de solo lectura no se ejecutó.
 
-## Checkout Pro TEST y clientes
+## Checkout Pro TEST y clientes (entorno aislado `PurchaseTests`)
 
-Es un recorrido separado del harness MySQL y requiere autorización futura. Además de `ConnectionStrings__Berruti`, configura la credencial `MercadoPago__AccessToken`, la confirmación humana `MercadoPago__TestCredentialOriginConfirmed=true` y los valores esperados `MercadoPago__ExpectedSellerId`/`MercadoPago__ExpectedSiteId`, previamente verificados en el panel de TEST. Las cuatro claves `MercadoPago__*` pueden ir en el mismo `.env` privado de la API (preferido; `scripts/start-api-local.ps1` las acepta como opcionales, una vez cada una, sin comillas, y no imprime sus valores) o como variables `$env:` de la terminal; si una clave falta en el `.env`, se conserva la variable de terminal. `scripts/reset-local-db.ps1` las ignora. La API valida cada operación con el endpoint de identidad; un prefijo del token no acredita TEST. No uses el token disponible cuyo origen no está confirmado. Para la pareja aislada, configura `Api__BaseUrl` del Web como `https://localhost:7053` y arranca sin el perfil Development usando el listener HTTPS existente:
+Es un recorrido separado de la suite MySQL. Además de `ConnectionStrings__Berruti`, configura la credencial `MercadoPago__AccessToken`, la confirmación humana `MercadoPago__TestCredentialOriginConfirmed=true` y los valores esperados `MercadoPago__ExpectedSellerId`/`MercadoPago__ExpectedSiteId`, previamente verificados en el panel de TEST. Las cuatro claves `MercadoPago__*` pueden ir en el mismo `.env` privado de la API (preferido; `scripts/start-api-local.ps1` las acepta como opcionales, una vez cada una, sin comillas, y no imprime sus valores) o como variables `$env:` de la terminal; si una clave falta en el `.env`, se conserva la variable de terminal. `scripts/reset-local-db.ps1` las ignora. La API valida cada operación con el endpoint de identidad; un prefijo del token no acredita TEST. No uses el token disponible cuyo origen no está confirmado. Para la pareja aislada, configura `Api__BaseUrl` del Web como `https://localhost:7053` y arranca sin el perfil Development usando el listener HTTPS existente:
 
 ```powershell
 $env:ASPNETCORE_ENVIRONMENT = 'PurchaseTests'
@@ -104,7 +124,7 @@ El puerto HTTPS proviene del perfil existente; este comando futuro no fue ejecut
 
 En cada cliente, busca el itinerario de dos tramos, acepta explícitamente la cotización vigente, abre solo la URL HTTPS devuelta por la API y luego sincroniza el mismo intento. No crees otro intento/pago para resolver un resultado pendiente o desconocido. Confirma que el estado proviene de una respuesta autoritativa de la API, que la aprobación emite una compra con dos tickets distintos y el asiento esperado, y que rechazo/desconocido no emite tickets. Para aprobación tardía, confirma `DevolucionPendiente` y ausencia de compra/tickets; una solicitud de devolución no demuestra que el proveedor la completó.
 
-El entorno TEST puede comunicarse con el proveedor y persistir cambios: requiere autorización separada, usuario de prueba y medios de pago de prueba indicados por el proveedor. No se ejecutó esta prueba ni una UI/E2E. La confirmación/visualización de QR, wallet y escaneo quedan en MVP-005.
+El entorno TEST se comunica con el proveedor y persiste cambios: usá solo cuentas y medios de pago de prueba del proveedor. La confirmación/visualización de QR, wallet y escaneo quedan en MVP-005.
 
 ## Referencias
 

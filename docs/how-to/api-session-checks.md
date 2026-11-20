@@ -58,11 +58,11 @@ El guard exige servidor `localhost`, `127.0.0.1` o `::1`, puerto 3306 y contrase
 | `Development` | `berruti_app` / `berrutilocal` |
 | `AuthenticationTests` (modo aislado explícito) | `berruti_test` / `berrutiauthtests` |
 
-Otros entornos/pares, `root`, remotos y falta de configuración fallan cerrados. Los usuarios deben mantener únicamente DML sobre su propia base, según la revisión humana de [aprovisionamiento](local-auth-database.md); el guard de conexión no demuestra sus grants. T6 prepara una [propuesta manual separada de esquema y pasajero demo](demo-passenger-setup.md), sin ejecución autorizada por este documento. El usuario reportó `berrutilocal` vacía; versión, inventario y definiciones requieren confirmación humana. La API puede responder `500` ante fallos inesperados de proveedor/configuración mientras no cuente con esquema/cuenta y configuración privada preparados, revisados y comprobados. Nunca crear automáticamente esquema, migraciones o cuentas en startup. Se suprimen diagnósticos EF que podrían exponer excepciones del proveedor; el límite de auth devuelve solo error genérico.
+Otros entornos/pares, `root`, remotos y falta de configuración fallan cerrados. Los usuarios deben mantener únicamente DML sobre su propia base, según la revisión humana de [aprovisionamiento](local-auth-database.md); el guard de conexión no demuestra sus grants. T6 prepara una [propuesta manual separada de esquema y pasajero demo](../archive/demo-passenger-setup.md), sin ejecución autorizada por este documento. El usuario reportó `berrutilocal` vacía; versión, inventario y definiciones requieren confirmación humana. La API puede responder `500` ante fallos inesperados de proveedor/configuración mientras no cuente con esquema/cuenta y configuración privada preparados, revisados y comprobados. Nunca crear automáticamente esquema, migraciones o cuentas en startup. Se suprimen diagnósticos EF que podrían exponer excepciones del proveedor; el límite de auth devuelve solo error genérico.
 
 ## Esquema para revisión humana, no ejecutado
 
-Los scripts de [fundación](../../scripts/database/create-auth-foundation.sql) y sesiones descritos aquí son **solo de pruebas**, nunca para demo. La [propuesta T6 para la demo existente](demo-passenger-setup.md) usa archivos separados, no reprovisiona bases/cuentas y requiere revisión/ejecución manual por una persona, una sentencia por vez; nada se ejecutó por el agente.
+Los scripts de [fundación](../../scripts/database/create-auth-foundation.sql) y sesiones descritos aquí son **solo de pruebas**, nunca para demo. La [propuesta T6 para la demo existente](../archive/demo-passenger-setup.md) usa archivos separados, no reprovisiona bases/cuentas y requiere revisión/ejecución manual por una persona, una sentencia por vez; nada se ejecutó por el agente.
 
 La fundación incorpora `usuario.identificador_publico`, aleatorio estable, diferente de `US-n` y del token. Su restricción UNIQUE no admite colisiones. Si existe una fundación anterior sin ese campo, **detenerse**: no se puede asumir compatibilidad, aplicar ALTER, resetear contadores ni reutilizar fixtures a ciegas. Solicitar revisión administrativa sin compartir contraseñas.
 
@@ -102,4 +102,4 @@ Consultar rutas exactas/status en [API](../reference/api.md). No usar HTTP para 
 
 ## Durabilidad y revocación: ya no aplican
 
-Con JWT sin estado no hay sesión en MySQL que sobreviva o se revoque: un token firmado sigue válido tras reiniciar la API (misma clave) y hasta `exp`. La [guía anterior de durabilidad](api-session-durability-checks.md) se conserva como historial del mecanismo retirado y no es una comprobación vigente.
+Con JWT sin estado no hay sesión en MySQL que sobreviva o se revoque: un token firmado sigue válido tras reiniciar la API (misma clave) y hasta `exp`. La [guía anterior de durabilidad](../archive/api-session-durability-checks.md) se conserva como historial del mecanismo retirado y no es una comprobación vigente.

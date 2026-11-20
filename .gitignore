@@ -20,3 +20,12 @@
 .vs/
 *.csproj.user
 /.local/demo-password.dpapi
+
+# Higiene del repositorio
+**/.env
+**/.env.*
+!**/*.example.txt
+.playwright-cli/
+*.tmp
+coverage/
+TestResults/

@@ -46,7 +46,7 @@ Decisiones de Diego del 2026-11-18 en el chat de trabajo de FIN-005 (el [backlog
 | JWT, sin OpenIddict ni Identity, 7 días, contrato mantenido, logout sin estado, riesgo aceptado | Decisión | Diego, 2026-11-18, FIN-005 |
 | Emisión, validación, hash y salida `204` sin estado | Implementado en fuente | Archivos enlazados arriba |
 | Clientes: forma del token y textos de cierre sin afirmar revocación | Observado por quien redactó esta documentación | `dotnet run --project tests/WebAuthentication/WebAuthentication.csproj --no-launch-profile` → 177/177; `node --test tests/MobileAuthentication/*.test.mjs` → 26/26; `npm run typecheck` en `src/Mobile` → sin errores |
-| Pruebas API (`tests/AuthenticationSessions` 64/64, `tests/DemoAdministratorPreparation` 55/55, `tests/ApiLocalEnv` 32/32) | Reportado por el coordinador (FIN-005, L8); no repetido al redactar esto | PR de FIN-005 |
+| Pruebas API (`tests/AuthenticationSessions` 64/64, `tests/DemoAdministratorPreparation` 55/55, `tests/ApiLocalEnv` 32/32) | Reportado durante FIN-005; no repetido al redactar esto | PR de FIN-005 |
 | Recorrido real HTTPS/MySQL contra la API con JWT; `--mysql` de `tests/MySqlPersistence` | **Pendiente**: no ejecutado | — |
 
 Las pruebas automatizadas protegen los invariantes de autorización; este texto no las sustituye. Ver [rutas](api.md) y [comprobaciones](../how-to/api-session-checks.md).
@@ -114,7 +114,7 @@ Un DTO no produce este wire por sí solo. `JsonSerializer.Serialize(dto)` indepe
 
 ## Evidencia histórica por candidato
 
-- **Candidato español anterior con constantes string:** el escritor observó RED de validación (ocho fallos esperados), GREEN nueve PASS y JSON doce PASS. La verificación independiente recibida del coordinador confirmó GREEN, JSON, builds/typecheck/convenciones/backlog/whitespace; no reprodujo RED. Su harness fue eliminado por el coordinador y se confirmó ausencia. Es evidencia histórica, no verificación del nuevo enum.
+- **Candidato español anterior con constantes string:** el escritor observó RED de validación (ocho fallos esperados), GREEN nueve PASS y JSON doce PASS. La verificación independiente confirmó GREEN, JSON, builds/typecheck/convenciones/backlog/whitespace; no reprodujo RED. Su arnés fue eliminado y se confirmó su ausencia. Es evidencia histórica, no verificación del nuevo enum.
 - **Candidato enum actual, observación del escritor:** antes del conversor, RED JSON exit 1, cinco fallos de veinte aserciones: salida numérica, roundtrip de textos, aceptación de números definidos/no definidos y serialización de enum no definido. Después del conversor: GREEN exit 0, veinte PASS. Validación sin cambios: nueve PASS. Builds API/Web, typecheck Mobile, convenciones y `git diff --check` pasan. Comprobación Python antes/después: JSON válido y huella idéntica del backlog excluyendo solo evidence de MVP-001-02, preservando otros 18 registros y todos los campos de estado/metadatos; huella de Mobile idéntica. Comandos de ejecución en [informe §7](../project-report.md#contratos-pasivos-mvp-001-02).
 - **Verificación independiente:** JSON20 y validación9 PASS; builds API/Web, typecheck, convenciones, whitespace y backlog exit 0. RED5 permanece como evidencia del escritor. Revisión de Enzo pendiente. No se comprobó login, HTTP, UI, sesión o autorización.
 
@@ -128,18 +128,18 @@ dotnet run --project tests/AuthenticationContracts/AuthenticationContracts.cspro
 
 El proyecto consola usa los proyectos reales API/Web y no agrega paquetes de pruebas. Comprueba la adaptación deliberada a cuatro campos de éxito (los anteriores más dos strings), defaults vacíos de los nuevos campos, clases públicas propias, ausencia de Shared y de dependencias entre aplicaciones, nombres de roles, campos y tipos JSON exactos, roundtrip, defaults, rechazos de enums y validaciones con sus mensajes originales en ambas aplicaciones. Compara con las opciones web y el conversor cuyo registro coteja en el código de API; no ejecuta su entrypoint, HTTP, UI ni autenticación. Devuelve exit 1 y mensajes `FAIL` por stderr si falla alguna comprobación; exit 0 si pasan todas. No requiere cuentas, base de datos ni servidores.
 
-## Receta histórica del harness aislado
+## Receta histórica de la suite aislada
 
-Esta receta documenta las pruebas del corte anterior con Shared. No es un comando vigente para el árbol actual: el harness externo fue eliminado y su referencia al proyecto compartido ya no existe. Usar la comprobación anterior para este corte, sin recrear recursos externos.
+Esta receta documenta las pruebas del corte anterior con Shared. No es un comando vigente para el árbol actual: la suite externa fue eliminada y su referencia al proyecto compartido ya no existe. Usar la comprobación anterior para este corte, sin recrear recursos externos.
 
-Se recreó `D:/CTC/Semestre-4/mvp-001-02-contracts-harness/` solo tras comprobar que no existía. Inventario propio: `Harness.csproj`, `Program.cs`, outputs `bin/` y `obj/`; el coordinador eliminó únicamente esos archivos generados tras verificar el inventario y la ausencia de enlaces simbólicos; confirmó que la carpeta ya no existe. La receta requiere recrearla para repetir las pruebas. Es consola `net10.0` sin paquetes, con `FrameworkReference` a `Microsoft.AspNetCore.App` y `ProjectReference` a Shared. No inicia un servidor.
+Se recreó `<carpeta-externa>/` solo tras comprobar que no existía. Inventario propio: `Suite.csproj`, `Program.cs`, outputs `bin/` y `obj/`; se eliminaron únicamente esos archivos generados tras verificar el inventario y la ausencia de enlaces simbólicos; confirmó que la carpeta ya no existe. La receta requiere recrearla para repetir las pruebas. Es consola `net10.0` sin paquetes, con `FrameworkReference` a `Microsoft.AspNetCore.App` y `ProjectReference` a Shared. No inicia un servidor.
 
 ```sh
-dotnet run --project D:/CTC/Semestre-4/mvp-001-02-contracts-harness/Harness.csproj -- json
-dotnet run --project D:/CTC/Semestre-4/mvp-001-02-contracts-harness/Harness.csproj -- validacion
+dotnet run --project <carpeta-externa>/Suite.csproj -- json
+dotnet run --project <carpeta-externa>/Suite.csproj -- validacion
 ```
 
-**Opciones sometidas a prueba:** crear `ServiceCollection`, agregar logging y registrar `AddControllers().AddJsonOptions(...)` con el mismo cuerpo que la API. Resolver `IOptions<Microsoft.AspNetCore.Mvc.JsonOptions>.Value.JsonSerializerOptions` del proveedor. Cotejar el bloque completo del registro con la fuente API, normalizando solo CRLF/LF. El harness reproduce el registro y resuelve opciones MVC reales en memoria; no carga el entrypoint API ni ejecuta HTTP. Antes del conversor se cotejó y utilizó `AddControllers()` solo.
+**Opciones sometidas a prueba:** crear `ServiceCollection`, agregar logging y registrar `AddControllers().AddJsonOptions(...)` con el mismo cuerpo que la API. Resolver `IOptions<Microsoft.AspNetCore.Mvc.JsonOptions>.Value.JsonSerializerOptions` del proveedor. Cotejar el bloque completo del registro con la fuente API, normalizando solo CRLF/LF. La suite reproduce el registro y resuelve opciones MVC reales en memoria; no carga el entrypoint API ni ejecuta HTTP. Antes del conversor se cotejó y utilizó `AddControllers()` solo.
 
 **Veinte aserciones JSON completas:** cada aserción debe acumular PASS/FAIL real y terminar con exit 1 si alguna falla, no solo imprimir etiquetas.
 

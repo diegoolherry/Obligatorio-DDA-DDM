@@ -1,6 +1,8 @@
 # Preparar el pasajero ficticio de demo para revisión manual
 
-> **Procedimiento retirado por FIN-005 (historial).** El seed `seed-auth-demo-passenger.sql` se eliminó porque guardaba la contraseña en texto plano y el esquema vigente ya no tiene la tabla `sesion`. Hoy las cuentas demo (pasajero, cobrador y administrador) las crea `.\scripts\reset-local-db.ps1`, con la contraseña guardada solo como hash de `IPasswordHasher<Usuario>`; ver [recrear la base local](local-database-reset.md). Una cuenta demo con contraseña legible no autentica: no se migra, se recrea. Lo que sigue es el registro del procedimiento anterior, no instrucciones vigentes.
+> Archivado: guía retirada que se conserva como historial. No describe el procedimiento vigente; para el arranque actual, seguí el [tutorial](../tutorials/first-local-run.md).
+
+> **Procedimiento retirado por FIN-005 (historial).** El seed `seed-auth-demo-passenger.sql` se eliminó porque guardaba la contraseña en texto plano y el esquema vigente ya no tiene la tabla `sesion`. Hoy las cuentas demo (pasajero, cobrador y administrador) las crea `.\scripts\reset-local-db.ps1`, con la contraseña guardada solo como hash de `IPasswordHasher<Usuario>`; ver [recrear la base local](../how-to/local-database-reset.md). Una cuenta demo con contraseña legible no autentica: no se migra, se recrea. Lo que sigue es el registro del procedimiento anterior, no instrucciones vigentes.
 
 ## Evidencia posterior de la demo existente
 
@@ -31,7 +33,7 @@ Ambos son propuestas nuevas; los scripts [foundation](../../scripts/database/cre
 
 ## 1. Revisar metadatos, sin escribir
 
-Con API y otros escritores/administradores detenidos, una persona debe revisar una conexión administrativa local autorizada. Confirmar identidad/servidor y que los permisos de `berruti_app` siguen siendo únicamente SELECT/INSERT/UPDATE/DELETE sobre su propia base; `USAGE` no implica privilegios globales. No ampliar permisos si falla una consulta. La inspección de grants no demuestra aislamiento funcional; ver [aprovisionamiento histórico y límites](local-auth-database.md).
+Con API y otros escritores/administradores detenidos, una persona debe revisar una conexión administrativa local autorizada. Confirmar identidad/servidor y que los permisos de `berruti_app` siguen siendo únicamente SELECT/INSERT/UPDATE/DELETE sobre su propia base; `USAGE` no implica privilegios globales. No ampliar permisos si falla una consulta. La inspección de grants no demuestra aislamiento funcional; ver [aprovisionamiento histórico y límites](../how-to/local-auth-database.md).
 
 Seleccionar **solo `SELECT VERSION();`** de create-auth-demo y ejecutar esa sentencia. Requerir MySQL auténtico **8.0.16 o posterior**, con CHECK efectivos. Otra variante/producto o versión no revisada: detenerse, no inferir compatibilidad. Después seleccionar solo el inventario completo de `information_schema.TABLES` del mismo archivo. Debe devolver **cero filas**, incluidas vistas; un error de permisos no significa vacío. Ante cualquier objeto existente/inesperado, detenerse y pedir revisión: no reutilizar, reparar ni resetear.
 
@@ -74,8 +76,8 @@ Una ejecución accidental del archivo entero **no está aprobada ni se declara s
 
 ## 5. Configuración e integración posteriores, aún pendientes
 
-La API consume privadamente `ConnectionStrings:Berruti` / `ConnectionStrings__Berruti`. En Development el par permitido es `berruti_app` / `berrutilocal`, servidor local (`localhost`, `127.0.0.1` o `::1`), puerto 3306; no usar root. Ver [guard/configuración y matriz pendiente](api-session-checks.md). No escribir `.env`, archivos de configuración ni secretos en este procedimiento; la persona conserva los valores fuera del chat/repositorio/logs. La contraseña MySQL es distinta de la contraseña ficticia del pasajero.
+La API consume privadamente `ConnectionStrings:Berruti` / `ConnectionStrings__Berruti`. En Development el par permitido es `berruti_app` / `berrutilocal`, servidor local (`localhost`, `127.0.0.1` o `::1`), puerto 3306; no usar root. Ver [guard/configuración y matriz pendiente](../how-to/api-session-checks.md). No escribir `.env`, archivos de configuración ni secretos en este procedimiento; la persona conserva los valores fuera del chat/repositorio/logs. La contraseña MySQL es distinta de la contraseña ficticia del pasajero.
 
-Para clientes, distinguir [Web HTTPS localhost:7054](web-passenger-login.md), API HTTPS localhost:7053 y [Mobile/iPhone](mobile-passenger-login.md), según [direcciones y opciones consumidas](client-api-configuration.md). Las URLs no prueban confianza de certificados. No omitir validación TLS ni cambiar confianza/red como parte de esta preparación.
+Para clientes, distinguir [Web HTTPS localhost:7054](../how-to/web-passenger-login.md), API HTTPS localhost:7053 y [Mobile/iPhone](../how-to/mobile-passenger-login.md), según [direcciones y opciones consumidas](../how-to/client-api-configuration.md). Las URLs no prueban confianza de certificados. No omitir validación TLS ni cambiar confianza/red como parte de esta preparación.
 
 **Pendiente:** DDL y sintaxis MySQL reales, proveedor/mapeos, rollback, API/SQL, permisos públicos, navegador/circuito, TLS y dispositivo, reinicio/durabilidad/logout y revisión de Enzo. La comparación estática de definiciones y gates no ejecuta SQL ni acredita estos resultados. No marca MVP-001-03 ni sus criterios completos.

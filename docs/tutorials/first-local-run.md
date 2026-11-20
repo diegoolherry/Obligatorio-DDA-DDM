@@ -1,6 +1,6 @@
 # Primer arranque local de los scaffolds
 
-Objetivo: iniciar las bases existentes, sus respuestas de plantilla y el formulario Mobile. No acredita autenticación integrada, compras ni conexión entre las tres partes. Para configurar el ingreso real, seguí las guías [API](../how-to/api-session-checks.md), [Web](../how-to/web-passenger-login.md) y [Mobile](../how-to/mobile-passenger-login.md).
+Objetivo: iniciar API, Web y Mobile en tu máquina. Los pasos 1 a 3 arrancan las bases y sus respuestas de plantilla; la sección [Demo completa](#demo-completa) lleva a la API y la Web con base local, ingreso y compra con Mercado Pago TEST. Para configurar el ingreso real, seguí las guías [API](../how-to/api-session-checks.md), [Web](../how-to/web-passenger-login.md) y [Mobile](../how-to/mobile-passenger-login.md).
 
 ## Antes de empezar
 
@@ -70,7 +70,7 @@ una DB sin contraseña, no cambia cuentas ni demuestra login/TLS. El archivo es
 texto plano, no una bóveda; es solo API, nunca Mobile ni `EXPO_PUBLIC`. La
 [sintaxis limitada y las garantías de entorno](../how-to/api-session-checks.md#arranque-opcional-con-env-solo-api-powershell-51)
 aceptan comentarios/líneas vacías, esas dos claves obligatorias y, de forma opcional, las cuatro
-`MercadoPago__*` de TEST (ver [compras TEST](../how-to/purchase-test-checks.md#checkout-pro-test-y-clientes)), cada una una vez con valor literal, sin
+`MercadoPago__*` de TEST (ver [Mercado Pago TEST de punta a punta](../how-to/purchase-test-checks.md#mercado-pago-test-de-punta-a-punta)), cada una una vez con valor literal, sin
 comillas exteriores, `export` ni interpolación. El guard API sigue vigente.
 
 ## 3. Iniciá Mobile
@@ -84,13 +84,24 @@ npm run typecheck
 npm start
 ```
 
-`npm ci` usa el lockfile existente; no ejecutes `npm audit fix` para resolver este arranque. Esperá el mensaje de Metro y el QR/dirección de conexión. Conectá el cliente compatible del celular en la misma red. [App.tsx](../../src/Mobile/App.tsx) muestra el formulario de ingreso con componentes nativos, StyleSheet y áreas seguras. Consume la URL pública `EXPO_PUBLIC_API_URL` para su servicio HTTP; sin una raíz HTTPS válida, al intentar ingresar muestra un error local y no envía credenciales. Configurar la URL no demuestra red, TLS ni autenticación: consultá la [guía Mobile](../how-to/mobile-passenger-login.md).
+`npm ci` usa el lockfile existente; no ejecutes `npm audit fix` para resolver este arranque. Esperá el mensaje de Metro y el QR/dirección de conexión. Conectá el cliente compatible del celular en la misma red. [App.tsx](../../src/Mobile/App.tsx) muestra una barra de pestañas (Buscar viaje, Ingreso, Compartir ubicación y Ubicación del servicio) con componentes nativos, NativeWind y áreas seguras. Consume la URL pública `EXPO_PUBLIC_API_URL` para su servicio HTTP; sin una raíz HTTPS válida, al intentar ingresar muestra un error local y no envía credenciales. Configurar la URL no demuestra red, TLS ni autenticación: consultá la [guía Mobile](../how-to/mobile-passenger-login.md). El código de compra Mobile existe, pero no se ejecutó en el E2E del 2026-11-19.
 
 Si necesitás túnel o aparece el error de ngrok de Windows, seguí [resolución de problemas](../how-to/troubleshooting.md); el túnel de Metro no publica la API. Para direcciones de servicios consultá [cliente/API](../how-to/client-api-configuration.md).
 
 `npm run android` / `npm run ios` requieren un entorno compatible; `npm run export:android` exporta JavaScript, no compila una aplicación Android nativa.
 
 Desde FIN-010-03, Web ya no enlaza Bootstrap: los estilos son los tokens del sistema de diseño en `wwwroot/app.css`. Los archivos de Bootstrap CSS `5.3.3` del PR #20 siguen en `wwwroot/lib`, sin uso.
+
+## Demo completa
+
+Recorrido con base local, ingreso y compra desde la Web. Usa solo datos ficticios.
+
+1. **Requisitos.** Cuentas MySQL locales y el permiso de `scripts/database/grant-local-ddl.sql`, según [bases MySQL locales](../how-to/local-auth-database.md) y [recrear la base local](../how-to/local-database-reset.md).
+2. **Base.** Desde la raíz, `scripts/reset-local-db.ps1`: recrea `berrutilocal`, aplica las migraciones y crea las cuentas demo. Te pide una contraseña ficticia.
+3. **API.** `scripts/start-api-local.ps1` (HTTPS, `https://localhost:7053`; requiere el `.env` privado descrito arriba).
+4. **Web.** Con `Api__BaseUrl` en `https://localhost:7053/`, perfil `https` (ver "Para el ingreso").
+5. **Ingreso.** Entrá a `https://localhost:7054/ingreso` con `pasajero.demo@example.test`, `cobrador.demo@example.test` o `admin.demo@example.test` y la contraseña ficticia del paso 2.
+6. **Compra.** Para comprar con Mercado Pago TEST, seguí [Mercado Pago TEST de punta a punta](../how-to/purchase-test-checks.md#mercado-pago-test-de-punta-a-punta). Las compras requieren HTTPS en API y Web.
 
 ## 4. Cerrá lo que iniciaste
 
