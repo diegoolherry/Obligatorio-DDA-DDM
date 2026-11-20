@@ -1,6 +1,8 @@
 # Comprobar una sesión a través de dos reinicios de API
 
-> **Obsoleta desde FIN-005 (historial, no es una comprobación vigente).** Describe el mecanismo anterior: sesión opaca guardada en MySQL, con revocación al salir y contraseñas ficticias en texto plano. Con JWT sin estado (decisión de Diego, 2026-11-18; ver [contratos](../reference/auth-contracts.md#decisiones-de-fin-005-jwt-y-hash-de-contraseñas)) no existe sesión de servidor: sobrevivir a un reinicio es trivial mientras la clave no cambie, y `salida` (`204`) no revoca nada, así que el segundo `401` de la tabla de abajo ya no se produce. El resultado observado se conserva solo porque el [informe](../project-report.md) lo cita; no acredita el JWT. Los scripts del panel y sus pruebas (`tests/SessionDurabilityDiagnostic`) siguen sin actualizar. Alcance vigente: [comprobar la autenticación JWT](api-session-checks.md).
+> Archivado: guía retirada que se conserva como historial. No describe el procedimiento vigente; para el arranque actual, seguí el [tutorial](../tutorials/first-local-run.md).
+
+> **Obsoleta desde FIN-005 (historial, no es una comprobación vigente).** Describe el mecanismo anterior: sesión opaca guardada en MySQL, con revocación al salir y contraseñas ficticias en texto plano. Con JWT sin estado (decisión de Diego, 2026-11-18; ver [contratos](../reference/auth-contracts.md#decisiones-de-fin-005-jwt-y-hash-de-contraseñas)) no existe sesión de servidor: sobrevivir a un reinicio es trivial mientras la clave no cambie, y `salida` (`204`) no revoca nada, así que el segundo `401` de la tabla de abajo ya no se produce. El resultado observado se conserva solo porque el [informe](../project-report.md) lo cita; no acredita el JWT. Los scripts del panel y sus pruebas (`tests/SessionDurabilityDiagnostic`) siguen sin actualizar. Alcance vigente: [comprobar la autenticación JWT](../how-to/api-session-checks.md).
 
 ## Qué demuestra y qué no
 
@@ -38,7 +40,7 @@ Mobile/iPhone ni aprobación de Enzo. No completa el backlog.
    de solo lectura y en la solicitud de ingreso. Coincide con el bootstrap
    registrado en L45 de la [spec](../../odd/tasks/mvp-001-03-passenger-auth.md).
    No editar usuarios ni intentar sucesivos ingresos como diagnóstico.
-4. En el entorno ES-module nodejs de ego-browser, ejecutar una sola vez el
+4. en el entorno de scripts del navegador de prueba, ejecutar una sola vez el
    [entrypoint](../../odd/browser-checks/session-durability-20261028/install-panel.mjs).
    No es un script para ejecutar con Node CLI. Importa el
    [instalador autocontenido](../../odd/browser-checks/session-durability-20261028/session-durability-panel.mjs),
@@ -156,7 +158,7 @@ Node builtins, DOM/fetch mínimos ficticios y tokens sintéticos ejecutan el
 instalador real serializado y los eventos públicos de sus botones. No hay hooks
 para extraer el token del cierre. La prueba del entrypoint usa exclusivamente
 APIs de navegador sintéticas. Estas pruebas no son evidencia de reinicios o
-SQL real. La [guía de sesiones existente](api-session-checks.md) y la
+SQL real. La [guía de sesiones existente](../how-to/api-session-checks.md) y la
 [política autoritativa](../reference/auth-contracts.md) conservan sus límites;
 el [informe](../project-report.md#durabilidad-local-observada-tras-dos-reinicios-de-api)
 y el backlog distinguen este resultado de los pendientes, sin completar la tarea.

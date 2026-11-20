@@ -104,7 +104,7 @@ No se ejecuta SHOW CREATE, SHOW GRANTS, DDL, DML, cambios de permisos ni resets.
 
 Exit 0 y «Inspección ejecutada» significan solo que se terminó la inspección y su
 limpieza; **no son PASS normal/frontera, validación completa del DDL, aislamiento
-de privilegios ni autorización para sembrar o ejecutar DML**. El coordinador debe
+de privilegios ni autorización para sembrar o ejecutar DML**. El equipo debe
 revisar los metadatos antes de cualquier siguiente paso. Ausencia de configuración,
 rechazos o errores devuelven 1 sin detalles del proveedor ni secretos. La preparación
 y las pruebas sintéticas no acreditan una inspección real de MySQL.
@@ -173,7 +173,7 @@ correrlos secuencialmente después de escrituras históricas: cada escenario con
 su fixture y la puerta rechaza repetirla. Se requiere otra preparación fresca
 **expresamente autorizada por una decisión humana** para obtener la otra evidencia.
 Este documento no autoriza borrar/recrear tablas, reseedear historia ni agregar
-otra base. Solicitar esa decisión al coordinador; no improvisar limpieza o resets.
+otra base. Solicitar esa decisión al equipo; no improvisar limpieza o resets.
 El archivo privado mantiene exactamente las mismas cinco claves en los tres modos de conexión.
 - Errores operativos producen exit 1 sin detalles sensibles. No hay reparación,
   migración ni cleanup automáticos. Conservar evidencia sin secretos y consultar
@@ -214,4 +214,4 @@ La inspección real posterior del padre ([L96–L98](../../odd/tasks/mvp-001-03-
 
 El usuario aprobó **preparar**, no ejecutar, [la corrección manual](../../scripts/database/repair-auth-tests-membership-primary-key.sql). Un administrador en Workbench debe revisar consultas frescas: cuatro tablas vacías, columnas esperadas NOT NULL, PK simple exacta, ambas FK conservadas y ninguna referencia entrante desde cualquier esquema, con visibilidad suficiente. Sin otros escritores/administradores, selecciona una sentencia por vez y para al primer error o estado inesperado; si la pareja ya es correcta, no reaplica. Las puertas son humanas, no protección automática de lote. DDL tiene commits implícitos y no garantía de rollback; ante fallo no reintentar ni eliminar FK.
 
-`berruti_test` sigue DML-only, sin ampliar privilegios. No repetir creación canónica, sembrar, borrar datos/tablas ni ejecutar normal/frontera todavía. No se ejecutó el parche. Tras confirmación humana de ejecución y postchecks PK/FK/conteos, el coordinador reutilizará `--inspect` una vez; la API debe permanecer apagada por elección humana. T1 y MVP-001-03 continúan bloqueados por evidencia pendiente.
+`berruti_test` sigue DML-only, sin ampliar privilegios. No repetir creación canónica, sembrar, borrar datos/tablas ni ejecutar normal/frontera todavía. No se ejecutó el parche. Tras confirmación humana de ejecución y postchecks PK/FK/conteos, se reutilizará `--inspect` una vez; la API debe permanecer apagada por elección humana. T1 y MVP-001-03 continúan bloqueados por evidencia pendiente.

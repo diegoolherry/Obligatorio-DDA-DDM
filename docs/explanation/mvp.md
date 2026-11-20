@@ -13,7 +13,7 @@ La solución integrará:
 - **Blazor:** portal de pasajeros y panel administrativo.
 - **API:** reglas de negocio, autenticación, autorización y persistencia.
 - **React Native con TypeScript y Expo:** una aplicación móvil con experiencia diferenciada para pasajero y cobrador.
-- **Pago de prueba:** propuesta vigente revisable de integración con la API de Mercado Pago y credenciales TEST; sin cobros reales ni datos de tarjeta almacenados por la aplicación. Aún no implementado.
+- **Pago de prueba:** propuesta vigente revisable de integración con la API de Mercado Pago y credenciales TEST; sin cobros reales ni datos de tarjeta almacenados por la aplicación. Implementado en la API y el cliente Web, y ejecutado de punta a punta con Checkout Pro TEST el 2026-11-19 (compra aprobada con dos tickets, aprobación tardía con devolución y orden sin pagar cancelada al vencer el hold; ver la [guía](../how-to/purchase-test-checks.md#mercado-pago-test-de-punta-a-punta) y el [PR #130](https://github.com/diegoolherry/Obligatorio-DDA-DDM/pull/130)). La compra desde Mobile está implementada en el código pero no se ejecutó en ese E2E.
 
 ## 2. Criterio de éxito del MVP
 
@@ -136,7 +136,7 @@ La aplicación móvil será una sola. Después de iniciar sesión, la navegació
 - Integrar la API de Mercado Pago con credenciales TEST como decisión vigente revisable; probar aprobación y rechazo con escenarios del proveedor, sin inventar mecánica determinista local.
 - Registrar importe, fecha, usuario, referencia del intento y estado de dominio. La política conceptual de intento durable, pagos conservados, hold y reintentos está acordada en [el modelo canónico](data-model.md#acuerdo-conceptual-de-compra-hold-y-reintentos); la duración vigente del hold es 15 minutos configurables por decisión aprobada por Diego y Enzo (confirmación de Diego en la revisión cruzada del 2026-11-19), en reemplazo de la duración conjunta previa de cinco minutos. Representación física, checkout, mapeo/verificación de estados, concurrencia, comparación temporal y mecanismos de devolución TEST siguen pendientes, sin integración ni pruebas ejecutadas.
 - La API debe verificar el resultado con el proveedor antes de emitir tickets; nunca confiar únicamente en un éxito informado por el cliente.
-- La aplicación no debe solicitar ni guardar número de tarjeta, CVV o datos financieros equivalentes. El producto de checkout está pendiente de selección; producción y cobros reales requieren decisión de alcance explícita.
+- La aplicación no debe solicitar ni guardar número de tarjeta, CVV o datos financieros equivalentes. El producto de checkout es Checkout Pro (Orders) en modo TEST; producción y cobros reales requieren decisión de alcance explícita.
 
 ## 6. Flujos principales
 
@@ -307,7 +307,7 @@ MySQL es la tecnología de persistencia decidida para el proyecto y su conexión
 - Una tarifa por tramo y un total calculado.
 - Un pasajero, un cobrador y un administrador ficticios.
 - Dos abonos relacionados de 20 unidades.
-- Escenarios de pago aprobado y rechazado del proveedor en TEST, pendientes de ejecutar.
+- Escenarios de pago aprobado, aprobación tardía y vencimiento del hold con el proveedor en TEST: observados el 2026-11-19. El rechazo definitivo (`OTHE`) no se pudo forzar con el comprador logueado, porque Mercado Pago no pide el nombre del titular; queda cubierto solo por pruebas simuladas.
 - Un dispositivo o celular embarcado ficticio asociado a un servicio y posiciones de demostración con fecha/hora de recepción; casos con datos vigentes, desactualizados y ausentes.
 - Parámetros académicos configurados para periodicidad, desactualización y referencias de llegada/demora, con un caso sin datos suficientes.
 
