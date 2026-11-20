@@ -13,6 +13,7 @@ public class SesionCliente(IHttpClientFactory factory, IConfiguration configurat
 {
     private string? _token;
     private DateTimeOffset _vence;
+    private RolIngreso[] _roles = [];
     private int _ocupada;
     private long _version;
     private const long LimiteRespuestaListados = 16 * 1024 * 1024;
@@ -20,12 +21,13 @@ public class SesionCliente(IHttpClientFactory factory, IConfiguration configurat
     private static readonly string[] MensajesValidacion =
     ["El correo es obligatorio.", "El correo no es válido.", "La contraseña es obligatoria."];
 
-    public EstadoSesion Estado => new(_token != null && _vence > clock.GetUtcNow(), _ocupada != 0);
+    public EstadoSesion Estado => new(_token != null && _vence > clock.GetUtcNow(), _ocupada != 0, _roles);
     public void Descartar()
     {
         Interlocked.Increment(ref _version);
         _token = null;
         _vence = default;
+        _roles = [];
     }
 
     public Task<ResultadoAutenticacion> IngresarAsync(SolicitudIngresoDto solicitud) =>
@@ -161,6 +163,7 @@ public class SesionCliente(IHttpClientFactory factory, IConfiguration configurat
                         return Error(status, "respuestaInvalida", "La respuesta de sesión no es válida.");
                     _token = dto.Token;
                     _vence = vence;
+                    _roles = dto.Roles;
                 }
                 else
                 {

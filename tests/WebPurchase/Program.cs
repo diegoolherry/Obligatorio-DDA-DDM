@@ -252,7 +252,7 @@ sealed class FakeSession(params RespuestaApiAdministracion[] responses) : ISesio
 {
     private readonly Queue<RespuestaApiAdministracion> _responses = new(responses);
     public List<(HttpMethod Metodo, string Ruta, string? Json)> Calls { get; } = [];
-    public EstadoSesion Estado => new(true, false);
+    public EstadoSesion Estado => new(true, false, [RolIngreso.Pasajero]);
     public Task<ResultadoAutenticacion> IngresarAsync(SolicitudIngresoDto solicitud) => throw new NotImplementedException();
     public Task<ResultadoAutenticacion> SalirAsync() => throw new NotImplementedException();
     public Task<ResultadoAutenticacion> ConsultarIdentidadAsync() => throw new NotImplementedException();

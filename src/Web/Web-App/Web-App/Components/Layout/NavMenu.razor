@@ -11,10 +11,13 @@
         <li><NavLink class="nav-link" href="" Match="NavLinkMatch.All">Inicio</NavLink></li>
         <li><NavLink class="nav-link" href="itinerarios">Buscar viaje</NavLink></li>
         <li><NavLink class="nav-link" href="horarios">Horarios</NavLink></li>
-        @* Sin sesión se ocultan los enlaces que requieren ingresar. Ocultarlos no autoriza nada: la API comprueba cada permiso. *@
-        @if (Autenticada)
+        @* Cada enlace se muestra según el rol de la sesión. Ocultarlos no autoriza nada: la API comprueba cada permiso. *@
+        @if (EsPasajero)
         {
             <li><NavLink class="nav-link" href="pasajero/ubicacion">Ubicación del servicio</NavLink></li>
+        }
+        @if (EsAdministrador)
+        {
             <li><NavLink class="nav-link" href="admin/operativa">Administración operativa</NavLink></li>
             <li><NavLink class="nav-link" href="admin/catalogo">Catálogo de rutas</NavLink></li>
         }
@@ -33,6 +36,8 @@
 
 @code {
     [Parameter] public bool Autenticada { get; set; }
+    [Parameter] public bool EsPasajero { get; set; }
+    [Parameter] public bool EsAdministrador { get; set; }
     [Parameter] public EventCallback AlCambiarSesion { get; set; }
 
     private bool _abierto;
