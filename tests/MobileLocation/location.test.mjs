@@ -133,7 +133,8 @@ test('responses with a wrong shape or status are never success', async () => {
 });
 
 test('end to end with the real session: Bearer is attached by the session and 403 keeps it', async () => {
-  const token = 'A'.repeat(43);
+  // Desde FIN-005 el token es un JWT compacto (header.payload.firma); el identificador de usuario sigue opaco.
+  const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3VhcmlvLV8tIn0.c2lnbmF0dXJlLV8';
   const calls = [];
   const replies = [
     new Response(JSON.stringify({ identificadorUsuario: 'B'.repeat(43), roles: ['cobrador'], token, venceEnUtc: '2099-01-01T00:00:00.000000Z' }), { status: 200 }),
