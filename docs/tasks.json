@@ -1185,13 +1185,13 @@
       "startedAt": "2026-11-24T14:39:57-03:00",
       "completedAt": null,
       "completedBy": null,
-      "evidence": "Iniciada en la rama feature/fin-015-tabs-abajo, apilada sobre fin-014-expo-router (PR #133 de FIN-014 abierto). Íconos con lucide-react-native por decisión de Diego (41118d1). Sin PR todavía.",
+      "evidence": "Iniciada en la rama feature/fin-015-tabs-abajo, apilada sobre fin-014-expo-router (PR #133 de FIN-014 abierto). Íconos con lucide-react-native por decisión de Diego (L11 de odd/tasks/mvp-005-qr-validacion.md). Sin PR todavía.",
       "dependencies": [
         "FIN-014"
       ],
       "acceptanceCriteria": [
         "La barra de pestañas (Buscar viaje, Ingreso, Compartir ubicación, Ubicación del servicio) se muestra en la parte inferior y respeta el área segura del dispositivo.",
-        "Cada pestaña muestra un ícono de lucide-react-native junto a su texto (decisión de Diego, 2026-11-24, registrada en 41118d1).",
+        "Cada pestaña muestra un ícono de lucide-react-native sobre su texto (decisión de Diego, 2026-11-24, registrada en odd/tasks/mvp-005-qr-validacion.md, L11, rama feature/mvp-005-qr-validacion).",
         "Se conserva el comportamiento de FIN-014: la sesión sobrevive al cambio de pestaña, Compartir ubicación sigue activo y Ingreso y Ubicación del servicio se vuelven a montar.",
         "npm run typecheck y las pruebas de tests/Mobile* pasan; el recorrido manual del camino feliz queda descrito en el PR."
       ]
