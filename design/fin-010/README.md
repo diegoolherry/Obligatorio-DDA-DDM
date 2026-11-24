@@ -160,6 +160,6 @@ Para agregar estas pantallas sin reconstruir el archivo: `scripts/run.sh n2 m3.j
 1. **Datos de demostración.** Horarios, precios y el itinerario directo Ombúes de Lavalle → Colonia son ilustrativos. ¿Deben coincidir con el seed (FIN-001) y con la ruta Ombúes–Radial–Colonia del MVP?
 2. **Fuente.** Inter es la fuente de diseño y el render de OpenPencil puede sustituirla. ¿Se empaqueta Inter en Expo o se usa la fuente del sistema?
 3. **Pantallas fuera de este corte.** Faltan Mis abonos, Cuenta, confirmación de pago simulado, estados de carga y vacío de las demás listas y el portal Blazor (FIN-010-02/03). MVP-005 agregó el permiso de cámara y los estados de Mis tickets.
-6. **MVP-005.** ¿El filtro «Anteriores» (utilizados y vencidos) cumple «consultar tickets vigentes o utilizados» o se prefiere «Utilizados»? ¿El cobrador elige entre los tramos de transbordo del servicio (Ombúes de Lavalle a Radial, Radial a Colonia) o entre todos los pares de paradas que trae FIN-017?
 4. **Identidad.** Los tonos aproximan el rojo, naranja y negro de Berrutti sin muestrear su marca. Pendiente la confirmación de Enzo (`docs/explanation/ux-design.md` §2).
 5. **NativeWind.** Los nombres siguen Tailwind, pero el mapeo a `tailwind.config` y la compatibilidad con Expo 58 no se verificaron.
+6. **MVP-005 (resuelta por Diego, 2026-11-24).** El filtro se llama «Anteriores» e incluye utilizados y vencidos; el cobrador elige entre los tramos de transbordo del servicio (M20).
