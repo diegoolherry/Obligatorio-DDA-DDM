@@ -8,6 +8,7 @@ import { PassengerLogin } from './src/components/Authentication/PassengerLogin';
 import { ItinerarySearch } from './src/components/Itinerary/ItinerarySearch';
 import { LocationSharing } from './src/components/Location/LocationSharing';
 import { ServiceLocation } from './src/components/Location/ServiceLocation';
+import { MyTickets } from './src/components/Tickets/MyTickets';
 import { AuthenticationService } from './src/services/Authentication/AuthenticationService';
 import type { IAuthenticationService } from './src/services/Authentication/IAuthenticationService';
 import { ItinerarySearchService } from './src/services/Itinerary/ItinerarySearchService';
@@ -15,8 +16,10 @@ import type { IItinerarySearchService } from './src/services/Itinerary/IItinerar
 import type { ILocationService } from './src/services/Location/ILocationService';
 import { LocationService } from './src/services/Location/LocationService';
 import { PurchaseService } from './src/services/Purchase/PurchaseService';
+import type { ITicketsService } from './src/services/Tickets/ITicketsService';
+import { TicketsService } from './src/services/Tickets/TicketsService';
 
-type Screen = 'buscar' | 'ingreso' | 'compartir' | 'ubicacion';
+type Screen = 'buscar' | 'ingreso' | 'tickets' | 'compartir' | 'ubicacion';
 
 export default function App() {
   const [authentication] = useState<IAuthenticationService>(
@@ -28,6 +31,7 @@ export default function App() {
   const [purchase] = useState(() => new PurchaseService(authentication));
   // The location service asks the session to send its requests: the token stays inside it.
   const [location] = useState<ILocationService>(() => new LocationService(authentication));
+  const [tickets] = useState<ITicketsService>(() => new TicketsService(authentication));
   const [screen, setScreen] = useState<Screen>('buscar');
   const [sessionEpoch, setSessionEpoch] = useState(0);
   // The in-memory session outlives tab switches and is discarded only when the app root unmounts.
@@ -41,6 +45,7 @@ export default function App() {
           <View className="flex-row border-b border-border-200 bg-surface-0 p-1" accessibilityRole="tablist">
             <Tab label="Buscar viaje" selected={screen === 'buscar'} onPress={() => setScreen('buscar')} />
             <Tab label="Ingreso" selected={screen === 'ingreso'} onPress={() => setScreen('ingreso')} />
+            <Tab label="Tickets" selected={screen === 'tickets'} onPress={() => setScreen('tickets')} />
             <Tab label="Compartir ubicación" selected={screen === 'compartir'} onPress={() => setScreen('compartir')} />
             <Tab label="Ubicación del servicio" selected={screen === 'ubicacion'} onPress={() => setScreen('ubicacion')} />
           </View>
@@ -48,6 +53,7 @@ export default function App() {
             <ItinerarySearch service={itineraries} authentication={authentication} purchase={purchase} sessionEpoch={sessionEpoch} />
           </View>
           {screen === 'ingreso' && <PassengerLogin service={authentication} onSessionChanged={() => setSessionEpoch(epoch => epoch + 1)} />}
+          {screen === 'tickets' && <MyTickets session={authentication} service={tickets} onSearchTrip={() => setScreen('buscar')} />}
           {/* Stays mounted while hidden so the collector keeps sharing from any tab (foreground only). */}
           <View className={screen === 'compartir' ? 'flex-1' : 'hidden'}>
             <LocationSharing session={authentication} service={location} />
