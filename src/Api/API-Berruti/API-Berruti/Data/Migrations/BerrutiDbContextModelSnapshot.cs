@@ -1016,6 +1016,17 @@ namespace API_Berruti.Data.Migrations
                         .HasAnnotation("MySQL:Charset", "ascii")
                         .HasAnnotation("MySQL:Collation", "ascii_bin");
 
+                    b.Property<DateTime?>("UsadoUtc")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("usado_utc");
+
+                    b.Property<string>("ValidadoPorUsuarioId")
+                        .HasMaxLength(8)
+                        .HasColumnType("varchar(8)")
+                        .HasColumnName("validado_por_usuario_id")
+                        .HasAnnotation("MySQL:Charset", "ascii")
+                        .HasAnnotation("MySQL:Collation", "ascii_bin");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CompraServicioId")
@@ -1026,9 +1037,13 @@ namespace API_Berruti.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("uq_ticket_qr_opaco");
 
+                    b.HasIndex("ValidadoPorUsuarioId");
+
                     b.ToTable("ticket", null, t =>
                         {
                             t.HasCheckConstraint("ck_ticket_id", "ticket_id REGEXP '^TI-([1-9][0-9]{0,3}|[1-4][0-9]{4}|50000)$'");
+
+                            t.HasCheckConstraint("ck_ticket_uso", "(usado_utc IS NULL AND validado_por_usuario_id IS NULL) OR (usado_utc IS NOT NULL AND validado_por_usuario_id IS NOT NULL)");
                         });
                 });
 
@@ -1165,6 +1180,7 @@ namespace API_Berruti.Data.Migrations
                             t.HasCheckConstraint("ck_tramo_intento_orden", "orden >= 1");
                         });
                 });
+
             modelBuilder.Entity("API_Berruti.Models.Operational.TramoPago", b =>
                 {
                     b.Property<string>("PagoId")
@@ -1462,6 +1478,12 @@ namespace API_Berruti.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_ticket_compra_servicio");
+
+                    b.HasOne("API_Berruti.Models.Authentication.Usuario", null)
+                        .WithMany()
+                        .HasForeignKey("ValidadoPorUsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_ticket_validado_por_usuario");
                 });
 
             modelBuilder.Entity("API_Berruti.Models.Operational.Tramo", b =>

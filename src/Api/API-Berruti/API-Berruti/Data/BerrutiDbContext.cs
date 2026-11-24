@@ -457,12 +457,21 @@ public class BerrutiDbContext : DbContext
         compraServicio.HasIndex(c => new { c.CompraId, c.Orden }).IsUnique().HasDatabaseName("uq_compra_servicio_orden");
 
         var ticket = modelo.Entity<Ticket>();
-        ticket.ToTable("ticket", t => t.HasCheckConstraint("ck_ticket_id", $"ticket_id REGEXP '{RangoId("TI-")}'"));
+        ticket.ToTable("ticket", t =>
+        {
+            t.HasCheckConstraint("ck_ticket_id", $"ticket_id REGEXP '{RangoId("TI-")}'");
+            // MVP-005: la marca de uso y el cobrador que validó se escriben juntos o ninguno.
+            t.HasCheckConstraint("ck_ticket_uso", "(usado_utc IS NULL AND validado_por_usuario_id IS NULL) OR (usado_utc IS NOT NULL AND validado_por_usuario_id IS NOT NULL)");
+        });
         ticket.HasKey(t => t.Id);
         ticket.Property(t => t.Id).HasColumnName("ticket_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).ValueGeneratedNever();
         ticket.Property(t => t.CompraServicioId).HasColumnName("compra_servicio_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).IsRequired();
         ticket.Property(t => t.QrOpaco).HasColumnName("qr_opaco").HasMaxLength(128).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii).IsRequired();
         ConfigurarUtc(ticket.Property(t => t.EmitidoUtc).HasColumnName("emitido_utc").HasColumnType("datetime(6)").IsRequired());
+        ConfigurarUtcNullable(ticket.Property(t => t.UsadoUtc).HasColumnName("usado_utc").HasColumnType("datetime(6)"));
+        ticket.Property(t => t.ValidadoPorUsuarioId).HasColumnName("validado_por_usuario_id").HasMaxLength(8).ForMySQLHasCharset("ascii").ForMySQLHasCollation(Ascii);
+        ticket.HasOne<Usuario>().WithMany().HasForeignKey(t => t.ValidadoPorUsuarioId).OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("fk_ticket_validado_por_usuario");
         ticket.HasOne<CompraServicio>().WithMany().HasForeignKey(t => t.CompraServicioId).OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("fk_ticket_compra_servicio");
         ticket.HasIndex(t => t.CompraServicioId).IsUnique().HasDatabaseName("uq_ticket_compra_servicio");
