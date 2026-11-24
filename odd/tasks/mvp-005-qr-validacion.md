@@ -16,7 +16,7 @@ High-risk units for later slices: atomic single-use consumption (item 4, concurr
 
 | ID | Specs | Route | Commit |
 |---|---|---|---|
-| T1 Mockups M14–M27 in `design/fin-010` (passenger filter/states, used-ticket detail, collector segment picker, camera permission pre-prompt and denied, scanner, validating, vencido, tramo incorrecto, código inexistente) + README + exports | S1, S2, S3, S5 | inline | |
+| T1 Mockups M14–M27 in `design/fin-010` (passenger filter/states, used-ticket detail, collector segment picker, camera permission pre-prompt and denied, scanner, validating, vencido, tramo incorrecto, código inexistente) + README + exports | S1, S2, S3, S5 | inline; refine 14/14 without fixes, M01–M13 unchanged, visual review of PNGs; lint not run | 3b436f3 |
 | T2 API: ticket state, passenger tickets query, atomic validation endpoint with tests | S2–S6 | pending team review of T1 | |
 | T3 Mobile passenger: ticket list with filter and QR detail | S2 | pending team review of T1 | |
 | T4 Mobile collector: segment selection, camera scan (needs `expo-camera` approval), results | S3–S6 | pending team review of T1 | |
@@ -25,3 +25,4 @@ High-risk units for later slices: atomic single-use consumption (item 4, concurr
 
 - L1 (Diego, 2026-11-24): «sigamos con alguna tarea de @docs/tasks.json» → elegido: «Arrancar MVP-005 por los mockups».
 - L2 Exploration: FIN-010 already has M05 (Mis tickets), M06 (QR), M07 (offline), M08 (Validar), M09 (válido), M10 (ya utilizado), M11 (no se pudo confirmar). No document defines exact result wording; `ux-design.md:64` lists the categories and «Validando…»; `ux-design.md:91` asks for in-context permission, explained denial and an exit without invented manual validation. API has `Ticket` without state; no ticket/validation endpoints; Mobile has no ticket/QR/scan screens; `expo-camera` not installed.
+- L3 Design proposals open for team review (README question 6): passenger filter labelled «Vigentes · Anteriores» (used + expired) instead of «Utilizados»; collector picks transfer segments of the service, not every stop pair from FIN-017. Result copy is a proposal.
