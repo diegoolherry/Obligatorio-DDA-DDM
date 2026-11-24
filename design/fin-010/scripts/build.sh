@@ -8,7 +8,7 @@ python -I "$d/tokens.py" >/dev/null
 op vars:set @"$d/vars.json" --replace >/dev/null
 "$d/wipe.sh" n1; "$d/wipe.sh" n2
 for f in s1 s2; do "$d/run.sh" n1 $f.js >/dev/null; done
-for f in m1 m2; do "$d/run.sh" n2 $f.js >/dev/null; done
+for f in m1 m2 m3; do "$d/run.sh" n2 $f.js >/dev/null; done
 for pg in n1 n2; do
   for id in $(op get --page $pg --depth 0 | python -I -c "import sys,json; print(' '.join(n['id'] for n in json.load(sys.stdin)['nodes']))"); do
     op design:refine --root-id $id --page $pg > /dev/null
