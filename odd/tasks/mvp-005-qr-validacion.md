@@ -18,7 +18,7 @@ High-risk units for later slices: atomic single-use consumption (item 4, concurr
 |---|---|---|---|
 | T1 Mockups M14–M27 in `design/fin-010` (passenger filter/states, used-ticket detail, collector segment picker, camera permission pre-prompt and denied, scanner, validating, vencido, tramo incorrecto, código inexistente) + README + exports | S1, S2, S3, S5 | inline; refine 14/14 without fixes, M01–M13 unchanged, visual review of PNGs; lint not run | 3b436f3 |
 | T2 API: ticket consumption state, passenger tickets query (vigentes/anteriores), collector validation endpoint with atomic single use, migration + SQL script, tests, docs/reference/api.md | S2–S6 | gentle-ai-worker (item 4 concurrency, item 1 migration); verify mwup4rip PASS by design (TicketValidation 60/60, build 0/0); real-MySQL harness NOT RUN (Diego runs it, L9) | ec38955 |
-| T2b API: require the collector to be assigned to the service (L9) | S3, S6 | gentle-ai-worker | |
+| T2b API: require the collector to be assigned to the service (L9) | S3, S6 | gentle-ai-worker; verify mwuymq3s PASS (build 0/0, TicketValidation 73/73); minor: no L9 test for malformed/vencido codes | e5fa458 |
 | T3 Mobile passenger: ticket list with filter and QR detail | S2 | gentle-ai-worker; MobileTickets 13/13, Purchase 21, Auth 26, Location 14; typecheck via main tsc only; QR is a placeholder pending a library decision | a5ed5ca |
 | T4 Mobile collector: segment selection, camera scan, results | S3–S6 | first worker stopped on quota after services/contract/deps (expo-camera ~58.0.14); continuation worker | |
 
