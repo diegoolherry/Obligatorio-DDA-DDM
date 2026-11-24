@@ -1,4 +1,5 @@
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 
 /**
  * Contract of the QR renderer. `value` is the opaque code from the API: never show it as text.
@@ -11,23 +12,17 @@ export interface QrCodeProps {
   size?: number;
 }
 
-/**
- * PLACEHOLDER. No QR library is installed in src/Mobile/package.json and adding one needs team approval,
- * so this draws a clearly labelled stand-in instead of a scannable code. Replace the body of this single
- * component with the approved library (same props) and nothing else in the flow changes.
- */
-export function QrCode({ dimmed, size = 224 }: QrCodeProps) {
+/** Draws the scannable QR with react-native-qrcode-svg (approved in MVP-005, L10). */
+export function QrCode({ value, dimmed, size = 224 }: QrCodeProps) {
   return (
     <View
       accessibilityRole="image"
-      accessibilityLabel={dimmed ? 'Código QR atenuado, ya no sirve' : 'Marcador de posición del código QR'}
-      style={{ width: size, height: size }}
+      accessibilityLabel={dimmed ? 'Código QR atenuado, ya no sirve' : 'Código QR del ticket'}
       className={dimmed
-        ? 'items-center justify-center rounded-lg border-2 border-dashed border-ink-300 bg-surface-100 p-3 opacity-40'
-        : 'items-center justify-center rounded-lg border-2 border-dashed border-ink-700 bg-surface-0 p-3'}
+        ? 'items-center justify-center rounded-lg border-2 border-ink-300 bg-surface-0 p-3 opacity-25'
+        : 'items-center justify-center rounded-lg border-2 border-ink-900 bg-surface-0 p-3'}
     >
-      <Text className="text-center text-base font-bold text-ink-900">Marcador del QR</Text>
-      <Text className="text-center text-sm text-ink-700">Falta elegir la librería para dibujar el código real.</Text>
+      <QRCode value={value} size={size - 28} color="#141414" backgroundColor="#FFFFFF" quietZone={0} />
     </View>
   );
 }
