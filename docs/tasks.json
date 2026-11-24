@@ -1178,14 +1178,14 @@
       "area": [
         "Mobile"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "assignee": "Diego",
       "reviewer": "Enzo",
       "createdAt": "2026-11-23T16:52:48-03:00",
-      "startedAt": null,
+      "startedAt": "2026-11-24T14:39:57-03:00",
       "completedAt": null,
       "completedBy": null,
-      "evidence": "",
+      "evidence": "Iniciada en la rama feature/fin-015-tabs-abajo, apilada sobre fin-014-expo-router (PR #133 de FIN-014 abierto). Sin PR todavía.",
       "dependencies": [
         "FIN-014"
       ],

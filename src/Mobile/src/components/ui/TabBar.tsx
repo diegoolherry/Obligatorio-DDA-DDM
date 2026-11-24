@@ -1,10 +1,10 @@
 import { Pressable, Text, View } from 'react-native';
 import type { BottomTabBarProps } from 'expo-router/tabs';
 
-/** Pill tab bar drawn above the screens, the same look as the former manual tabs. */
+/** Pill tab bar drawn below the screens, the same look as the former manual tabs. */
 export function TabBar({ state, descriptors, navigateToTab }: BottomTabBarProps) {
   return (
-    <View className="flex-row border-b border-border-200 bg-surface-0 p-1" accessibilityRole="tablist">
+    <View className="flex-row border-t border-border-200 bg-surface-0 p-1" accessibilityRole="tablist">
       {state.routes.map((route, index) => {
         const label = descriptors[route.key]?.options.title ?? route.name;
         const selected = state.index === index;

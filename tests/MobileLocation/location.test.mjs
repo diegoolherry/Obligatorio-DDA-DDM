@@ -188,6 +188,15 @@ test('session survives switching tabs: only the app root discards it on unmount 
   assert.match(layout, /<AppServicesProvider>[\s\S]*<Tabs[\s\S]*<\/AppServicesProvider>/, 'the root layout owns the provider above every tab');
 });
 
+test('tab bar sits at the bottom, above the bottom safe-area inset (source check)', async () => {
+  const layout = await mobileFile('src/app/_layout.tsx');
+  const tabBar = await mobileFile('src/components/ui/TabBar.tsx');
+  assert.match(layout, /tabBarPosition: 'bottom'/, 'the tab bar is placed at the bottom');
+  assert.match(layout, /<SafeAreaView[^>]*edges=\{\[[^\]]*'bottom'[^\]]*\]\}[^>]*>[\s\S]*<Tabs[\s\S]*<\/SafeAreaView>/, 'the bottom inset is applied around the tabs');
+  assert.match(tabBar, /border-t /, 'the divider sits on the top edge of the bar');
+  assert.doesNotMatch(tabBar, /border-b /, 'no divider below a bottom bar');
+});
+
 test('sharing keeps running across tabs and stops without a collector session (source check)', async () => {
   const layout = await mobileFile('src/app/_layout.tsx');
   const route = await mobileFile('src/app/compartir.tsx');
