@@ -197,6 +197,17 @@ test('tab bar sits at the bottom, above the bottom safe-area inset (source check
   assert.doesNotMatch(tabBar, /border-b /, 'no divider below a bottom bar');
 });
 
+test('every bottom tab shows a lucide-react-native icon next to its label (source check)', async () => {
+  const tabBar = await mobileFile('src/components/ui/TabBar.tsx');
+  const manifest = JSON.parse(await mobileFile('package.json'));
+  assert.ok(manifest.dependencies['lucide-react-native'], 'lucide-react-native is a direct dependency');
+  assert.ok(manifest.dependencies['react-native-svg'], 'react-native-svg, the lucide peer, is a direct dependency');
+  assert.match(tabBar, /from 'lucide-react-native'/, 'the tab bar draws its icons with lucide-react-native');
+  for (const name of ['index', 'ingreso', 'compartir', 'ubicacion']) {
+    assert.match(tabBar, new RegExp(`\\b${name}: [A-Z]\\w+`), `the ${name} tab has an icon`);
+  }
+});
+
 test('sharing keeps running across tabs and stops without a collector session (source check)', async () => {
   const layout = await mobileFile('src/app/_layout.tsx');
   const route = await mobileFile('src/app/compartir.tsx');
