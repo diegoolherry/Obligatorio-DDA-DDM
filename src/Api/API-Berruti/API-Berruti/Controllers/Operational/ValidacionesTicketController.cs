@@ -34,6 +34,10 @@ public sealed class ValidacionesTicketController : ControllerBase
         {
             return Unauthorized();
         }
+        catch (CobradorNoAsignadoException)
+        {
+            return Forbid();
+        }
         catch (ArgumentException)
         {
             return BadRequest("El código y el tramo son obligatorios.");

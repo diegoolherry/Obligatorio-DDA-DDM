@@ -68,6 +68,7 @@ var qrDesconocido = new string('9', 64);
 FakeTicketsRepository NuevoRepo()
 {
     var repo = new FakeTicketsRepository { CobradorId = "US-9" };
+    foreach (var servicioAsignado in new[] { SvcHoy, SvcHoy2, SvcAyer, SvcManana }) repo.Asignar("US-9", servicioAsignado);
     repo.Agregar(Pasajero1, Registro("TI-1", qrValido, SvcHoy, "Ombúes", "Radial de Conchillas", new DateTime(2026, 11, 24, 14, 0, 0)));
     repo.Agregar(Pasajero1, Registro("TI-2", qrOtroTramo, SvcHoy2, "Radial de Conchillas", "Colonia", new DateTime(2026, 11, 24, 16, 0, 0)));
     repo.Agregar(Pasajero1, Registro("TI-3", qrVencido, SvcAyer, "Ombúes", "Colonia", new DateTime(2026, 11, 23, 9, 0, 0)));
@@ -198,6 +199,32 @@ await Caso("cobrador-inactivo", async () =>
     Verificar(rechazado && repo.Estado(qrValido).UsadoUtc is null, "una identidad que no es cobrador activo no consume nada");
 });
 
+// ---------- L9: solo en servicios asignados (decisión previa a cualquier lectura o consumo) ----------
+await Caso("L9", async () =>
+{
+    var repo = NuevoRepo();
+    repo.Desasignar("US-9", SvcHoy);
+    var servicio = NuevoServicio(repo, new RelojPrueba(ahora));
+    foreach (var qr in new[] { qrValido, qrOtroTramo, qrUsado, qrDesconocido })
+    {
+        var rechazado = false;
+        try { await servicio.ValidarAsync(CobradorPublico, new ValidarTicketRequestDto { QrOpaco = qr, ServicioId = SvcHoy }); }
+        catch (CobradorNoAsignadoException) { rechazado = true; }
+        Verificar(rechazado, $"L9: servicio no asignado → CobradorNoAsignadoException (código {qr[..2]}…)");
+    }
+    Verificar(repo.ConsumosIntentados == 0 && !repo.Llamadas.Contains("BuscarPorQr") && repo.Estado(qrValido).UsadoUtc is null,
+        "L9: sin asignación no se intenta consumir ni se lee ticket alguno");
+    // Otro servicio sí asignado: el mismo cobrador valida normalmente.
+    var otro = await servicio.ValidarAsync(CobradorPublico, new ValidarTicketRequestDto { QrOpaco = qrOtroTramo, ServicioId = SvcHoy2 });
+    Verificar(otro.Resultado == ResultadoValidacion.Valido, "L9: el cobrador sigue validando en su servicio asignado");
+    // La asignación es por cobrador: otro cobrador asignado a SvcHoy no habilita a US-9.
+    repo.Asignar("US-10", SvcHoy);
+    var ajeno = false;
+    try { await servicio.ValidarAsync(CobradorPublico, new ValidarTicketRequestDto { QrOpaco = qrValido, ServicioId = SvcHoy }); }
+    catch (CobradorNoAsignadoException) { ajeno = true; }
+    Verificar(ajeno && repo.Estado(qrValido).UsadoUtc is null, "L9: la asignación de otro cobrador no habilita a este");
+});
+
 // ---------- S2: consulta del pasajero ----------
 await Caso("S2", async () =>
 {
@@ -241,6 +268,7 @@ await Caso("http", async () =>
         ["ConnectionStrings:Berruti"] = "Server=localhost;Database=berrutilocal;User ID=berruti_app;Password=ficticia-no-conexion"
     };
     var repo = NuevoRepo();
+    repo.Desasignar("US-9", SvcManana); // el cobrador no viaja en el servicio de mañana
     var reloj = new RelojPrueba(ahora);
     var builder = WebApplication.CreateBuilder();
     builder.WebHost.UseUrls("http://127.0.0.1:0");
@@ -330,6 +358,25 @@ await Caso("http", async () =>
         Verificar(repo.Estado(qrOtroTramo).UsadoUtc is null && repo.Estado(qrVencido).UsadoUtc is null,
             "S5: tramo incorrecto y vencido no consumieron por HTTP");
 
+        // L9: el cobrador solo valida en los servicios a los que está asignado → 403 (como la publicación de posiciones).
+        var consumosPrevios = repo.ConsumosIntentados;
+        foreach (var (qr, descripcion) in new[]
+        {
+            (qrManana, "un ticket válido de ese servicio"), (qrOtroTramo, "un ticket de otro tramo"), (qrDesconocido, "un código inexistente")
+        })
+        {
+            using var sinAsignar = await http.SendAsync(Pedido(HttpMethod.Post, "/api/validaciones-ticket", tokenCobrador, new { qrOpaco = qr, servicioId = SvcManana }));
+            var textoSinAsignar = await sinAsignar.Content.ReadAsStringAsync();
+            Verificar(sinAsignar.StatusCode == HttpStatusCode.Forbidden && textoSinAsignar.Length == 0,
+                $"L9: {descripcion} en un servicio no asignado → 403 sin cuerpo, no un resultado de negocio");
+        }
+        Verificar(repo.Estado(qrManana).UsadoUtc is null && repo.Estado(qrManana).UsadoPor is null && repo.ConsumosIntentados == consumosPrevios,
+            "L9: el cobrador no asignado no consumió el ticket ni llegó a la sentencia de consumo");
+        Verificar(await Estado(HttpMethod.Post, "/api/validaciones-ticket", tokenCobrador, new { qrOpaco = qrDesconocido, servicioId = "servicio-que-no-existe" }) == HttpStatusCode.Forbidden,
+            "L9: un servicio inexistente tampoco está asignado → 403 (no revela si existe)");
+        Verificar(await Estado(HttpMethod.Post, "/api/validaciones-ticket", tokenPasajero1, new { qrOpaco = qrManana, servicioId = SvcManana }) == HttpStatusCode.Forbidden,
+            "L9: el rol sigue mandando: un pasajero → 403 también en ese servicio");
+
         Verificar(await Estado(HttpMethod.Get, "/api/tickets", null) == HttpStatusCode.Unauthorized, "S2: listar sin identidad → 401");
         Verificar(await Estado(HttpMethod.Get, "/api/tickets", tokenCobrador) == HttpStatusCode.Forbidden, "S2: un cobrador no lista tickets de pasajero → 403");
         Verificar(await Estado(HttpMethod.Get, "/api/tickets", tokenAdmin) == HttpStatusCode.Forbidden, "S2: un administrador no lista tickets de pasajero → 403");
@@ -417,6 +464,9 @@ sealed class FakeTicketsRepository : ITicketsRepository
     private int _llegadas;
     private readonly TaskCompletionSource _ambos = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public Dictionary<string, EstadoFake> Tickets { get; } = new(StringComparer.Ordinal);
+    public HashSet<(string Cobrador, string Servicio)> Asignaciones { get; } = [];
+    public void Asignar(string cobradorId, string servicioId) => Asignaciones.Add((cobradorId, servicioId));
+    public void Desasignar(string cobradorId, string servicioId) => Asignaciones.Remove((cobradorId, servicioId));
     public List<string> Llamadas { get; } = [];
     public string? CobradorId { get; set; }
     public bool ExigirLlegadaSimultanea { get; set; }
@@ -447,6 +497,12 @@ sealed class FakeTicketsRepository : ITicketsRepository
         return CobradorId is null
             ? Task.FromException<string>(new UnauthorizedAccessException("La identidad no corresponde a un cobrador activo."))
             : Task.FromResult(CobradorId);
+    }
+
+    public Task<bool> EstaAsignadoAsync(string cobradorId, string servicioId, CancellationToken cancellationToken = default)
+    {
+        lock (_gate) Llamadas.Add("EstaAsignado");
+        return Task.FromResult(Asignaciones.Contains((cobradorId, servicioId)));
     }
 
     public async Task<bool> ConsumirAsync(string qrOpaco, string servicioId, string cobradorId, DateTime ahoraUtc, DateTime inicioDiaLocal,

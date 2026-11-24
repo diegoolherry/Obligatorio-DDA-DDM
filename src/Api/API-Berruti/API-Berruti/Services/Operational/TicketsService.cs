@@ -5,6 +5,12 @@ using API_Berruti.Services.Location;
 
 namespace API_Berruti.Services.Operational;
 
+// El cobrador autenticado no está asignado al servicio indicado (L9). El controller lo responde como 403.
+public sealed class CobradorNoAsignadoException : Exception
+{
+    public CobradorNoAsignadoException() : base("El cobrador no está asignado a este servicio.") { }
+}
+
 // MVP-005. Estado de un ticket: utilizado (tiene marca de uso) > vencido (su día de servicio, en hora de Uruguay, es
 // anterior al día actual de Uruguay) > sinUsar. La zona horaria es la académica de la sección "Ubicacion".
 public sealed class TicketsService : ITicketsService
@@ -53,6 +59,10 @@ public sealed class TicketsService : ITicketsService
         var cobradorId = await _repositorio.BuscarCobradorIdAsync(identificadorPublicoCobrador, cancellationToken);
         var qr = solicitud.QrOpaco.Trim();
         var servicioId = solicitud.ServicioId.Trim();
+        // L9: solo en los servicios asignados. Se decide antes de leer o consumir cualquier ticket: el UPDATE no cambia
+        // y un cobrador no asignado nunca llega a él. Las asignaciones son sembradas (no hay endpoint que las quite).
+        if (!await _repositorio.EstaAsignadoAsync(cobradorId, servicioId, cancellationToken))
+            throw new CobradorNoAsignadoException();
         if (!TieneFormatoDeQr(qr)) return new ResultadoValidacionTicketDto { Resultado = ResultadoValidacion.CodigoInexistente };
 
         // Microsegundos, la precisión de datetime(6): lo devuelto coincide exactamente con lo guardado.

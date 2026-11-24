@@ -24,6 +24,9 @@ public sealed class TicketsRepository : ITicketsRepository
         await BuscarUsuarioActivoConRolAsync(identificadorPublico, "Cobrador", cancellationToken)
             ?? throw new UnauthorizedAccessException("La identidad no corresponde a un cobrador activo.");
 
+    public Task<bool> EstaAsignadoAsync(string cobradorId, string servicioId, CancellationToken cancellationToken = default) =>
+        _contexto.AsignacionesCobrador.AsNoTracking().AnyAsync(a => a.UsuarioId == cobradorId && a.ServicioId == servicioId, cancellationToken);
+
     // Un solo UPDATE condicional: el motor bloquea la fila del ticket y reevalúa «usado_utc IS NULL» con el valor
     // confirmado, así de dos escaneos simultáneos solo uno afecta una fila. Un código inexistente, de otro servicio o
     // de un día anterior afecta cero filas y no modifica nada. qr_opaco se compara con la colación ascii_bin de la columna.

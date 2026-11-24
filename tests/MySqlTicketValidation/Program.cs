@@ -78,7 +78,7 @@ static async Task RunAsync()
     var hoy = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zona).Date;
     var ayer = hoy.AddDays(-1);
 
-    var (cobradorPublico, otroPasajeroPublico) = await PrepararCuentasAsync(conexion, password);
+    var (cobradorPublico, otroPasajeroPublico, cobradorSinAsignarPublico) = await PrepararCuentasAsync(conexion, password, servicioA, servicioB);
     var a1 = await SembrarCompraAsync(conexion, pasajeroPublico, servicioA, hoy.AddHours(14), servicioB, hoy.AddHours(16));
     var vencida = await SembrarCompraAsync(conexion, pasajeroPublico, servicioA, ayer.AddHours(9), servicioB, ayer.AddHours(11));
     var ajena = await SembrarCompraAsync(conexion, otroPasajeroPublico, servicioA, hoy.AddHours(14), servicioB, hoy.AddHours(16));
@@ -90,6 +90,12 @@ static async Task RunAsync()
         await using var contexto = Crear(conexion);
         return await Servicio(contexto).ValidarAsync(cobradorPublico, new ValidarTicketRequestDto { QrOpaco = qr, ServicioId = servicioId });
     }
+
+    // L9: un cobrador activo sin fila en cobrador_servicio no consume nada ni recibe un resultado de negocio.
+    var sinAsignar = await Servicio(Crear(conexion)).ValidarAsync(cobradorSinAsignarPublico, new ValidarTicketRequestDto { QrOpaco = a1.Qr1, ServicioId = servicioA })
+        .ContinueWith(t => t.Exception?.GetBaseException() is CobradorNoAsignadoException);
+    Verificar(sinAsignar && (await LeerUsoAsync(conexion, a1.Qr1)).UsadoUtc is null,
+        "unassigned collector is rejected (CobradorNoAsignadoException) and the ticket stays unused");
 
     var primero = await Escanear(a1.Qr1, servicioA);
     Verificar(primero.Resultado == ResultadoValidacion.Valido && primero.UsadoUtc is not null, "first valid scan consumes the ticket");
@@ -164,7 +170,8 @@ static async Task RunAsync()
 static BerrutiDbContext Crear(string conexion) =>
     new(new DbContextOptionsBuilder<BerrutiDbContext>().UseMySQL(conexion).Options);
 
-static async Task<(string CobradorPublico, string OtroPasajeroPublico)> PrepararCuentasAsync(string conexion, string password)
+static async Task<(string CobradorPublico, string OtroPasajeroPublico, string CobradorSinAsignarPublico)> PrepararCuentasAsync(
+    string conexion, string password, string servicioA, string servicioB)
 {
     await using var contexto = Crear(conexion);
     var contadores = new ContadoresRepository(contexto, new Correlativo());
@@ -176,7 +183,13 @@ static async Task<(string CobradorPublico, string OtroPasajeroPublico)> Preparar
     var sufijo = Guid.NewGuid().ToString("N")[..12];
     var cobrador = await cuentas.CrearUsuarioAsync($"cobrador.{sufijo}@example.test", password, rolCobrador.Identificador);
     var otro = await cuentas.CrearUsuarioAsync($"pasajero.{sufijo}@example.test", password, rolPasajero.Identificador);
-    return (cobrador.IdentificadorPublico, otro.IdentificadorPublico);
+    var sinAsignar = await cuentas.CrearUsuarioAsync($"cobrador.sin.{sufijo}@example.test", password, rolCobrador.Identificador);
+    // L9: el cobrador de las pruebas viaja en los dos servicios (cobrador_servicio); el segundo no tiene asignaciones.
+    contexto.AsignacionesCobrador.AddRange(
+        new API_Berruti.Models.Location.AsignacionCobrador { UsuarioId = cobrador.Identificador, ServicioId = servicioA },
+        new API_Berruti.Models.Location.AsignacionCobrador { UsuarioId = cobrador.Identificador, ServicioId = servicioB });
+    await contexto.SaveChangesAsync();
+    return (cobrador.IdentificadorPublico, otro.IdentificadorPublico, sinAsignar.IdentificadorPublico);
 }
 
 // Siembra intento → tramos → pago aprobado → compra → dos compra_servicio → dos tickets, con IDs de los contadores.
