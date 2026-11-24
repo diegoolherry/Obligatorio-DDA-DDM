@@ -1,6 +1,6 @@
 # MVP-005: visualización QR y validación de ticket
 
-Owner Diego, reviewer Enzo. First slice: mockups on branch `feature/mvp-005-01-mockups` (from `origin/main` e855b26, worktree `.worktrees/mvp005`). Implementation slices are planned after the team reviews the mockups.
+Owner Diego, reviewer Enzo. Branch `feature/mvp-005-qr-validacion` (from `origin/main` e855b26, worktree `.worktrees/mvp005`). Implementation slices are planned after the team reviews the mockups.
 High-risk units for later slices: atomic single-use consumption (item 4, concurrency) and the camera dependency (item 5).
 
 ## Specs
@@ -17,7 +17,7 @@ High-risk units for later slices: atomic single-use consumption (item 4, concurr
 | ID | Specs | Route | Commit |
 |---|---|---|---|
 | T1 Mockups M14–M27 in `design/fin-010` (passenger filter/states, used-ticket detail, collector segment picker, camera permission pre-prompt and denied, scanner, validating, vencido, tramo incorrecto, código inexistente) + README + exports | S1, S2, S3, S5 | inline; refine 14/14 without fixes, M01–M13 unchanged, visual review of PNGs; lint not run | 3b436f3 |
-| T2 API: ticket state, passenger tickets query, atomic validation endpoint with tests | S2–S6 | pending team review of T1 | |
+| T2 API: ticket consumption state, passenger tickets query (vigentes/anteriores), collector validation endpoint with atomic single use, migration + SQL script, tests, docs/reference/api.md | S2–S6 | gentle-ai-worker (item 4 concurrency, item 1 migration) → independent verify | |
 | T3 Mobile passenger: ticket list with filter and QR detail | S2 | pending team review of T1 | |
 | T4 Mobile collector: segment selection, camera scan (needs `expo-camera` approval), results | S3–S6 | pending team review of T1 | |
 
@@ -27,3 +27,6 @@ High-risk units for later slices: atomic single-use consumption (item 4, concurr
 - L2 Exploration: FIN-010 already has M05 (Mis tickets), M06 (QR), M07 (offline), M08 (Validar), M09 (válido), M10 (ya utilizado), M11 (no se pudo confirmar). No document defines exact result wording; `ux-design.md:64` lists the categories and «Validando…»; `ux-design.md:91` asks for in-context permission, explained denial and an exit without invented manual validation. API has `Ticket` without state; no ticket/validation endpoints; Mobile has no ticket/QR/scan screens; `expo-camera` not installed.
 - L3 Design proposals open for team review (README question 6): passenger filter labelled «Vigentes · Anteriores» (used + expired) instead of «Utilizados»; collector picks transfer segments of the service, not every stop pair from FIN-017. Result copy is a proposal.
 - L4 (Diego, 2026-11-24): filtro «Anteriores»: utilizados y vencidos (como en M15); el cobrador elige «Los tramos de transbordo del servicio (como en M20)».
+- L5 (Diego, 2026-11-24) on the base branch: «crea una rama para esta feature» → branch renamed to `feature/mvp-005-qr-validacion` (from origin/main).
+- L6 (Diego, 2026-11-24) on expo-camera: «te paso las precentaciones del profe: C:\Users\User\Downloads\Guía_UX_de_Hardware_Móvil-1.pdf C:\Users\User\Downloads\Arquitectura_de_Permisos_Móviles-1.pdf . Poruqe no me suena el expo-camera. Aca tenes el commit donde se subio el codigo de la clase: https://github.com/xalejandrow/ctc-ddm/commit/0d4e0357ab87572afc944017b4d6b27a6f84f2cd». Evidence: the commit adds `clase09/Ejemplo_SIGMA_Camara_Local` using `expo-camera ~58.0.12` (`CameraView`, `useCameraPermissions`, app.json plugin `cameraPermission`, Android `CAMERA`, iOS `NSCameraUsageDescription`). Its README says: request only when needed, explain on denial, allow asking again, and use the phone settings when the dialog no longer shows. QR reading (`onBarcodeScanned`) and opening settings are not shown. Both PDFs are scanned images: no text could be extracted.
+- L7 T2 working decisions (agent, to confirm in review): the collector's tramo is the purchased segment service (the ticket's `CompraServicio` service); «vencido» = the ticket's service day is earlier than the validation day in Uruguay time; a wrong-segment scan leaves the ticket untouched; consumption is a conditional update so only one concurrent scan wins.
