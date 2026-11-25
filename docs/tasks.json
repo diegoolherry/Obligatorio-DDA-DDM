@@ -1185,7 +1185,7 @@
       "startedAt": "2026-11-24T14:39:57-03:00",
       "completedAt": null,
       "completedBy": null,
-      "evidence": "Rama feature/fin-015-tabs-abajo, apilada sobre fin-014-expo-router (PR #133) con feature/mvp-005-03-mobile (PR #136) mergeada; no pasa a done hasta que FIN-014 y MVP-005 estén en done. Íconos con lucide-react-native por decisión de Diego (L11 de odd/tasks/mvp-005-qr-validacion.md); pestañas por rol decididas por Diego el 2026-11-25. Sin PR todavía.",
+      "evidence": "Rama feature/fin-015-tabs-por-rol, basada en main (FIN-014 #133 y MVP-005 #136 ya mergeados). Íconos con lucide-react-native por decisión de Diego (L11 de odd/tasks/mvp-005-qr-validacion.md); pestañas por rol decididas por Diego el 2026-11-25. Sin PR todavía.",
       "dependencies": [
         "FIN-014",
         "MVP-005"
