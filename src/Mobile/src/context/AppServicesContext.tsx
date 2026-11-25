@@ -6,12 +6,18 @@ import type { IItinerarySearchService } from '../services/Itinerary/IItinerarySe
 import type { ILocationService } from '../services/Location/ILocationService';
 import { LocationService } from '../services/Location/LocationService';
 import { PurchaseService } from '../services/Purchase/PurchaseService';
+import type { ITicketsService } from '../services/Tickets/ITicketsService';
+import { TicketsService } from '../services/Tickets/TicketsService';
+import type { ITicketValidationService } from '../services/TicketValidation/ITicketValidationService';
+import { TicketValidationService } from '../services/TicketValidation/TicketValidationService';
 
 interface AppServices {
   authentication: IAuthenticationService;
   itineraries: IItinerarySearchService;
   purchase: PurchaseService;
   location: ILocationService;
+  tickets: ITicketsService;
+  validation: ITicketValidationService;
   /** Grows on every login or logout so screens can reset session-bound state. */
   sessionEpoch: number;
   notifySessionChanged: () => void;
@@ -29,11 +35,13 @@ export function AppServicesProvider({ children }: { children: ReactNode }) {
   const [purchase] = useState(() => new PurchaseService(authentication));
   // The location service asks the session to send its requests: the token stays inside it.
   const [location] = useState<ILocationService>(() => new LocationService(authentication));
+  const [tickets] = useState<ITicketsService>(() => new TicketsService(authentication));
+  const [validation] = useState<ITicketValidationService>(() => new TicketValidationService(authentication));
   const [sessionEpoch, setSessionEpoch] = useState(0);
   // The in-memory session outlives tab switches and is discarded only when the app root unmounts.
   useEffect(() => () => authentication.discard(), [authentication]);
   const value: AppServices = {
-    authentication, itineraries, purchase, location, sessionEpoch,
+    authentication, itineraries, purchase, location, tickets, validation, sessionEpoch,
     notifySessionChanged: () => setSessionEpoch(epoch => epoch + 1),
   };
   return <AppServicesContext.Provider value={value}>{children}</AppServicesContext.Provider>;

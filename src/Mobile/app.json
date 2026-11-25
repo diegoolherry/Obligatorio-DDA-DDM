@@ -36,6 +36,14 @@
           "isAndroidForegroundServiceEnabled": false
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Berruti usa la cámara solo para leer el código QR de los tickets al validarlos. No se guardan fotos.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
       "expo-router"
     ]
   }

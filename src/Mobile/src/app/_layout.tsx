@@ -18,6 +18,9 @@ export default function RootLayout() {
             <Tabs tabBar={props => <TabBar {...props} />} screenOptions={{ headerShown: false, tabBarPosition: 'top' }}>
               <Tabs.Screen name="index" options={{ title: 'Buscar viaje' }} />
               <Tabs.Screen name="ingreso" options={{ title: 'Ingreso' }} />
+              <Tabs.Screen name="tickets" options={{ title: 'Tickets' }} />
+              {/* Mounted with the app so a validation in flight is not lost while the tab is hidden. */}
+              <Tabs.Screen name="validar" options={{ title: 'Validar', lazy: false }} />
               {/* Mounted with the app and never unmounted, so the collector keeps sharing from any tab (foreground only). */}
               <Tabs.Screen name="compartir" options={{ title: 'Compartir ubicación', lazy: false }} />
               <Tabs.Screen name="ubicacion" options={{ title: 'Ubicación del servicio' }} />

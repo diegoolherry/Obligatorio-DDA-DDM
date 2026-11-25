@@ -143,7 +143,7 @@
         "El primer escaneo válido marca el ticket como utilizado y un segundo escaneo del mismo ticket es rechazado.",
         "Un ticket de otro tramo no se consume."
       ],
-      "evidence": "(1) Sin PR; primer corte de mockups en la rama feature/mvp-005-01-mockups, seguimiento odd/tasks/mvp-005-qr-validacion.md. Antes de implementar, diseñar los mockups de sus pantallas (incluido el permiso de cámara denegado) en OpenPencil con el sistema de diseño de FIN-010 (design/fin-010, decisión de Diego del 2026-11-16). (2) Pendiente. (3) Revisor: Enzo, pendiente."
+      "evidence": "(1) PRs encadenados #134 (mockups), #135 (API) y #136 (Mobile), ramas feature/mvp-005-01-mockups, -02-api y -03-mobile; seguimiento odd/tasks/mvp-005-qr-validacion.md. Mockups antes de implementar (decisión de Diego del 2026-11-16). (2) TicketValidation 73/73, MySqlTicketValidation 27/27 en MySQL real, MobileTickets 13/13, MobileTicketValidation 22/22, typecheck OK; recorrido en iPhone con compra TEST y cámara OK; falta el escaneo con dos celulares. (3) Revisor: Enzo, pendiente."
     },
     {
       "id": "MVP-006",
