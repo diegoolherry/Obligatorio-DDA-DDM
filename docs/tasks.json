@@ -1143,6 +1143,32 @@
         "Una prueba automatizada cubre la validación de un ticket con pago Devuelto y la de un ticket con pago Aprobado."
       ],
       "evidence": "Planificado, no iniciado. Surge de la revisión cruzada de MVP-004 (rama mvp-004-main/09-correcciones-revision); asignación y revisión pendientes de acuerdo entre Diego y Enzo."
+    },
+    {
+      "id": "FIN-014",
+      "name": "Migrar la navegación de Mobile a Expo Router",
+      "description": "Reemplazar la navegación manual de App.tsx (estado local con pestañas) por Expo Router con rutas por archivo en src/Mobile/src/app, pestañas (Tabs) y un Context que comparte servicios y sesión, siguiendo la estructura del ejemplo de clase 10 del docente; sin cambiar el comportamiento de las pantallas.",
+      "priority": "media",
+      "area": [
+        "Mobile"
+      ],
+      "status": "in_progress",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-11-19T16:30:45-03:00",
+      "startedAt": "2026-11-19T16:30:45-03:00",
+      "completedAt": null,
+      "completedBy": null,
+      "dependencies": [
+        "MVP-001-01"
+      ],
+      "acceptanceCriteria": [
+        "La app arranca con expo-router/entry y las cuatro pantallas actuales (Buscar viaje, Ingreso, Compartir ubicación, Ubicación del servicio) son rutas de Expo Router con pestañas.",
+        "Los servicios y la sesión se comparten mediante un Context en el layout raíz; la sesión sobrevive al cambio de pestaña y solo se descarta al desmontar la raíz.",
+        "Compartir ubicación sigue activo al cambiar de pestaña; Ingreso y Ubicación del servicio se vuelven a montar al volver a su pestaña, como antes.",
+        "npm run typecheck, las pruebas de tests/Mobile* y la exportación Android pasan; el recorrido manual del camino feliz queda descrito en el PR."
+      ],
+      "evidence": "Iniciada en la rama fin-014-expo-router; decisión de Diego: Tabs, Context API y tarea nueva. Sin PR todavía."
     }
   ]
 }

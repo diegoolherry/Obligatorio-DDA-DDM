@@ -176,18 +176,35 @@ test('local arrival time is read as written and ages are readable', () => {
   assert.equal(format.formatAge(Number.NaN), 'antigüedad desconocida');
 });
 
+const mobileFile = relative => readFile(new URL(`../../src/Mobile/${relative}`, import.meta.url), 'utf8');
+
 test('session survives switching tabs: only the app root discards it on unmount (source check)', async () => {
-  const login = await readFile(new URL('../../src/Mobile/src/components/Authentication/PassengerLogin.tsx', import.meta.url), 'utf8');
-  const app = await readFile(new URL('../../src/Mobile/App.tsx', import.meta.url), 'utf8');
+  const login = await mobileFile('src/components/Authentication/PassengerLogin.tsx');
+  const services = await mobileFile('src/context/AppServicesContext.tsx');
+  const layout = await mobileFile('src/app/_layout.tsx');
   const loginCleanup = login.match(/return \(\) => \{([\s\S]*?)\};/)?.[1] ?? '';
   assert.doesNotMatch(loginCleanup, /discard\(\)/, 'leaving the Ingreso tab must not discard the session');
-  assert.match(app, /useEffect\(\(\) => \(\) => authentication\.discard\(\), \[authentication\]\)/, 'the app root discards the session when it unmounts');
+  assert.match(services, /useEffect\(\(\) => \(\) => authentication\.discard\(\), \[authentication\]\)/, 'the services provider discards the session when it unmounts');
+  assert.match(layout, /<AppServicesProvider>[\s\S]*<Tabs[\s\S]*<\/AppServicesProvider>/, 'the root layout owns the provider above every tab');
 });
 
 test('sharing keeps running across tabs and stops without a collector session (source check)', async () => {
-  const app = await readFile(new URL('../../src/Mobile/App.tsx', import.meta.url), 'utf8');
-  const sharing = await readFile(new URL('../../src/Mobile/src/components/Location/LocationSharing.tsx', import.meta.url), 'utf8');
-  assert.doesNotMatch(app, /screen === 'compartir' && <LocationSharing/, 'the sharing screen must not unmount when changing tabs');
-  assert.match(app, /<View className=\{screen === 'compartir' \? 'flex-1' : 'hidden'\}>\s*<LocationSharing/, 'the sharing screen stays mounted and is only hidden');
+  const layout = await mobileFile('src/app/_layout.tsx');
+  const route = await mobileFile('src/app/compartir.tsx');
+  const sharing = await mobileFile('src/components/Location/LocationSharing.tsx');
+  assert.match(layout, /name="compartir"[^>]*lazy: false/, 'the sharing screen mounts with the app and stays mounted');
+  assert.doesNotMatch(route, /FocusedOnly/, 'the sharing screen must not unmount when changing tabs');
   assert.match(sharing, /if \(!allowed\) setSharing\(false\);/, 'sharing stops when there is no collector session');
+});
+
+test('Ingreso and Ubicacion del servicio remount when their tab is focused again (source check)', async () => {
+  for (const name of ['ingreso', 'ubicacion']) {
+    assert.match(await mobileFile(`src/app/${name}.tsx`), /<FocusedOnly>/, `${name} renders only while focused`);
+  }
+});
+
+test('the app starts with Expo Router (source check)', async () => {
+  const manifest = JSON.parse(await mobileFile('package.json'));
+  assert.equal(manifest.main, 'expo-router/entry');
+  await assert.rejects(mobileFile('App.tsx'), { code: 'ENOENT' }, 'manual navigation in App.tsx is gone');
 });

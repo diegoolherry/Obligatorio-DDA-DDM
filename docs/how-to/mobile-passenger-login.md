@@ -8,7 +8,7 @@ Sesión → cerrar sesión → ocupado → anónimo tras la salida confirmada (`
 
 ## Configuración y límites
 
-`App.tsx` consume `process.env.EXPO_PUBLIC_API_URL` y la pasa al servicio por instancia. Es una URL pública HTTPS de la raíz de API, no un secreto; no incluir usuario/contraseña, query ni fragmento. Configuración ausente o inválida muestra un error local accionable sin enviar solicitudes. No se escriben `.env`, configuración Expo ni almacenamiento persistente. No se normalizan credenciales ni se inventa política de contraseña.
+`src/context/AppServicesContext.tsx` consume `process.env.EXPO_PUBLIC_API_URL` y la pasa al servicio por instancia; el layout raíz de Expo Router (`src/app/_layout.tsx`) comparte esos servicios con todas las pestañas. Es una URL pública HTTPS de la raíz de API, no un secreto; no incluir usuario/contraseña, query ni fragmento. Configuración ausente o inválida muestra un error local accionable sin enviar solicitudes. No se escriben `.env`, configuración Expo ni almacenamiento persistente. No se normalizan credenciales ni se inventa política de contraseña.
 
 En iPhone, `localhost` es el teléfono, no la computadora. La futura comprobación requiere una dirección HTTPS alcanzable y confianza válida configuradas por el usuario; el túnel Metro no publica la API. No hay bypass TLS ni cambios de certificados, firewall o LAN en este corte.
 
