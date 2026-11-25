@@ -1,23 +1,40 @@
+import { useEffect } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import type { BottomTabBarProps } from 'expo-router/tabs';
-import { LogIn, MapPin, Navigation, Search, type LucideIcon } from 'lucide-react-native';
+import { LogIn, MapPin, Navigation, ScanLine, Search, Ticket, type LucideIcon } from 'lucide-react-native';
+import { useAppServices } from '../../context/AppServicesContext';
+import { visibleTabs, type TabRoute } from '../../navigation/visibleTabs';
 
-/** Icon per route file name in src/app; a route without an entry shows only its label. */
-const TAB_ICONS: Record<string, LucideIcon> = {
+const TAB_ICONS: Record<TabRoute, LucideIcon> = {
   index: Search,
   ingreso: LogIn,
+  tickets: Ticket,
+  validar: ScanLine,
   compartir: Navigation,
   ubicacion: MapPin,
 };
 
-/** Pill tab bar drawn below the screens: an icon above each label, the same look as the former manual tabs. */
+/**
+ * Pill tab bar drawn below the screens: an icon above each label. Shows only the tabs of the session roles;
+ * it re-renders on every login or logout because the services context changes with the session.
+ */
 export function TabBar({ state, descriptors, navigateToTab }: BottomTabBarProps) {
+  const { authentication } = useAppServices();
+  const visible: readonly string[] = visibleTabs(authentication.getRoles());
+  const focused = state.routes[state.index];
+  const ingreso = state.routes.find(route => route.name === 'ingreso');
+
+  // A tab the session can no longer see (for example after a logout) gives way to Ingreso, which every session sees.
+  useEffect(() => {
+    if (focused && ingreso && !visible.includes(focused.name)) navigateToTab(ingreso.key);
+  }, [focused, ingreso, visible, navigateToTab]);
+
   return (
     <View className="flex-row border-t border-border-200 bg-surface-0 p-1" accessibilityRole="tablist">
-      {state.routes.map((route, index) => {
+      {state.routes.filter(route => visible.includes(route.name)).map(route => {
         const label = descriptors[route.key]?.options.title ?? route.name;
-        const selected = state.index === index;
-        const Icon = TAB_ICONS[route.name];
+        const selected = focused?.key === route.key;
+        const Icon: LucideIcon | undefined = TAB_ICONS[route.name as TabRoute];
         return (
           <Pressable
             key={route.key}
