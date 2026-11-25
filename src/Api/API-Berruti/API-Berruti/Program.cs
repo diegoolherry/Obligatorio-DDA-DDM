@@ -41,6 +41,8 @@ builder.Services.AddScoped<IConfirmacionesCompraRepository, ConfirmacionesCompra
 builder.Services.AddScoped<IConciliacionesPagoService, ConciliacionesPagoService>();
 builder.Services.AddScoped<IIntentosPendientesRepository, IntentosPendientesRepository>();
 builder.Services.AddScoped<IIntentosPendientesService, IntentosPendientesService>();
+builder.Services.AddScoped<ITicketsRepository, TicketsRepository>();
+builder.Services.AddScoped<ITicketsService, TicketsService>();
 builder.Services.AddSingleton(ParametrosCompra.Desde(builder.Configuration));
 builder.Services.AddSingleton<ParametrosMercadoPago>(servicios =>
     ParametrosMercadoPago.Desde(servicios.GetRequiredService<IConfiguration>()));
