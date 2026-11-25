@@ -13,9 +13,9 @@ export default function RootLayout() {
       <AppServicesProvider>
         <View className="flex-1 bg-surface-50">
           <AppHeader />
-          {/* style, not className: NativeWind did not apply className to this third-party SafeAreaView on device (empty tabs). */}
+          {/* style, not className: NativeWind did not apply className to this third-party SafeAreaView on device (empty tabs). The bottom edge keeps the tab bar above the device's bottom inset. */}
           <SafeAreaView style={{ flex: 1 }} edges={['left', 'right', 'bottom']}>
-            <Tabs tabBar={props => <TabBar {...props} />} screenOptions={{ headerShown: false, tabBarPosition: 'top' }}>
+            <Tabs tabBar={props => <TabBar {...props} />} screenOptions={{ headerShown: false, tabBarPosition: 'bottom' }}>
               <Tabs.Screen name="index" options={{ title: 'Buscar viaje' }} />
               <Tabs.Screen name="ingreso" options={{ title: 'Ingreso' }} />
               <Tabs.Screen name="tickets" options={{ title: 'Tickets' }} />

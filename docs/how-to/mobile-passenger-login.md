@@ -36,6 +36,18 @@ Ampliación cobrador: `17/17` PASS (exit 0), incluidos los 15 casos previos, una
 
 Las pruebas usan el servicio real y transporte falso con datos ficticios; no prueban TLS, MySQL, API pública ni dispositivo. Pendientes: revisión visual/táctil/accesibilidad con teclado, flujo vivo de ingreso/permiso/salida, iPhone y comportamiento nativo iOS de TLS, redirects y cookies. La API autoriza roles; la visibilidad local no autoriza operaciones.
 
+## Pestañas por rol
+
+La barra de pestañas está abajo y muestra solo las pestañas del rol de la sesión ([visibleTabs.ts](../../src/Mobile/src/navigation/visibleTabs.ts), FIN-015):
+
+| Sesión | Pestañas |
+|---|---|
+| Sin sesión o administrador | Buscar viaje, Ingreso |
+| Pasajero | Buscar viaje, Ingreso, Tickets, Ubicación del servicio |
+| Cobrador | Ingreso, Validar, Compartir ubicación |
+
+Con varios roles se muestra la unión. Si la pestaña abierta deja de corresponder (por ejemplo, al cerrar la sesión), la app vuelve a Ingreso. Ocultar una pestaña no es un control de acceso: la API sigue autorizando cada solicitud y cada pantalla avisa si el rol no corresponde.
+
 ## Ubicación de demostración (MVP-009)
 
 Dos pestañas nuevas usan la sesión del ingreso: **Compartir ubicación** (rol cobrador) y **Ubicación del servicio** (rol pasajero). Consumen las rutas de [Ubicación de demostración](../reference/api.md#ubicación-de-demostración-mvp-009) con el Bearer que añade la sesión por solicitud (`authorizedRequest`); las pantallas nunca ven el token. La API sigue decidiendo los permisos: `403` si la cuenta no tiene el rol o el servicio no está asignado, `401` descarta la sesión local. Los datos son ficticios.
