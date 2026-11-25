@@ -1178,20 +1178,21 @@
       "area": [
         "Mobile"
       ],
-      "status": "in_progress",
+      "status": "blocked",
       "assignee": "Diego",
       "reviewer": "Enzo",
       "createdAt": "2026-11-23T16:52:48-03:00",
       "startedAt": "2026-11-24T14:39:57-03:00",
       "completedAt": null,
       "completedBy": null,
-      "evidence": "Iniciada en la rama feature/fin-015-tabs-abajo, apilada sobre fin-014-expo-router (PR #133 de FIN-014 abierto). Íconos con lucide-react-native por decisión de Diego (L11 de odd/tasks/mvp-005-qr-validacion.md). Sin PR todavía.",
+      "evidence": "Iniciada en la rama feature/fin-015-tabs-abajo, apilada sobre fin-014-expo-router (PR #133 de FIN-014 abierto). Íconos con lucide-react-native por decisión de Diego (L11 de odd/tasks/mvp-005-qr-validacion.md). Bloqueada: las pestañas por rol esperan los PRs encadenados de MVP-005 (Tickets y Validar); se desbloquea cuando estén integrables sobre Expo Router. Sin PR todavía.",
       "dependencies": [
         "FIN-014"
       ],
       "acceptanceCriteria": [
         "La barra de pestañas (Buscar viaje, Ingreso, Compartir ubicación, Ubicación del servicio) se muestra en la parte inferior y respeta el área segura del dispositivo.",
         "Cada pestaña muestra un ícono de lucide-react-native sobre su texto (decisión de Diego, 2026-11-24, registrada en odd/tasks/mvp-005-qr-validacion.md, L11, rama feature/mvp-005-qr-validacion).",
+        "Las pestañas dependen del rol de la sesión: sin sesión, Buscar viaje e Ingreso; pasajero, Buscar viaje, Ingreso, Tickets y Ubicación del servicio (sin Validar ni Compartir ubicación); cobrador, Validar, Compartir ubicación, Ubicación del servicio e Ingreso (decisión de Diego, 2026-11-25).",
         "Se conserva el comportamiento de FIN-014: la sesión sobrevive al cambio de pestaña, Compartir ubicación sigue activo y Ingreso y Ubicación del servicio se vuelven a montar.",
         "npm run typecheck y las pruebas de tests/Mobile* pasan; el recorrido manual del camino feliz queda descrito en el PR."
       ]
