@@ -10,7 +10,8 @@ const PUBLIC_TABS: readonly TabRoute[] = ['index', 'ingreso'];
 
 const TABS_BY_ROLE: Record<RolIngreso, readonly TabRoute[]> = {
   pasajero: ['index', 'ingreso', 'tickets', 'ubicacion'],
-  cobrador: ['ingreso', 'validar', 'compartir', 'ubicacion'],
+  // Ubicación del servicio is passenger only in the API (GET /api/ubicacion/servicios), so the collector does not get it.
+  cobrador: ['ingreso', 'validar', 'compartir'],
   administrador: PUBLIC_TABS,
 };
 

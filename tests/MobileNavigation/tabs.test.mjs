@@ -15,8 +15,8 @@ test('a passenger sees Buscar viaje, Ingreso, Tickets and Ubicacion del servicio
   assert.deepEqual(visibleTabs(['pasajero']), ['index', 'ingreso', 'tickets', 'ubicacion']);
 });
 
-test('a collector sees Ingreso, Validar, Compartir and Ubicacion del servicio, never Buscar viaje or Tickets', () => {
-  assert.deepEqual(visibleTabs(['cobrador']), ['ingreso', 'validar', 'compartir', 'ubicacion']);
+test('a collector sees Ingreso, Validar and Compartir, never Buscar viaje, Tickets or Ubicacion del servicio (passenger only in the API)', () => {
+  assert.deepEqual(visibleTabs(['cobrador']), ['ingreso', 'validar', 'compartir']);
 });
 
 test('an administrator sees the same tabs as without a session', () => {
@@ -25,7 +25,7 @@ test('an administrator sees the same tabs as without a session', () => {
 
 test('several roles show the union of their tabs in the tab bar order', () => {
   assert.deepEqual(visibleTabs(['cobrador', 'pasajero']), ['index', 'ingreso', 'tickets', 'validar', 'compartir', 'ubicacion']);
-  assert.deepEqual(visibleTabs(['administrador', 'cobrador']), ['index', 'ingreso', 'validar', 'compartir', 'ubicacion']);
+  assert.deepEqual(visibleTabs(['administrador', 'cobrador']), ['index', 'ingreso', 'validar', 'compartir']);
 });
 
 test('the layout declares the six routes in tab bar order; Validar and Compartir stay mounted (source check)', async () => {

@@ -44,7 +44,7 @@ La barra de pestañas está abajo y muestra solo las pestañas del rol de la ses
 |---|---|
 | Sin sesión o administrador | Buscar viaje, Ingreso |
 | Pasajero | Buscar viaje, Ingreso, Tickets, Ubicación del servicio |
-| Cobrador | Ingreso, Validar, Compartir ubicación, Ubicación del servicio |
+| Cobrador | Ingreso, Validar, Compartir ubicación |
 
 Con varios roles se muestra la unión. Si la pestaña abierta deja de corresponder (por ejemplo, al cerrar la sesión), la app vuelve a Ingreso. Ocultar una pestaña no es un control de acceso: la API sigue autorizando cada solicitud y cada pantalla avisa si el rol no corresponde.
 

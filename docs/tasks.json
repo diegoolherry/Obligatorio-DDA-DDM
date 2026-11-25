@@ -1193,7 +1193,7 @@
       "acceptanceCriteria": [
         "La barra de pestañas (Buscar viaje, Ingreso, Compartir ubicación, Ubicación del servicio) se muestra en la parte inferior y respeta el área segura del dispositivo.",
         "Cada pestaña muestra un ícono de lucide-react-native sobre su texto (decisión de Diego, 2026-11-24, registrada en odd/tasks/mvp-005-qr-validacion.md, L11, rama feature/mvp-005-qr-validacion).",
-        "Las pestañas dependen del rol de la sesión: sin sesión, Buscar viaje e Ingreso; pasajero, Buscar viaje, Ingreso, Tickets y Ubicación del servicio (sin Validar ni Compartir ubicación); cobrador, Validar, Compartir ubicación, Ubicación del servicio e Ingreso; administrador, lo mismo que sin sesión; con varios roles, la unión de sus pestañas (decisión de Diego, 2026-11-25).",
+        "Las pestañas dependen del rol de la sesión: sin sesión, Buscar viaje e Ingreso; pasajero, Buscar viaje, Ingreso, Tickets y Ubicación del servicio (sin Validar ni Compartir ubicación); cobrador, Validar, Compartir ubicación e Ingreso (sin Ubicación del servicio, que la API reserva al pasajero; decisión de Diego, 2026-11-25); administrador, lo mismo que sin sesión; con varios roles, la unión de sus pestañas (decisión de Diego, 2026-11-25).",
         "Se conserva el comportamiento de FIN-014: la sesión sobrevive al cambio de pestaña, Compartir ubicación sigue activo y Ingreso y Ubicación del servicio se vuelven a montar.",
         "npm run typecheck y las pruebas de tests/Mobile* pasan; el recorrido manual del camino feliz queda descrito en el PR."
       ]
