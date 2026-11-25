@@ -1178,21 +1178,22 @@
       "area": [
         "Mobile"
       ],
-      "status": "blocked",
+      "status": "in_progress",
       "assignee": "Diego",
       "reviewer": "Enzo",
       "createdAt": "2026-11-23T16:52:48-03:00",
       "startedAt": "2026-11-24T14:39:57-03:00",
       "completedAt": null,
       "completedBy": null,
-      "evidence": "Iniciada en la rama feature/fin-015-tabs-abajo, apilada sobre fin-014-expo-router (PR #133 de FIN-014 abierto). Íconos con lucide-react-native por decisión de Diego (L11 de odd/tasks/mvp-005-qr-validacion.md). Bloqueada: las pestañas por rol esperan los PRs encadenados de MVP-005 (Tickets y Validar); se desbloquea cuando estén integrables sobre Expo Router. Sin PR todavía.",
+      "evidence": "Rama feature/fin-015-tabs-abajo, apilada sobre fin-014-expo-router (PR #133) con feature/mvp-005-03-mobile (PR #136) mergeada; no pasa a done hasta que FIN-014 y MVP-005 estén en done. Íconos con lucide-react-native por decisión de Diego (L11 de odd/tasks/mvp-005-qr-validacion.md); pestañas por rol decididas por Diego el 2026-11-25. Sin PR todavía.",
       "dependencies": [
-        "FIN-014"
+        "FIN-014",
+        "MVP-005"
       ],
       "acceptanceCriteria": [
         "La barra de pestañas (Buscar viaje, Ingreso, Compartir ubicación, Ubicación del servicio) se muestra en la parte inferior y respeta el área segura del dispositivo.",
         "Cada pestaña muestra un ícono de lucide-react-native sobre su texto (decisión de Diego, 2026-11-24, registrada en odd/tasks/mvp-005-qr-validacion.md, L11, rama feature/mvp-005-qr-validacion).",
-        "Las pestañas dependen del rol de la sesión: sin sesión, Buscar viaje e Ingreso; pasajero, Buscar viaje, Ingreso, Tickets y Ubicación del servicio (sin Validar ni Compartir ubicación); cobrador, Validar, Compartir ubicación, Ubicación del servicio e Ingreso (decisión de Diego, 2026-11-25).",
+        "Las pestañas dependen del rol de la sesión: sin sesión, Buscar viaje e Ingreso; pasajero, Buscar viaje, Ingreso, Tickets y Ubicación del servicio (sin Validar ni Compartir ubicación); cobrador, Validar, Compartir ubicación, Ubicación del servicio e Ingreso; administrador, lo mismo que sin sesión; con varios roles, la unión de sus pestañas (decisión de Diego, 2026-11-25).",
         "Se conserva el comportamiento de FIN-014: la sesión sobrevive al cambio de pestaña, Compartir ubicación sigue activo y Ingreso y Ubicación del servicio se vuelven a montar.",
         "npm run typecheck y las pruebas de tests/Mobile* pasan; el recorrido manual del camino feliz queda descrito en el PR."
       ]
@@ -1257,6 +1258,30 @@
         "Las pruebas de RouteCatalog, generación, compra por intervalo y las de tests/Mobile* pasan; el recorrido manual del camino feliz queda descrito en el PR."
       ],
       "evidence": ""
+    },
+    {
+      "id": "FIN-018",
+      "name": "Restringir cada usuario a un único rol",
+      "description": "Pregunta de Diego (2026-11-25) al definir las pestañas por rol de FIN-015: «pero porque un usuario podria tener mas de un rol? eso no deberia de pasar». Hoy usuario_rol es una tabla puente y la sesión devuelve una lista de roles, así que el modelo permite varios. Exigir un único rol por usuario en la API y la base, y ajustar el contrato de sesión y su documentación. Mobile ya muestra la unión de pestañas si llegan varios roles (FIN-015), por lo que esta regla no la bloquea.",
+      "priority": "baja",
+      "area": [
+        "API",
+        "Docs"
+      ],
+      "status": "pending",
+      "assignee": "Diego",
+      "reviewer": "Enzo",
+      "createdAt": "2026-11-25T01:33:00-03:00",
+      "startedAt": null,
+      "completedAt": null,
+      "completedBy": null,
+      "evidence": "",
+      "dependencies": [],
+      "acceptanceCriteria": [
+        "La base y la API rechazan asignar un segundo rol a un usuario y el reinicio local siembra un único rol por cuenta.",
+        "El contrato de sesión, docs/reference/api.md y docs/explanation/data-model.md reflejan la regla de rol único.",
+        "Pruebas automatizadas cubren el rechazo del segundo rol, por tratarse de un invariante de autorización."
+      ]
     }
   ]
 }
