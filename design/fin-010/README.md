@@ -1,6 +1,6 @@
 # FIN-010-01 · Sistema de diseño y mockups Mobile de Berrutti
 
-Archivo OpenPencil con tokens, componentes base y 13 pantallas Mobile (375 × 812). Es una propuesta de diseño: no implica código implementado. La identidad usa el nombre **Berrutti** como wordmark de texto; no usa logo ni fotografías de la empresa. Cuentas, precios, horarios y posiciones de las pantallas son datos de ejemplo; el texto visible para la persona usuaria no menciona «demo» ni «ficticio».
+Archivo OpenPencil con tokens, componentes base y 27 pantallas Mobile (375 × 812): M01–M13 de FIN-010-01 y M14–M27 de MVP-005. Es una propuesta de diseño: no implica código implementado. La identidad usa el nombre **Berrutti** como wordmark de texto; no usa logo ni fotografías de la empresa. Cuentas, precios, horarios y posiciones de las pantallas son datos de ejemplo; el texto visible para la persona usuaria no menciona «demo» ni «ficticio».
 
 ## Cómo abrirlo
 
@@ -123,6 +123,29 @@ Todas están en `exports/` (PNG a escala 2: pantallas de 750 × 1624; tableros d
 | `M12-servicio.png` | M12 | Estado del servicio: última posición, hora de actualización, llegada aproximada |
 | `M13-servicio-desactualizado.png` | M13 | «Información desactualizada», sin estimación |
 
+### MVP-005 · QR y validación de ticket (`scripts/m3.js`)
+
+Completan los estados que M05–M11 no cubrían. Los textos de resultado son una propuesta: ningún documento fija la redacción exacta (`docs/explanation/ux-design.md` solo nombra las categorías).
+
+| Archivo | Marco | Contenido |
+|---|---|---|
+| `M14-mis-tickets-vigentes.png` | M14 | Filtro «Vigentes · Anteriores» con los tickets sin usar |
+| `M15-mis-tickets-anteriores.png` | M15 | Anteriores: Utilizado y Vencido, con «Ver detalle» |
+| `M16-mis-tickets-cargando.png` | M16 | Carga con tarjetas esqueleto, sin contadores |
+| `M17-mis-tickets-vacio.png` | M17 | Sin tickets vigentes, con «Buscar viaje» |
+| `M18-mis-tickets-error.png` | M18 | Error de carga con Reintentar |
+| `M19-ticket-utilizado.png` | M19 | Detalle de ticket utilizado: QR atenuado y fecha de validación |
+| `M20-cobrador-elegir-tramo.png` | M20 | Selector de tramo abierto, con el horario de cada tramo |
+| `M21-cobrador-permiso-de-camara.png` | M21 | Explicación previa al permiso de cámara |
+| `M22-cobrador-camara-denegada.png` | M22 | Permiso denegado: Abrir Ajustes o Volver a intentar, sin validación manual |
+| `M23-cobrador-escaneando.png` | M23 | Visor activo con el tramo elegido y Cancelar |
+| `M24-cobrador-validando.png` | M24 | «Validando…» hasta la respuesta del servidor |
+| `M25-cobrador-vencido.png` | M25 | Rechazo «Vencido» con el servicio del ticket |
+| `M26-cobrador-tramo-incorrecto.png` | M26 | Rechazo «Tramo incorrecto»: tramo del ticket y «No se consumió · sigue vigente» |
+| `M27-cobrador-codigo-inexistente.png` | M27 | Rechazo «Código inexistente» con qué hacer |
+
+Para agregar estas pantallas sin reconstruir el archivo: `scripts/run.sh n2 m3.js` con el servidor iniciado y `op design:refine --root-id <id> --page n2` por cada raíz nueva. `scripts/build.sh` ya incluye `m3`.
+
 **Convenciones:** áreas seguras de 44 px (superior) y 34 px (inferior); objetivos táctiles ≥48 px (botones 52–64, campos 52, pestañas ≥75 × 56, reintentar 48); sin emoji, logo ni fotos.
 
 ## Verificaciones
@@ -130,11 +153,13 @@ Todas están en `exports/` (PNG a escala 2: pantallas de 750 × 1624; tableros d
 - `op design:refine --root-id <id>` en las 18 raíces (5 tableros, 13 pantallas): sin cambios en las pantallas. En los tableros reemplazó la altura `fit_content` por 4 px; se restableció `fit_content` después de refinar (`scripts/build.sh`).
 - `op design:lint`: 55 advertencias de estilo, ninguna de contraste: 31 `sibling-inconsistency` (alturas fijas de botones y campos frente a `fit_content`, intencionales), 19 `invisible-container` (barras de pestañas y zona segura del tablero S5 sobre fondo blanco, sin borde a propósito) y 5 `mixed-sibling-corner-radius` (caja de transbordo de 8 px dentro de una tarjeta). Se aceptan.
 - La revisión visual se hizo sobre los PNG exportados. No se probó en un dispositivo ni con lector de pantalla.
+- MVP-005 (M14–M27): `op design:refine` en las 14 raíces nuevas, sin correcciones. Las raíces M01–M13 y los tableros no cambiaron (comparación JSON contra la versión anterior). No se corrió `op design:lint` sobre las pantallas nuevas.
 
 ## Preguntas abiertas
 
 1. **Datos de demostración.** Horarios, precios y el itinerario directo Ombúes de Lavalle → Colonia son ilustrativos. ¿Deben coincidir con el seed (FIN-001) y con la ruta Ombúes–Radial–Colonia del MVP?
 2. **Fuente.** Inter es la fuente de diseño y el render de OpenPencil puede sustituirla. ¿Se empaqueta Inter en Expo o se usa la fuente del sistema?
-3. **Pantallas fuera de este corte.** Faltan Mis abonos, Cuenta, confirmación de pago simulado, permiso de cámara denegado, estados de carga y vacío de cada lista y el portal Blazor (FIN-010-02/03).
+3. **Pantallas fuera de este corte.** Faltan Mis abonos, Cuenta, confirmación de pago simulado, estados de carga y vacío de las demás listas y el portal Blazor (FIN-010-02/03). MVP-005 agregó el permiso de cámara y los estados de Mis tickets.
 4. **Identidad.** Los tonos aproximan el rojo, naranja y negro de Berrutti sin muestrear su marca. Pendiente la confirmación de Enzo (`docs/explanation/ux-design.md` §2).
 5. **NativeWind.** Los nombres siguen Tailwind, pero el mapeo a `tailwind.config` y la compatibilidad con Expo 58 no se verificaron.
+6. **MVP-005 (resuelta por Diego, 2026-11-24).** El filtro se llama «Anteriores» e incluye utilizados y vencidos; el cobrador elige entre los tramos de transbordo del servicio (M20).
