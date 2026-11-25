@@ -1185,7 +1185,7 @@
       "startedAt": "2026-11-24T14:39:57-03:00",
       "completedAt": null,
       "completedBy": null,
-      "evidence": "Rama feature/fin-015-tabs-por-rol, basada en main (FIN-014 #133 y MVP-005 #136 ya mergeados). Íconos con lucide-react-native por decisión de Diego (L11 de odd/tasks/mvp-005-qr-validacion.md); pestañas por rol decididas por Diego el 2026-11-25. Sin PR todavía.",
+      "evidence": "(1) PR #137 desde feature/fin-015-tabs-por-rol (base main), commits 493b0ed..9e1d737; decisiones de Diego: íconos lucide-react-native (L11 de odd/tasks/mvp-005-qr-validacion.md) y pestañas por rol (2026-11-25). (2) tests/Mobile* 108/108, typecheck OK, export Android OK; recorrido manual de Diego en celular (2026-11-25): sin sesión, pasajero, cobrador y cierre de sesión OK. (3) Revisor: Enzo, pendiente.",
       "dependencies": [
         "FIN-014",
         "MVP-005"
