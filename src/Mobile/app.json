@@ -2,6 +2,7 @@
   "expo": {
     "name": "Mobile",
     "slug": "Mobile",
+    "scheme": "berruti",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -34,7 +35,8 @@
           "isAndroidBackgroundLocationEnabled": false,
           "isAndroidForegroundServiceEnabled": false
         }
-      ]
+      ],
+      "expo-router"
     ]
   }
 }

@@ -46,7 +46,7 @@ npx expo start --tunnel -c
 | Consumidor | Opción pública | Valor esperado |
 | --- | --- | --- |
 | Servicio Web | `Api:BaseUrl` (entorno `Api__BaseUrl`) | Raíz HTTPS de API; en la misma computadora, el perfil existente declara `https://localhost:7053/`. |
-| `App.tsx` de Mobile | `EXPO_PUBLIC_API_URL` | Raíz/origen HTTPS alcanzable desde el iPhone, sin credenciales, ruta, query ni fragmento. No usar localhost del host ni el túnel Metro como sustituto automático. |
+| `src/context/AppServicesContext.tsx` de Mobile | `EXPO_PUBLIC_API_URL` | Raíz/origen HTTPS alcanzable desde el iPhone, sin credenciales, ruta, query ni fragmento. No usar localhost del host ni el túnel Metro como sustituto automático. |
 
 Ambas opciones son URLs públicas, no secretos ni tokens. Los servicios las validan antes de enviar credenciales. Para alcance/custodia y errores consultá las guías [Web](web-passenger-login.md) y [Mobile](mobile-passenger-login.md).
 
